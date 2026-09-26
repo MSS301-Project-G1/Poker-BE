@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: identity-service
+              uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/identity/**
+              filters:
+                - StripPrefix=2
+            - id: game-service
+              uri: ${GAME_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/game/**
+              filters:
+                - StripPrefix=2
+            - id: matchmaking-service
+              uri: ${MATCHMAKING_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/matchmaking/**
+              filters:
+                - StripPrefix=2
+            - id: social-service
+              uri: ${SOCIAL_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/social/**
+              filters:
+                - StripPrefix=2
+            - id: chat-service
+              uri: ${CHAT_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/chat/**
+              filters:
+                - StripPrefix=2
+            - id: ranking-service
+              uri: ${RANKING_SERVICE_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/ranking/**
+              filters:
+                - StripPrefix=2
+            - id: competition-service
+              uri: ${COMPETITION_SERVICE_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/competition/**
+              filters:
+                - StripPrefix=2
+            - id: shop-service
+              uri: ${SHOP_SERVICE_URL:http://localhost:8088}
+              predicates:
+                - Path=/api/shop/**
+              filters:
+                - StripPrefix=2
+            - id: wallet-service
+              uri: ${WALLET_SERVICE_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/wallet/**
+              filters:
+                - StripPrefix=2
+server:
+  port: ${SERVER_PORT:8080}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
