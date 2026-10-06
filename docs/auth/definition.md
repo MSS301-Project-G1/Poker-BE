@@ -1,6 +1,6 @@
 # Định nghĩa phạm vi auth-service và api-gateway
 
-> Cập nhật: 2026-10-06. Chủ sở hữu: Khanh.
+> Cập nhật: 2026-10-07. Chủ sở hữu: Khanh.
 >
 > Tài liệu này ghi phạm vi đã thống nhất với Khanh và các vấn đề cần debate trước khi triển khai. Không phải tài liệu API đã chạy. Endpoint chi tiết, DTO, status code và lỗi sẽ được bổ sung theo implementation; hợp đồng giữa service phải đồng bộ với [SPEC](../SPEC.md).
 
@@ -13,6 +13,12 @@
 - Phần phức tạp không phục vụ luồng đầu tiên được làm ở phase sau; vẫn thuộc phạm vi tổng thể của Khanh.
 - Chỉ xử lý nghiệp vụ của Khanh. Phần ví, ghép trận, engine, Elo, chat và shop do chủ module quyết định/triển khai; cần gì thì dùng API/event đã thống nhất.
 - Đang đầu tuần học 5, deadline tuần học 10. Lịch tích hợp chung còn cần nhóm xác nhận.
+- Phiên đăng nhập phase đầu: cho phép nhiều thiết bị cùng lúc; đăng nhập thiết bị mới không đá phiên khác. Chỉ làm login/logout đơn giản; logout all và quản lý thiết bị để phase sau.
+- Logout xóa cả access token và refresh token phía trình duyệt, đồng thời **thu hồi refresh token tương ứng tại backend**, không thu hồi các refresh token của thiết bị khác. Refresh token đã thu hồi không được cấp token mới. Phase này không thêm cơ chế chặn access token trước khi hết hạn; bản sao access token đã cấp vẫn có thể hợp lệ đến hạn.
+- Thời hạn ban đầu: access token 15 phút, refresh token 7 ngày; cấu hình qua biến môi trường trong `.env`. Dùng cookie và giữ đăng nhập khi F5/đóng mở trình duyệt nếu thông tin xác thực còn hợp lệ. Chi tiết refresh/cookie/CORS sẽ debate khi làm tới.
+- Đăng ký phải hoàn tất xác thực email bằng OTP trước khi được login. Sau đó login bằng email + mật khẩu; **không yêu cầu OTP ở mỗi lần đăng nhập**. Tự đăng nhập hay chuyển về màn login sau xác thực chưa được chốt.
+
+Câu hỏi và chỗ trả lời trực tiếp: [debate/debate.md](debate/debate.md). Các đề xuất chưa được trả lời trong file đó không phải quyết định đã chốt.
 
 ## 2. Thứ tự thực hiện
 
@@ -65,23 +71,23 @@ Refresh và logout là một phần của quản lý phiên ở ưu tiên 1. Goo
 
 | Chủ đề | Nội dung cần chốt |
 |---|---|
-| Hợp đồng JWT | Thuật toán, issuer, audience, `sub` là accountId, claim vai trò, thời hạn và sai lệch đồng hồ cho phép |
+| Hợp đồng JWT | Thuật toán, issuer, audience, `sub` là accountId, claim vai trò và sai lệch đồng hồ cho phép; thời hạn ban đầu đã chốt ở mục 1 |
 | Khóa xác minh | Cách gateway và các service WebSocket lấy khóa xác minh; lưu cấu hình/secret ở đâu |
-| Refresh token | Cookie hay body; thời hạn, rotation, xử lý dùng lại token cũ và nhiều request refresh đồng thời |
-| Phiên đăng nhập | Đa thiết bị hay một phiên; logout một phiên hay tất cả; tác động của đổi/reset mật khẩu |
-| Trạng thái tài khoản | Những trạng thái nào được đăng nhập/refresh; xử lý tài khoản chưa xác thực và bị ban |
-| Hết hạn/thu hồi | Access token cũ còn hiệu lực đến khi nào sau logout/reset/ban; WebSocket xử lý token hết hạn thế nào |
+| Refresh token | Đã chọn cookie và thời hạn ban đầu ở mục 1; chi tiết rotation, xử lý token cũ và refresh đồng thời debate khi làm tới |
+| Phiên đăng nhập | Đã chốt nhiều thiết bị, logout phiên hiện tại và thu hồi refresh token tương ứng ở BE; tác động của đổi/reset mật khẩu bàn khi làm chức năng đó. Logout all/quản lý thiết bị để phase sau |
+| Trạng thái tài khoản | Chưa hoàn tất OTP đăng ký thì chưa được login; các trạng thái khác và xử lý ban bàn khi làm tới |
+| Hết hạn/thu hồi | Logout phase này không chặn access token trước hạn; tác động của reset/ban và WebSocket hết hạn bàn khi làm tới |
 | Route và allowlist | Method + path cụ thể được public; không mở public toàn bộ `/api/auth/**` theo prefix |
 | CORS và cookie | Origin FE local/deploy, credentials; nếu dùng cookie phải chốt cả chính sách CSRF |
 | Lỗi | Phân biệt thiếu/sai token, thiếu quyền và service đích không sẵn sàng; format lỗi theo SPEC |
 
-Không có thuật toán, thời hạn hoặc chính sách lưu token nào trong bảng này được coi là đã chốt.
+Các lựa chọn được ghi “đã chốt” ở mục 1 là quyết định hiện tại; các chi tiết kỹ thuật còn lại trong bảng này chưa được chốt hoặc triển khai.
 
 ## 5. Nghiệp vụ tài khoản cần debate
 
 ### 5.1. Đăng ký và OTP
 
-Theo luồng SPEC, người chơi đăng ký và xác thực email trước khi đăng nhập. Cần chốt:
+Đã xác nhận ngày 2026-10-07: người chơi phải hoàn tất OTP email khi đăng ký trước khi được login. Login về sau chỉ cần email + mật khẩu, không gửi/yêu cầu OTP đăng nhập. Chi tiết các bước đăng ký sẽ bàn khi làm tới:
 
 - Chuẩn hóa email và xử lý đăng ký lại email đang chờ xác thực.
 - Quy tắc mật khẩu, tên hiển thị mặc định và lúc tạo profile.

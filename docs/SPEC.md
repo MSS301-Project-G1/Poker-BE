@@ -218,6 +218,8 @@ Package gốc hiện có: `com.msspoker.<tên-service-bỏ-dấu-gạch>` (vd `c
 ### 5.1. Xác thực
 
 - `auth-service` phát hành token; gateway xác thực HTTP và các service sở hữu WebSocket xác thực STOMP `CONNECT`. JWT claim, thuật toán, cách phân phối khóa, thời hạn và chính sách phiên cần chốt trong [định nghĩa auth](auth/definition.md#4-gateway-và-xác-thực); hiện chưa triển khai.
+- **Phiên đăng nhập đã chốt cho phase đầu:** cho phép nhiều thiết bị cùng lúc; đăng nhập mới không đá phiên khác; logout xóa cả hai token phía trình duyệt và thu hồi refresh token tương ứng tại BE, không ảnh hưởng refresh token của thiết bị khác. Chưa làm cơ chế chặn access token trước khi hết hạn; logout all và quản lý thiết bị để phase sau. Thời hạn ban đầu: access token 15 phút, refresh token 7 ngày, cấu hình qua `.env`; dùng cookie. Chi tiết refresh/cookie/CORS debate khi làm tới tại [docs/auth/debate/debate.md](auth/debate/debate.md).
+- **OTP đăng ký:** phải hoàn tất xác thực email khi đăng ký trước khi được login; sau đó login chỉ bằng email + mật khẩu, không yêu cầu OTP mỗi lần đăng nhập. Cách chuyển màn sau xác thực còn cần chốt.
 - FE gửi `Authorization: Bearer <accessToken>` lên gateway đối với endpoint cần đăng nhập. Đăng ký, xác thực email, đăng nhập, refresh, quên/đặt lại mật khẩu trong `/api/auth/**` và webhook PayOS không yêu cầu access token; Khanh phải chốt allowlist endpoint cụ thể trước khi bật xác thực.
 - Gateway loại bỏ mọi header `X-User-Id`, `X-User-Role` do client tự gửi, kiểm tra JWT rồi gắn header tin cậy xuống service:
   - `X-User-Id` — UUID tài khoản
