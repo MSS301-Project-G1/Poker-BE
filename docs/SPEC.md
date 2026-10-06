@@ -1,10 +1,12 @@
 # MS-Poker — Đặc tả dự án & Phân công
 
-> Tài liệu này là nguồn sự thật cho các quyết định đã chốt và ranh giới sở hữu của nhóm. Các hợp đồng ở mục 6 vẫn là **đề xuất** cho đến khi cả nhóm chốt trong buổi họp tuần 0.
+> Tài liệu này là nguồn sự thật cho các quyết định đã chốt và ranh giới sở hữu của nhóm. Các hợp đồng ở mục 6 vẫn là **đề xuất** cho đến khi cả nhóm xác nhận trước khi tích hợp.
 > Mọi thay đổi về **hợp đồng giữa các service** (API nội bộ, event, WebSocket) sau khi chốt phải sửa file này trước, qua Pull Request, và được người dùng API đó đồng ý.
 > Các con số có ghi *(đề xuất)* là giá trị mặc định, nằm trong config để chỉnh sau, không cần họp lại.
 >
-> **Trạng thái repo hiện tại:** mới có scaffold 10 ứng dụng Spring Boot và module `common`. Gateway đang có route mẫu theo tên service; PostgreSQL, Redis, RabbitMQ, Mailpit, JWT, database và hợp đồng mục 6 chưa được triển khai. Trước khi tích hợp FE, gateway phải đổi route theo mục 6.4.
+> **Trạng thái repo hiện tại:** có scaffold 11 ứng dụng Spring Boot và module `common`, gồm `auth-service` mới; `identity-service` giữ nguyên scaffold và không nhận nghiệp vụ mới. Gateway đang có route mẫu theo tên service; PostgreSQL, Redis, RabbitMQ, Mailpit, JWT, database và hợp đồng mục 6 chưa được triển khai. Trước khi tích hợp FE, gateway phải đổi route theo mục 6.4.
+>
+> **Cập nhật phạm vi của Khanh (2026-10-06):** phát triển toàn bộ tài khoản, xác thực, hồ sơ, điểm danh, báo cáo và xử phạt trong `auth-service`; tiếp tục phụ trách gateway, hạ tầng dùng chung và khung FE. Chi tiết đã chốt và các câu hỏi cần debate nằm ở [docs/auth/definition.md](auth/definition.md). Đây là cập nhật của Khanh để thông báo cho nhóm; hợp đồng dùng chung vẫn cần người bị ảnh hưởng xác nhận.
 
 ## Mục lục
 
@@ -31,6 +33,16 @@ Dự án chia hai giai đoạn:
 
 - 🟢 **MVP** — vòng chơi cốt lõi chạy được từ đầu đến cuối: đăng ký/đăng nhập → vào sảnh → ghép trận Rank/Normal hoặc tạo Custom Room → chơi một trận poker → nhận Elo và xu → điểm danh → chat → mua 1 loại skin (khung avatar) qua PayOS và thấy nó hiển thị.
 - 🔵 **Giai đoạn 2 (GĐ2)** — giải đấu, mùa giải và quà, tutorial, đủ các loại skin, sticker/sound, party, chuông thông báo, báo cáo và xử phạt, trang Admin đầy đủ, hướng dẫn/FAQ.
+
+### 1.1. Thứ tự ưu tiên thực hiện từ tuần học 5
+
+**Ưu tiên đầu tiên:** đăng ký → xác thực email → đăng nhập → nhận xu lần đầu → vào sảnh → ghép trận Rank → chơi hết trận → xem Elo và xu thưởng. Đây là luồng tích hợp đầu tiên, chưa phải toàn bộ phạm vi cuối cùng của dự án.
+
+Sau khi luồng này chạy được, bổ sung hồ sơ và điểm danh thường của Khanh cùng các chức năng MVP còn lại theo tiến độ nhóm. Các phần phức tạp không phục vụ luồng đầu tiên làm ở phase sau; việc chuyển phase không xóa phạm vi đã phân công.
+
+Riêng Khanh: ưu tiên auth, gateway và API hồ sơ batch tối thiểu để hiển thị người chơi; tiếp theo hồ sơ đầy đủ, điểm danh, quên/reset mật khẩu; sau đó điểm danh bù, báo cáo, xử phạt và Admin. Chốt thứ tự chi tiết khi debate nghiệp vụ trong tài liệu auth.
+
+Các nhãn MVP/GĐ2 và checklist phía dưới mô tả phạm vi tổng thể. Thứ tự tích hợp ưu tiên theo mục này; không yêu cầu hoàn thành mọi mục MVP trước lần demo đầu tiên. Khanh không tự thay đổi nghiệp vụ hoặc triển khai module của các thành viên khác.
 
 ---
 
@@ -93,7 +105,8 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 | Service | Chủ sở hữu | Chức năng | Port | Database |
 |---|---|---|---|---|
 | `api-gateway` | Khanh | Định tuyến, xác thực JWT, route WebSocket | 8080 | — |
-| `identity-service` | Khanh | Tài khoản, hồ sơ, điểm danh, báo cáo, xử phạt | 8081 | `identity_db` |
+| `auth-service` | Khanh | Tài khoản, xác thực, hồ sơ, điểm danh, báo cáo, xử phạt | 8090 | `auth_db` |
+| `identity-service` | Khanh | Scaffold giữ nguyên, không nhận nghiệp vụ mới | 8081 | — |
 | `game-service` | Bảo | Engine poker, bàn chơi, lịch sử trận, cấu hình trận | 8082 | `game_db` |
 | `matchmaking-service` | Duy | Hàng chờ Rank/Normal, party | 8083 | `matchmaking_db` + Redis |
 | `social-service` | Duy | Bạn bè, chặn, trạng thái online, thông báo realtime | 8084 | `social_db` + Redis |
@@ -108,7 +121,7 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 - **Backend:** Java 21, Spring Boot (bản ổn định mới nhất trên start.spring.io), Maven multi-module, một repo `MS-Poker-BE`.
 - **Frontend:** một repo `MS-Poker-FE` riêng.
 - **Hạ tầng local dự kiến (chưa có trong Compose scaffold hiện tại):**
-  - PostgreSQL — 1 container, 9 database (tạo bằng script init).
+  - PostgreSQL — 1 container, 9 database nghiệp vụ (tạo bằng script init), trong đó phần Khanh dùng `auth_db`; không tạo `identity_db` cho scaffold giữ lại.
   - Redis — hàng chờ ghép trận, presence, cache.
   - RabbitMQ — event giữa các service.
   - Mailpit — hộp thư giả để test OTP.
@@ -121,7 +134,8 @@ MS-Poker-BE/
 ├── pom.xml                  ← parent pom (chỉ sửa qua PR có review)
 ├── common/                  ← CHỈ chứa: class event, BaseEntity, format lỗi chuẩn
 ├── api-gateway/
-├── identity-service/
+├── auth-service/            ← toàn bộ nghiệp vụ tài khoản của Khanh
+├── identity-service/        ← giữ nguyên scaffold, không nhận nghiệp vụ mới
 ├── game-service/
 ├── matchmaking-service/
 ├── social-service/
@@ -151,7 +165,7 @@ Package gốc hiện có: `com.msspoker.<tên-service-bỏ-dấu-gạch>` (vd `c
                         │ api-gateway │
                         └──────┬──────┘
      ┌──────────┬──────────┬───┴──────┬───────────┬───────────┬──────────┐
- identity    game     matchmaking  social/chat  ranking   competition  shop/wallet
+   auth      game     matchmaking  social/chat  ranking   competition  shop/wallet
      │          │          │          │           │           │          │
      └──────────┴──── REST /internal/** (gọi trực tiếp, không qua gateway) ┘
      └──────────┴──── RabbitMQ exchange `poker.events` (event bất đồng bộ) ┘
@@ -203,6 +217,7 @@ Package gốc hiện có: `com.msspoker.<tên-service-bỏ-dấu-gạch>` (vd `c
 
 ### 5.1. Xác thực
 
+- `auth-service` phát hành token; gateway xác thực HTTP và các service sở hữu WebSocket xác thực STOMP `CONNECT`. JWT claim, thuật toán, cách phân phối khóa, thời hạn và chính sách phiên cần chốt trong [định nghĩa auth](auth/definition.md#4-gateway-và-xác-thực); hiện chưa triển khai.
 - FE gửi `Authorization: Bearer <accessToken>` lên gateway đối với endpoint cần đăng nhập. Đăng ký, xác thực email, đăng nhập, refresh, quên/đặt lại mật khẩu trong `/api/auth/**` và webhook PayOS không yêu cầu access token; Khanh phải chốt allowlist endpoint cụ thể trước khi bật xác thực.
 - Gateway loại bỏ mọi header `X-User-Id`, `X-User-Role` do client tự gửi, kiểm tra JWT rồi gắn header tin cậy xuống service:
   - `X-User-Id` — UUID tài khoản
@@ -251,7 +266,7 @@ Quy ước key: `<lý-do>:<id-nguồn>:<accountId>`, vd `rank-fee:{proposalId}:{
 
 ## 6. Hợp đồng giữa các service
 
-> Tất cả endpoint dưới đây là **đề xuất**, được chốt trong buổi họp hợp đồng ở tuần 0. Sau khi chốt, thay đổi theo quy tắc mục 4.2.
+> Tất cả endpoint dưới đây là **đề xuất**, cần nhóm chốt trước khi tích hợp luồng chính. Sau khi chốt, thay đổi theo quy tắc mục 4.2. Đổi bên cung cấp tài khoản sang `auth-service` không đổi tên endpoint hoặc payload event hiện được đề xuất.
 
 ### 6.1. API nội bộ (`/internal/**`)
 
@@ -324,7 +339,7 @@ Trả về: `{ "tableId": "uuid", "matchId": "uuid" }`. `settings` bỏ trống 
 | GET | `/internal/inventory/{accountId}/owns/{productId}` | Duy (sticker/sound) | `{ owned: true/false }` |
 | POST | `/internal/inventory/grant` | Hoài Anh | Trao skin thưởng, có `idempotencyKey` |
 
-#### identity-service (Khanh)
+#### auth-service (Khanh)
 
 | Method | Endpoint | Người gọi | Mô tả |
 |---|---|---|---|
@@ -349,8 +364,8 @@ Trả về: `{ "tableId": "uuid", "matchId": "uuid" }`. `settings` bỏ trống 
 
 | Event | Bên phát | Bên nhận | Payload chính | GĐ |
 |---|---|---|---|---|
-| `account.registered` | `identity-service` (Khanh) | `wallet-service` (Tùng), `ranking-service` (Hoài Anh) | `accountId` | 🟢 |
-| `account.penalized` | `identity-service` (Khanh) | `matchmaking-service`, `chat-service` (Duy), `game-service` (Bảo) | `accountId`, `type`, `until` | 🔵 |
+| `account.registered` | `auth-service` (Khanh) | `wallet-service` (Tùng), `ranking-service` (Hoài Anh) | `accountId` | 🟢 |
+| `account.penalized` | `auth-service` (Khanh) | `matchmaking-service`, `chat-service` (Duy), `game-service` (Bảo) | `accountId`, `type`, `until` | 🔵 |
 | `match.started` | `game-service` (Bảo) | `chat-service` (Duy); `social-service` (presence, GĐ2) | `matchId`, `tableId`, `mode`, `sourceId`, `playerIds` | 🟢 |
 | `match.finished` | `game-service` (Bảo) | `ranking-service` (Elo/thưởng Rank), `competition-service` (Custom/giải), `chat-service` (đóng phòng); `social-service` (presence, GĐ2) | xem dưới | 🟢 |
 | `notification.requested` | Mọi service | `social-service` (Duy, đẩy realtime qua `/ws/social`) | `accountIds`, `type`, `title`, `body`, `data` | 🟢 |
@@ -396,7 +411,7 @@ Các `type` của `notification.requested`: `FRIEND_REQUEST`, `FRIEND_ACCEPTED`,
 
 | Tiền tố | Service |
 |---|---|
-| `/api/auth/**`, `/api/profiles/**`, `/api/checkin/**`, `/api/reports/**`, `/api/admin/users/**`, `/api/admin/reports/**` | identity |
+| `/api/auth/**`, `/api/profiles/**`, `/api/checkin/**`, `/api/reports/**`, `/api/admin/users/**`, `/api/admin/reports/**` | auth |
 | `/api/game/**`, `/api/admin/match-settings/**` | game |
 | `/api/matchmaking/**`, `/api/party/**` | matchmaking |
 | `/api/friends/**`, `/api/blocks/**`, `/api/notifications/**` | social |
@@ -517,11 +532,11 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 
 ---
 
-### 9.1. 👤 Khanh — `identity-service`, `api-gateway`, hạ tầng, khung FE
+### 9.1. 👤 Khanh — `auth-service`, `api-gateway`, hạ tầng, khung FE
 
 **Sở hữu**
-- BE: `api-gateway`, `identity-service`, `common`, `pom.xml` gốc, `docker-compose.yml`, `docker/`.
-- DB: `identity_db`.
+- BE: `api-gateway`, `auth-service`, `common`, `pom.xml` gốc, `docker-compose.yml`, `docker/`. `identity-service` giữ nguyên scaffold, không triển khai song song nghiệp vụ tài khoản.
+- DB: `auth_db`.
 - Route: `/api/auth/**`, `/api/profiles/**`, `/api/checkin/**`, `/api/reports/**`, `/api/admin/users/**`, `/api/admin/reports/**`.
 - FE: `shared/` (layout, UI kit, API client, lưu token, router), `features/auth`, `features/lobby`, `features/checkin`, `features/profile`, `features/report`, `features/admin/users`.
 
@@ -530,7 +545,9 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 - Không tự xây logic ghép trận trong Sảnh chờ → nút "Tìm trận" chỉ gọi API của Duy.
 - Không lưu Elo/bậc rank trong profile → lấy từ Hoài Anh.
 
-**Bảng dữ liệu (`identity_db`)**
+**Bảng dữ liệu dự kiến (`auth_db`)**
+
+Chi tiết nghiệp vụ và các điểm chưa chốt: [docs/auth/definition.md](auth/definition.md). Đây là mô hình dự kiến; chưa có migration hoặc schema thực tế.
 
 | Bảng | Nội dung chính |
 |---|---|
@@ -545,17 +562,17 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 **Việc cần làm**
 
 🟢 MVP
-- [ ] **Tuần 0:** init repo, parent pom, 10 ứng dụng chạy được `/actuator/health` và 1 module thư viện `common`, `docker-compose.yml`, `.gitignore`, README, bảo vệ nhánh `main`.
-- [ ] **Tuần 0:** module `common` — `BaseEntity`, `ErrorResponse`, vỏ bọc event, class các event ở mục 6.2.
+- [ ] **Nền tảng:** repo, parent pom, 11 ứng dụng chạy được `/actuator/health` (gồm `auth-service` mới và `identity-service` giữ lại) và 1 module thư viện `common`, `docker-compose.yml`, `.gitignore`, README, bảo vệ nhánh `main`.
+- [ ] **Nền tảng:** module `common` — `BaseEntity`, `ErrorResponse`, vỏ bọc event, class các event ở mục 6.2.
 - [ ] Gateway: route theo bảng 6.4, xác thực JWT, gắn header `X-User-*`, chặn `/internal/**`, route WebSocket.
 - [ ] Đăng ký, xác thực OTP email (qua Mailpit), gửi lại OTP, đăng nhập, refresh token, đăng xuất, quên/đặt lại mật khẩu.
 - [ ] Phát `account.registered`. Tặng xu lần đăng nhập đầu (7.1).
 - [ ] Điểm danh, điểm danh bù, lịch điểm danh theo tháng (7.6).
 - [ ] Hồ sơ: xem/sửa, upload avatar, `GET /api/profiles/batch?ids=`.
 - [ ] Màn Hồ sơ hiển thị lịch sử trận (lấy từ Bảo) và Elo/bậc (lấy từ Hoài Anh).
-- [ ] **Tuần 0–1:** khung FE — router, layout, UI kit cơ bản, API client tự gắn token và tự refresh.
+- [ ] **Phục vụ luồng đầu tiên:** khung FE — router, layout, UI kit cơ bản, API client tự gắn token và tự refresh.
 - [ ] Màn: Đăng nhập, Đăng ký, Xác thực email, Quên mật khẩu, Sảnh chờ (khung + các nút lối tắt), Điểm danh, Hồ sơ.
-- [ ] `GET /internal/accounts/{id}/restrictions` (MVP trả tất cả là false).
+- [ ] `GET /internal/accounts/{id}/restrictions` (MVP chưa có xử phạt: `{ "banned": false, "chatBannedUntil": null, "rankBannedUntil": null }`; tài khoản không tồn tại phải trả lỗi theo hợp đồng khi chốt).
 
 🔵 GĐ2
 - [ ] Báo cáo: gửi báo cáo, xem trạng thái báo cáo của mình.
@@ -563,7 +580,7 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 - [ ] Admin: danh sách người dùng, ban/unban, duyệt báo cáo.
 - [ ] *(đề xuất)* Đăng nhập Google, khóa tạm khi sai mật khẩu nhiều lần, onboarding lần đầu.
 
-**Cung cấp cho người khác:** gateway và khung FE (cả nhóm cần ngay tuần 0–1), `account.registered`, `account.penalized`, `/internal/accounts/{id}/restrictions`, `/api/profiles/batch`.
+**Cung cấp cho người khác:** gateway và khung FE (cả nhóm cần sớm để tích hợp luồng đầu tiên), `account.registered`, `account.penalized`, `/internal/accounts/{id}/restrictions`, `/api/profiles/batch`.
 
 **Phụ thuộc và cách mock**
 
@@ -867,19 +884,19 @@ src/
 
 ## 11. Lộ trình
 
-Gợi ý theo tuần, điều chỉnh theo deadline môn học.
+Hiện đang đầu **tuần học 5**, deadline **tuần học 10**. Lịch dưới đây là đề xuất để nhóm thống nhất, dùng tuần học thực tế thay cho tuần tương đối của bản đầu. Phạm vi ưu tiên theo mục 1.1.
 
 | Tuần | Mục tiêu | Ai |
 |---|---|---|
-| **0** | Init repo BE/FE, docker-compose, `common`. **Họp chốt hợp đồng mục 6.** Đăng ký tài khoản PayOS | Khanh init, cả nhóm họp |
-| **1** | Gateway + đăng ký/đăng nhập · Ví xu · Bộ so bài + Side pot · Bạn bè · Custom Room BE · Khung FE | Mỗi người phần của mình |
-| **2** | Máy trạng thái bàn + mô phỏng bot · Hàng chờ Rank/Normal · Elo + BXH · Shop + PayOS · Điểm danh + Hồ sơ | |
-| **3** | WebSocket bàn chơi + timer · Chat service + `<ChatPanel>` · Túi đồ + skin khung · Backend giải đấu (mock) | |
-| **4** | **Tích hợp MVP:** chạy trọn luồng 7.1 → 7.6 với 5 người thật. Sửa bug | Cả nhóm |
-| **5–6** | GĐ2: giải đấu, mùa giải, tutorial, skin, sticker/sound, party, thông báo, báo cáo, admin, hướng dẫn | Mỗi người phần GĐ2 của mình |
-| **7** | Test tổng, sửa bug, chuẩn bị demo, deploy (+ Cloudflare nếu cần) | Cả nhóm |
+| **5** | Chốt luồng demo đầu tiên, hợp đồng cần dùng và nghiệp vụ auth/gateway; hoàn thiện nền tảng | Khanh và nhóm |
+| **6–7** | Phát triển phần phục vụ luồng chính; tích hợp từng đoạn ngay khi có, mock phần phụ thuộc chưa sẵn sàng | Mỗi người phần của mình |
+| **8** | Mục tiêu chạy trọn luồng Rank đầu tiên; bổ sung hồ sơ/điểm danh và phần tiếp theo khi luồng chính ổn | Cả nhóm |
+| **9** | Sửa lỗi tích hợp, kiểm tra ca biên và hoàn thiện phạm vi demo đã thống nhất | Cả nhóm |
+| **10** | Kiểm tra tổng, chuẩn bị demo và tài liệu nộp bài; deploy nếu cần | Cả nhóm |
 
-**Mốc kiểm tra cuối tuần 4 (MVP xong khi):** 5 thành viên đăng ký tài khoản mới, nhận xu lần đầu, điểm danh, kết bạn, chat, cùng vào một trận Rank, chơi hết trận, thấy Elo và xu thay đổi đúng, sau đó mua một khung avatar qua PayOS và thấy khung hiển thị.
+**Mốc luồng tích hợp đầu tiên:** các thành viên đăng ký tài khoản mới, xác thực email, đăng nhập, nhận xu lần đầu, cùng vào một trận Rank, chơi hết trận và thấy Elo/xu thay đổi đúng. Số người bàn và cách tính thưởng do chủ module chốt với nhóm.
+
+**Mốc mở rộng tiếp theo:** điểm danh, hồ sơ, kết bạn/chat, Normal/Custom và mua/trang bị khung avatar qua PayOS. Đây vẫn là phạm vi dự án, nhưng không chặn việc demo luồng Rank đầu tiên. Nhóm cần thống nhất phần bắt buộc trước tuần 10; không mặc định cam kết toàn bộ GĐ2.
 
 ---
 

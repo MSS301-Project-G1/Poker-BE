@@ -12,10 +12,11 @@ Backend dạng Maven multi-module cho dự án Poker. Đây là bộ khung khở
 
 ```text
 poker-be/
-├── pom.xml                 # parent POM, quản lý 11 module
+├── pom.xml                 # parent POM, quản lý 12 module
 ├── common/                 # thư viện dùng chung, giữ thật mỏng
 ├── api-gateway/            # định tuyến HTTP
-├── identity-service/
+├── auth-service/           # phần tài khoản, hồ sơ, điểm danh của Khanh
+├── identity-service/       # giữ nguyên scaffold, không nhận nghiệp vụ mới
 ├── game-service/
 ├── matchmaking-service/
 ├── social-service/
@@ -31,7 +32,8 @@ poker-be/
 | Module | Người phụ trách | Port | Chức năng dự kiến |
 | --- | --- | ---: | --- |
 | api-gateway | Khanh | 8080 | Định tuyến request; JWT sẽ triển khai sau |
-| identity-service | Khanh | 8081 | Tài khoản, hồ sơ, điểm danh, báo cáo và xử phạt |
+| auth-service | Khanh | 8090 | Tài khoản, xác thực, hồ sơ, điểm danh, báo cáo và xử phạt |
+| identity-service | Khanh | 8081 | Scaffold giữ nguyên, không nhận nghiệp vụ mới |
 | game-service | Bảo | 8082 | Engine poker, bàn chơi, lịch sử trận |
 | matchmaking-service | Duy | 8083 | Hàng chờ Rank/Normal, party |
 | social-service | Duy | 8084 | Bạn bè, trạng thái online, thông báo |
@@ -45,10 +47,11 @@ poker-be/
 
 ```powershell
 ./mvnw.cmd clean verify
-./mvnw.cmd -pl identity-service -am spring-boot:run
+./mvnw.cmd -pl auth-service -am install -DskipTests
+./mvnw.cmd -pl auth-service spring-boot:run
 ```
 
-Trên macOS/Linux, dùng `./mvnw` thay cho `./mvnw.cmd`. Khi chạy service riêng lẻ, gateway chuyển tiếp từ `/api/{service}/**` tới service tương ứng trên localhost và bỏ hai segment đầu của path. Các URL đích có thể đổi bằng biến môi trường `IDENTITY_SERVICE_URL`, `GAME_SERVICE_URL`, v.v.
+Trên macOS/Linux, dùng `./mvnw` thay cho `./mvnw.cmd`. Khi chạy service riêng lẻ, gateway chuyển tiếp từ các route scaffold tới service tương ứng trên localhost và bỏ hai segment đầu của path. Riêng scaffold mới dùng `/api/auth-service/**` với `AUTH_SERVICE_URL` (mặc định `http://localhost:8090`); đây chưa phải route nghiệp vụ `/api/auth/**`. Các URL đích khác có thể đổi bằng `IDENTITY_SERVICE_URL`, `GAME_SERVICE_URL`, v.v. Bảng route nghiệp vụ mục tiêu nằm trong [SPEC](docs/SPEC.md#64-bảng-route-public-qua-gateway).
 
 Chạy toàn bộ bằng Docker:
 
@@ -61,7 +64,11 @@ Các port public trong `.env` có thể đổi để tránh xung đột trên m�
 
 ## Migration
 
-Mỗi service sở hữu database đặt script Flyway tại `src/main/resources/db/migration/`, ví dụ `identity-service/src/main/resources/db/migration/V1__create_users_table.sql`. Không đặt migration tại `common` hoặc `api-gateway`. Thư mục hiện chỉ có `.gitkeep`; khi chọn database và thiết kế bảng, thêm JDBC driver, Flyway và script của service tương ứng. Không sửa script đã áp dụng ở môi trường dùng chung; tạo migration phiên bản mới.
+Mỗi service sở hữu database đặt script Flyway tại `src/main/resources/db/migration/`, ví dụ `auth-service/src/main/resources/db/migration/V1__create_accounts_table.sql`. Không đặt migration tại `common` hoặc `api-gateway`. Thư mục hiện chỉ có `.gitkeep`; khi chọn database và thiết kế bảng, thêm JDBC driver, Flyway và script của service tương ứng. Không sửa script đã áp dụng ở môi trường dùng chung; tạo migration phiên bản mới.
+
+## Phạm vi hiện tại
+
+Ưu tiên một luồng Rank hoàn chỉnh trước rồi mở rộng các phần còn lại. Khanh phát triển toàn bộ phạm vi tài khoản trong `auth-service`; `identity-service` giữ nguyên và không triển khai nghiệp vụ trùng lặp. Xem [SPEC](docs/SPEC.md) và [định nghĩa auth/gateway](docs/auth/definition.md) để phân biệt phần đã chốt với các quyết định còn cần debate. DTO và hợp đồng FE chi tiết sẽ được mô tả cùng lúc triển khai; hiện chưa có API nghiệp vụ.
 
 ## Quy tắc Git
 

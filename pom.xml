@@ -19,6 +19,7 @@
         <module>common</module>
         <module>api-gateway</module>
         <module>identity-service</module>
+        <module>auth-service</module>
         <module>game-service</module>
         <module>matchmaking-service</module>
         <module>social-service</module>
