@@ -82,6 +82,11 @@ public final class PokerTable {
             seat.lastAction = null;
             seat.holeCards.clear();
         }
+        if (seats.stream().noneMatch(s -> !s.eliminated && !s.leftEarly)) {
+            // With everyone AFK, keep the largest stack eligible to collect forced blinds.
+            seats.stream().filter(s -> !s.eliminated).max(Comparator.comparingLong(Seat::getChips))
+                    .orElseThrow(GameExceptions::invalidPlayers).folded = false;
+        }
         dealerSeat = nextLive(dealerSeat);
         long live = seats.stream().filter(s -> !s.eliminated).count();
         smallBlindSeat = live == TableRules.HOLE_CARDS ? dealerSeat : nextLive(dealerSeat);
@@ -100,10 +105,6 @@ public final class PokerTable {
         lastFullRaise = rules.bigBlind();
         street = Street.PREFLOP;
         for (Seat seat : seats) {
-            if (seat.leftEarly && !seat.eliminated) {
-                seat.contribution += seat.chips;
-                seat.chips = 0;
-            }
             if (seat.canAct()) pending.add(seat.getSeatIndex());
         }
         advance(bigBlindSeat);

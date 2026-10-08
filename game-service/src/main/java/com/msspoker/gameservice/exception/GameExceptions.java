@@ -114,4 +114,8 @@ public final class GameExceptions {
     public static GameApiException internalError() {
         return new GameApiException(GameError.GAME_INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR, "Không thể xử lý yêu cầu lúc này. Vui lòng thử lại.");
     }
+
+    public static IllegalStateException eventDeliveryFailed() {
+        return new IllegalStateException("Event chưa được chuyển tới queue nhận. Hệ thống sẽ gửi lại.");
+    }
 }

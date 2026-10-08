@@ -52,6 +52,6 @@ Giữ nguyên thay đổi `.gitignore` có sẵn ngoài phạm vi.
 - [x] Đợt 1: core, tests, commit và push.
 - [x] Đợt 2: engine và mô phỏng (7 test engine, hơn 3.000 ván bot).
 - [x] Đợt 3: API/persistence/event (28 test tổng; H2 + Flyway, API security, outbox).
-- [ ] Đợt 4: realtime/timer/dev tool.
+- [x] Đợt 4: realtime/timer/dev tool (WebSocket thật: sync, action, lỗi và chặn outsider).
 - [ ] Đợt 5: FE/Admin.
 - [ ] Đợt 6: kiểm chứng tích hợp và tài liệu.
