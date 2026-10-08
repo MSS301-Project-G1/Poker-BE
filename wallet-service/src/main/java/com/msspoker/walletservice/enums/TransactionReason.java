@@ -1,0 +1,16 @@
+package com.msspoker.walletservice.enums;
+
+public enum TransactionReason {
+    FIRST_LOGIN_BONUS,
+    DAILY_CHECKIN,
+    CHECKIN_MAKEUP,
+    RANK_ENTRY_FEE,
+    RANK_ENTRY_REFUND,
+    RANK_REWARD,
+    TOURNAMENT_ENTRY_FEE,
+    TOURNAMENT_REFUND,
+    TOURNAMENT_PRIZE,
+    SEASON_REWARD,
+    TUTORIAL_REWARD,
+    ADMIN_ADJUST
+}
