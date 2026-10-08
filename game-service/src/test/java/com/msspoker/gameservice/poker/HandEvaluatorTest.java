@@ -48,6 +48,34 @@ class HandEvaluatorTest {
     }
 
     @Test
+    void twoTripletsMakeTheHighestAvailableFullHouse() {
+        assertEquals(new HandRank(HandCategory.FULL_HOUSE, List.of(14, 13)),
+                hand("As", "Ah", "Ad", "Ks", "Kh", "Kd", "2c"));
+    }
+
+    @Test
+    void flushUsesItsBestFiveSuitedCardsEvenWhenAnotherSuitCompletesAStraight() {
+        assertEquals(new HandRank(HandCategory.FLUSH, List.of(14, 13, 12, 11, 9)),
+                hand("As", "Ks", "Qs", "Js", "9s", "Td", "2c"));
+    }
+
+    @Test
+    void holeCardsDoNotBreakATieWhenTheBoardAlreadyHasTheBestHand() {
+        HandRank first = hand("As", "Ks", "Qs", "Js", "Ts", "2d", "3c");
+        HandRank second = hand("As", "Ks", "Qs", "Js", "Ts", "4d", "5c");
+
+        assertEquals(first, second);
+    }
+
+    @Test
+    void oneHoleCardCanBeAKickerWhenItIsAmongTheBestFive() {
+        HandRank jackKicker = hand("As", "Ah", "Kd", "Qc", "2s", "Jd", "3c");
+        HandRank tenKicker = hand("As", "Ah", "Kd", "Qc", "2s", "Td", "4c");
+
+        assertTrue(jackKicker.compareTo(tenKicker) > 0);
+    }
+
+    @Test
     void kickerAndFullHousePairBreakTies() {
         assertTrue(hand("As", "Ah", "Ks", "Qh", "Jd", "2d", "3c")
                 .compareTo(hand("Ac", "Ad", "Qs", "Jh", "Td", "2s", "3d")) > 0);
