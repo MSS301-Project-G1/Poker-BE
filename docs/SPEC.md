@@ -4,7 +4,7 @@
 > Mọi thay đổi về **hợp đồng giữa các service** (API nội bộ, event, WebSocket) sau khi chốt phải sửa file này trước, qua Pull Request, và được người dùng API đó đồng ý.
 > Các con số có ghi *(đề xuất)* là giá trị mặc định, nằm trong config để chỉnh sau, không cần họp lại.
 >
-> **Trạng thái repo hiện tại:** mới có scaffold 10 ứng dụng Spring Boot và module `common`. Gateway đang có route mẫu theo tên service; PostgreSQL, Redis, RabbitMQ, Mailpit, JWT, database và hợp đồng mục 6 chưa được triển khai. Trước khi tích hợp FE, gateway phải đổi route theo mục 6.4.
+> **Trạng thái repo:** trên nhánh triển khai của Bảo, game đã có PostgreSQL/Flyway, RabbitMQ outbox, REST và STOMP/JWT cùng FE game/Admin; xem `game-service/README.md`. Các phần còn lại vẫn cần chủ module tích hợp. Gateway đang có route mẫu theo tên service và phải đổi route/JWT theo mục 6.4 trước khi tích hợp production.
 
 ## Mục lục
 
