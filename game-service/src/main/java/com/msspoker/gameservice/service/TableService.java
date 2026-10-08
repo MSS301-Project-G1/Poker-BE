@@ -1,11 +1,14 @@
 package com.msspoker.gameservice.service;
 
-import com.msspoker.gameservice.api.GameDtos;
-import com.msspoker.gameservice.config.GameIds;
-import com.msspoker.gameservice.engine.PokerTable;
-import com.msspoker.gameservice.persistence.MatchEntity;
-import com.msspoker.gameservice.validation.CreateTableValidator;
+import com.msspoker.gameservice.dto.request.CreateTableRequest;
+import com.msspoker.gameservice.dto.response.TableCreatedResponse;
+import com.msspoker.gameservice.entity.MatchEntity;
 import com.msspoker.gameservice.mapper.GameMapper;
+import com.msspoker.gameservice.model.game.ManagedTable;
+import com.msspoker.gameservice.model.game.PokerTable;
+import com.msspoker.gameservice.util.GameIds;
+import com.msspoker.gameservice.validator.CreateTableValidator;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +29,7 @@ public class TableService {
     private final SecureRandom random = new SecureRandom();
 
     /** Creation gate prevents overlapping rosters; game actions use separate table locks. */
-    public synchronized GameDtos.TableCreated create(GameDtos.CreateTable request) {
+    public synchronized TableCreatedResponse create(CreateTableRequest request) {
         Optional<MatchEntity> existing = persistence.existing(request);
         if (existing.isPresent()) {
             return mapper.created(existing.get());
@@ -39,7 +42,7 @@ public class TableService {
         return mapper.created(engine);
     }
 
-    public Optional<GameDtos.TableCreated> active(UUID accountId) {
+    public Optional<TableCreatedResponse> active(UUID accountId) {
         return registry.activeTable(accountId).map(id -> mapper.created(registry.require(id).getEngine()));
     }
 }

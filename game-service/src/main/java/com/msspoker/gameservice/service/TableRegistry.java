@@ -1,6 +1,8 @@
 package com.msspoker.gameservice.service;
 
 import com.msspoker.gameservice.exception.GameExceptions;
+import com.msspoker.gameservice.model.game.ManagedTable;
+
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;

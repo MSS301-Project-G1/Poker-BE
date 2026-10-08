@@ -1,12 +1,23 @@
 package com.msspoker.gameservice.service;
 
-import com.msspoker.gameservice.api.GameDtos;
-import com.msspoker.gameservice.config.GameIds;
-import com.msspoker.gameservice.engine.PokerTable;
-import com.msspoker.gameservice.events.GameEvents;
+import com.msspoker.gameservice.constant.GameEventConstants;
+import com.msspoker.gameservice.dto.event.EventEnvelope;
+import com.msspoker.gameservice.dto.request.CreateTableRequest;
+import com.msspoker.gameservice.dto.response.MatchHistoryResponse;
+import com.msspoker.gameservice.dto.response.PageResponse;
+import com.msspoker.gameservice.entity.MatchEntity;
+import com.msspoker.gameservice.entity.MatchPlayerEntity;
+import com.msspoker.gameservice.entity.OutboxEntity;
+import com.msspoker.gameservice.enums.MatchStatus;
 import com.msspoker.gameservice.exception.GameExceptions;
 import com.msspoker.gameservice.mapper.GameMapper;
-import com.msspoker.gameservice.persistence.*;
+import com.msspoker.gameservice.model.game.ManagedTable;
+import com.msspoker.gameservice.model.game.PokerTable;
+import com.msspoker.gameservice.repository.MatchPlayerRepository;
+import com.msspoker.gameservice.repository.MatchRepository;
+import com.msspoker.gameservice.repository.OutboxRepository;
+import com.msspoker.gameservice.util.GameIds;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,11 +40,11 @@ public class MatchPersistenceService {
     private final JsonMapper json;
 
     @Transactional
-    public MatchEntity started(GameDtos.CreateTable request, PokerTable table) {
+    public MatchEntity started(CreateTableRequest request, PokerTable table) {
         MatchEntity match = matches.save(mapper.match(request, table.getTableId(), table.getMatchId(), Instant.now(),
                 json.writeValueAsString(request)));
         players.saveAll(table.getSeats().stream().map(seat -> mapper.player(seat, match.getId())).toList());
-        enqueue(GameEvents.STARTED, mapper.started(match, request.playerIds()));
+        enqueue(GameEventConstants.STARTED, mapper.started(match, request.playerIds()));
         return match;
     }
 
@@ -45,11 +56,11 @@ public class MatchPersistenceService {
         match.setFinishedAt(Instant.now());
         List<MatchPlayerEntity> rows = players.findByMatchIdOrderBySeatIndex(match.getId());
         rows.forEach(row -> mapper.finishPlayer(table.getEngine().getSeats().get(row.getSeatIndex()), row));
-        enqueue(GameEvents.FINISHED, mapper.finished(match, rows.stream().map(mapper::placement).toList()));
+        enqueue(GameEventConstants.FINISHED, mapper.finished(match, rows.stream().map(mapper::placement).toList()));
     }
 
     @Transactional(readOnly = true)
-    public Optional<MatchEntity> existing(GameDtos.CreateTable request) {
+    public Optional<MatchEntity> existing(CreateTableRequest request) {
         Optional<MatchEntity> match = matches.findByModeAndSourceId(request.mode(), request.sourceId());
         match.ifPresent(existing -> {
             if (!existing.getRequestFingerprint().equals(json.writeValueAsString(request))) {
@@ -60,7 +71,7 @@ public class MatchPersistenceService {
     }
 
     @Transactional(readOnly = true)
-    public GameDtos.PageResponse<GameDtos.MatchView> history(UUID accountId, int page, int size) {
+    public PageResponse<MatchHistoryResponse> history(UUID accountId, int page, int size) {
         Page<MatchPlayerEntity> membership = players.findByAccountIdAndIsDeletedFalse(accountId,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id")));
         List<UUID> ids = membership.getContent().stream().map(MatchPlayerEntity::getMatchId).toList();
@@ -68,14 +79,14 @@ public class MatchPersistenceService {
                 .collect(Collectors.toMap(MatchEntity::getId, match -> match));
         Map<UUID, List<MatchPlayerEntity>> rosters = ids.isEmpty() ? Map.of()
                 : players.findByMatchIdIn(ids).stream().collect(Collectors.groupingBy(MatchPlayerEntity::getMatchId));
-        List<GameDtos.MatchView> content = ids.stream().map(id -> mapper.view(byId.get(id),
+        List<MatchHistoryResponse> content = ids.stream().map(id -> mapper.view(byId.get(id),
                 rosters.getOrDefault(id, List.of()).stream().sorted(Comparator.comparingInt(MatchPlayerEntity::getSeatIndex))
                         .map(mapper::placement).toList())).toList();
-        return new GameDtos.PageResponse<>(content, page, size, membership.getTotalElements(), membership.getTotalPages());
+        return new PageResponse<>(content, page, size, membership.getTotalElements(), membership.getTotalPages());
     }
 
     @Transactional(readOnly = true)
-    public GameDtos.MatchView result(UUID tableId, UUID accountId) {
+    public MatchHistoryResponse result(UUID tableId, UUID accountId) {
         // Only persisted roster members can access the finished match.
         MatchEntity match = matches.findByTableId(tableId).orElseThrow(GameExceptions::tableNotFound);
         List<MatchPlayerEntity> roster = players.findByMatchIdOrderBySeatIndex(match.getId());
@@ -97,7 +108,7 @@ public class MatchPersistenceService {
         row.setId(GameIds.next());
         row.setEventType(eventType);
         row.setOccurredAt(Instant.now());
-        row.setBody(json.writeValueAsString(new GameEvents.Envelope(row.getId(), eventType, row.getOccurredAt(), payload)));
+        row.setBody(json.writeValueAsString(new EventEnvelope(row.getId(), eventType, row.getOccurredAt(), payload)));
         outbox.save(row);
     }
 }

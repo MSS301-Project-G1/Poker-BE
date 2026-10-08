@@ -2,6 +2,7 @@ package com.msspoker.gameservice.config;
 
 import com.msspoker.gameservice.service.MatchPersistenceService;
 import com.msspoker.gameservice.service.SettingsService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;

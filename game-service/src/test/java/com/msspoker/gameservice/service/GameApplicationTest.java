@@ -1,10 +1,18 @@
 package com.msspoker.gameservice.service;
 
-import com.msspoker.gameservice.api.GameDtos;
-import com.msspoker.gameservice.engine.*;
+import com.msspoker.gameservice.dto.request.CreateTableRequest;
+import com.msspoker.gameservice.dto.request.TableSettingsRequest;
+import com.msspoker.gameservice.dto.request.UpdateMatchSettingsRequest;
+import com.msspoker.gameservice.dto.response.PlacementResponse;
+import com.msspoker.gameservice.enums.ActionType;
+import com.msspoker.gameservice.enums.GameMode;
+import com.msspoker.gameservice.enums.Street;
 import com.msspoker.gameservice.exception.GameApiException;
-import com.msspoker.gameservice.persistence.*;
+import com.msspoker.gameservice.model.game.Seat;
+import com.msspoker.gameservice.repository.MatchRepository;
+import com.msspoker.gameservice.repository.OutboxRepository;
 import com.msspoker.gameservice.security.TrustedIngressFilter;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,16 +51,16 @@ class GameApplicationTest {
 
     @Test
     void creationIsIdempotentButRejectsChangedPayloadAndOverlappingRosters() {
-        GameDtos.CreateTable request = request();
+        CreateTableRequest request = request();
         long initialEvents = outbox.count();
         var created = tables.create(request);
         assertEquals(7, created.tableId().version());
         assertEquals(7, created.matchId().version());
         assertEquals(created, tables.create(request));
         assertEquals(initialEvents + 1, outbox.count());
-        assertThrows(GameApiException.class, () -> tables.create(new GameDtos.CreateTable(request.mode(),
+        assertThrows(GameApiException.class, () -> tables.create(new CreateTableRequest(request.mode(),
                 request.sourceId(), List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0)));
-        assertThrows(GameApiException.class, () -> tables.create(new GameDtos.CreateTable(request.mode(),
+        assertThrows(GameApiException.class, () -> tables.create(new CreateTableRequest(request.mode(),
                 UUID.randomUUID(), request.playerIds(), null, 0)));
         assertEquals(created, tables.active(request.playerIds().getFirst()).orElseThrow());
     }
@@ -80,7 +88,7 @@ class GameApplicationTest {
         assertEquals(before + 1, outbox.count());
         var result = persistence.result(created.tableId(), request.playerIds().getFirst());
         assertEquals("FINISHED", result.status());
-        assertEquals(2000, result.placements().stream().mapToLong(GameDtos.Placement::finalChips).sum());
+        assertEquals(2000, result.placements().stream().mapToLong(PlacementResponse::finalChips).sum());
         assertThrows(GameApiException.class, () -> persistence.result(created.tableId(), UUID.randomUUID()));
         var history = persistence.history(request.playerIds().getFirst(), 0, 20);
         assertEquals(1, history.totalElements());
@@ -97,17 +105,17 @@ class GameApplicationTest {
     @Test
     void adminChangesApplyOnlyToFutureTables() {
         var defaults = settings.list().stream().filter(s -> s.mode() == GameMode.CUSTOM).findFirst().orElseThrow();
-        var request = new GameDtos.CreateTable(GameMode.CUSTOM, UUID.randomUUID(),
+        var request = new CreateTableRequest(GameMode.CUSTOM, UUID.randomUUID(),
                 List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0);
         var created = tables.create(request);
         try {
-            settings.update(GameMode.CUSTOM, new GameDtos.UpdateSettings(new GameDtos.Settings(5, 10, 500, 10), 2, 6));
+            settings.update(GameMode.CUSTOM, new UpdateMatchSettingsRequest(new TableSettingsRequest(5, 10, 500, 10), 2, 6));
             assertEquals(1000, registry.require(created.tableId()).getEngine().getRules().startingChips());
-            var next = tables.create(new GameDtos.CreateTable(GameMode.CUSTOM, UUID.randomUUID(),
+            var next = tables.create(new CreateTableRequest(GameMode.CUSTOM, UUID.randomUUID(),
                     List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0));
             assertEquals(500, registry.require(next.tableId()).getEngine().getRules().startingChips());
         } finally {
-            settings.update(GameMode.CUSTOM, new GameDtos.UpdateSettings(new GameDtos.Settings(defaults.smallBlind(),
+            settings.update(GameMode.CUSTOM, new UpdateMatchSettingsRequest(new TableSettingsRequest(defaults.smallBlind(),
                     defaults.bigBlind(), defaults.startingChips(), defaults.turnTimeSeconds()), defaults.minPlayers(), defaults.maxPlayers()));
         }
     }
@@ -134,8 +142,8 @@ class GameApplicationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.tableId").exists());
     }
 
-    private static GameDtos.CreateTable request() {
-        return new GameDtos.CreateTable(GameMode.NORMAL, UUID.randomUUID(),
+    private static CreateTableRequest request() {
+        return new CreateTableRequest(GameMode.NORMAL, UUID.randomUUID(),
                 List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0);
     }
 }

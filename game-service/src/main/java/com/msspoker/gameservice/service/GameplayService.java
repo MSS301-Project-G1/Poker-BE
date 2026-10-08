@@ -1,10 +1,17 @@
 package com.msspoker.gameservice.service;
 
 import com.msspoker.gameservice.config.GameProperties;
-import com.msspoker.gameservice.engine.*;
+import com.msspoker.gameservice.dto.request.ActionRequest;
+import com.msspoker.gameservice.dto.response.GameSnapshotResponse;
+import com.msspoker.gameservice.enums.ActionType;
+import com.msspoker.gameservice.enums.Street;
 import com.msspoker.gameservice.mapper.SnapshotMapper;
-import com.msspoker.gameservice.realtime.*;
-import com.msspoker.gameservice.validation.TableMembershipValidator;
+import com.msspoker.gameservice.model.game.ManagedTable;
+import com.msspoker.gameservice.model.game.PokerTable;
+import com.msspoker.gameservice.model.game.Seat;
+import com.msspoker.gameservice.validator.TableMembershipValidator;
+import com.msspoker.gameservice.websocket.SnapshotPublisher;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,7 +33,7 @@ public class GameplayService {
     private final MatchPersistenceService persistence;
     private final GameProperties properties;
 
-    public GameSnapshot snapshot(UUID tableId, UUID accountId) {
+    public GameSnapshotResponse snapshot(UUID tableId, UUID accountId) {
         ManagedTable table = registry.require(tableId);
         membership.validate(table, accountId);
         table.getLock().lock();

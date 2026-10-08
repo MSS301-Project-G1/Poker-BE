@@ -1,10 +1,15 @@
 package com.msspoker.gameservice.service;
 
-import com.msspoker.gameservice.api.GameDtos;
 import com.msspoker.gameservice.config.GameProperties;
-import com.msspoker.gameservice.engine.*;
+import com.msspoker.gameservice.dto.request.CreateTableRequest;
+import com.msspoker.gameservice.dto.request.UpdateMatchSettingsRequest;
+import com.msspoker.gameservice.dto.response.MatchSettingsResponse;
+import com.msspoker.gameservice.entity.MatchSettingsEntity;
+import com.msspoker.gameservice.enums.GameMode;
 import com.msspoker.gameservice.mapper.GameMapper;
-import com.msspoker.gameservice.persistence.*;
+import com.msspoker.gameservice.model.game.TableRules;
+import com.msspoker.gameservice.repository.MatchSettingsRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,18 +31,18 @@ public class SettingsService {
     }
 
     @Transactional
-    public List<GameDtos.MatchSettings> list() {
+    public List<MatchSettingsResponse> list() {
         return Arrays.stream(GameMode.values()).map(this::defaults).map(mapper::settings).toList();
     }
 
     @Transactional
-    public GameDtos.MatchSettings update(GameMode mode, GameDtos.UpdateSettings request) {
+    public MatchSettingsResponse update(GameMode mode, UpdateMatchSettingsRequest request) {
         MatchSettingsEntity entity = defaults(mode);
         mapper.updateSettings(request, entity);
         return mapper.settings(repository.save(entity));
     }
 
-    public TableRules resolve(GameDtos.CreateTable request) {
+    public TableRules resolve(CreateTableRequest request) {
         TableRules rules = mapper.rules(defaults(request.mode()));
         if (request.settings() == null) return rules;
         return mapper.override(request.settings(), rules);

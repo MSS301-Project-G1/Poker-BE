@@ -4,6 +4,42 @@ No-limit Texas Hold’em: engine, REST/internal APIs, personal STOMP snapshots,
 timeouts/AFK, history, Admin Match Settings and durable match events.
 Implementation batches and review dependencies: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
+## Package structure
+
+The backend uses layers under `com.msspoker.gameservice`:
+
+```text
+gameservice/
+├── controller/         # HTTP and STOMP entry points
+├── dto/
+│   ├── request/        # Validated request records
+│   ├── response/       # JSON responses, snapshots and pagination
+│   └── event/          # RabbitMQ event envelopes and payloads
+├── service/
+│   ├── poker/          # Hand evaluation and pot distribution algorithms
+│   └── event/          # Transactional outbox publishing
+├── model/
+│   ├── game/           # Table, seat, rules and synchronized table state
+│   └── poker/          # Cards, deck, hand rank and pot values
+├── entity/             # JPA entities only
+├── repository/         # Spring Data repositories only
+├── validator/          # Stateful business validation strategies
+├── mapper/             # MapStruct transformations
+├── enums/              # Action, mode, street, match status, card and error enums
+├── constant/           # Shared game constants and header names
+├── exception/          # Exception factory and REST exception handler
+├── config/             # Spring configuration
+├── security/           # Trusted ingress and JWT identity
+├── websocket/          # STOMP interceptors, sessions and snapshot transport
+└── util/               # UUID v7 generation
+```
+
+HTTP/STOMP controller → service/validator → model/repository. MapStruct maps
+models/entities to DTOs. Response DTOs are the backend JSON representation;
+the rendered View belongs to the React FE repository. There is no server HTML
+view layer in this REST service. Each request/response record has its own file;
+entities and repositories are not mixed in a persistence package.
+
 ## Run with PostgreSQL and RabbitMQ in Docker
 
 From the BE repository root, with Docker Desktop running:
@@ -111,9 +147,28 @@ this implementation.
 
 ## Verification
 
+Run from the BE repository root (PowerShell). All backend modules:
+
 ```powershell
 .\mvnw.cmd clean verify
 ```
+
+Only game-service and its common dependency:
+
+```powershell
+.\mvnw.cmd -pl game-service -am clean verify
+```
+
+Only poker core/engine regression tests:
+
+```powershell
+.\mvnw.cmd -pl game-service -am test "-Dtest=DeckTest,HandEvaluatorTest,PotDistributorTest,PokerTableTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+```
+
+These automated tests use test-only H2 and an in-process JWT test server; they
+do not require running Docker or a frontend. Surefire reports are written to
+`game-service/target/surefire-reports`. To validate the full browser workflow,
+start the PostgreSQL/RabbitMQ dev stack as above first.
 
 36 game tests cover poker categories, kicker/wheel, side pots/refunds, heads-up,
 minimum raises and short all-ins, stale actions, chip conservation over 3,000+

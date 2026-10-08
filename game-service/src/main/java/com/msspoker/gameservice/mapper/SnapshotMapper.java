@@ -1,9 +1,14 @@
 package com.msspoker.gameservice.mapper;
 
-import com.msspoker.gameservice.api.GameDtos;
-import com.msspoker.gameservice.engine.*;
-import com.msspoker.gameservice.realtime.GameSnapshot;
-import com.msspoker.gameservice.service.ManagedTable;
+import com.msspoker.gameservice.dto.response.GameSnapshotResponse;
+import com.msspoker.gameservice.dto.response.PlayerSnapshotResponse;
+import com.msspoker.gameservice.dto.response.PlacementResponse;
+import com.msspoker.gameservice.enums.ActionType;
+import com.msspoker.gameservice.enums.Street;
+import com.msspoker.gameservice.model.game.ManagedTable;
+import com.msspoker.gameservice.model.game.PokerTable;
+import com.msspoker.gameservice.model.game.Seat;
+
 import org.mapstruct.*;
 
 import java.time.Instant;
@@ -35,17 +40,17 @@ public interface SnapshotMapper {
     @Mapping(target = "maxRaiseTo", expression = "java(ownSeat(managed.getEngine(), accountId).getChips() + ownSeat(managed.getEngine(), accountId).getStreetBet())")
     @Mapping(target = "placements", expression = "java(managed.getEngine().getStreet() == Street.FINISHED ? managed.getEngine().getSeats().stream().map(this::placement).toList() : List.of())")
     @Mapping(target = "distribution", source = "managed.engine.distribution")
-    GameSnapshot snapshot(ManagedTable managed, UUID accountId);
+    GameSnapshotResponse snapshot(ManagedTable managed, UUID accountId);
 
     @Mapping(target = "holeCardCount", expression = "java(seat.getHoleCards().size())")
     @Mapping(target = "cards", expression = "java(seat.getAccountId().equals(accountId) || table.getShowdownHands().containsKey(seat.getSeatIndex()) ? List.copyOf(seat.getHoleCards()) : List.of())")
     @Mapping(target = "handRank", expression = "java(table.getShowdownHands().get(seat.getSeatIndex()))")
-    GameSnapshot.Player player(Seat seat, @Context PokerTable table, @Context UUID accountId);
+    PlayerSnapshotResponse player(Seat seat, @Context PokerTable table, @Context UUID accountId);
 
     @Mapping(target = "finalChips", source = "chips")
-    GameDtos.Placement placement(Seat seat);
+    PlacementResponse placement(Seat seat);
 
-    default List<GameSnapshot.Player> players(ManagedTable table, UUID accountId) {
+    default List<PlayerSnapshotResponse> players(ManagedTable table, UUID accountId) {
         return table.getEngine().getSeats().stream().map(s -> player(s, table.getEngine(), accountId)).toList();
     }
 
