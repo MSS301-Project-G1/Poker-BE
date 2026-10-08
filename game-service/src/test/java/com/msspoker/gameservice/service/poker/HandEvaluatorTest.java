@@ -5,6 +5,7 @@ import com.msspoker.gameservice.enums.Rank;
 import com.msspoker.gameservice.enums.Suit;
 import com.msspoker.gameservice.model.poker.Card;
 import com.msspoker.gameservice.model.poker.HandRank;
+import com.msspoker.gameservice.service.impl.poker.HandEvaluatorImpl;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HandEvaluatorTest {
+    private static final HandEvaluator HAND_EVALUATOR = new HandEvaluatorImpl();
     @Test
     void choosesTheBestFiveOfSevenForEveryCategory() {
         assertEquals(new HandRank(HandCategory.STRAIGHT_FLUSH, List.of(14)),
@@ -99,7 +101,7 @@ class HandEvaluatorTest {
 
     private static HandRank hand(String... cards) {
         List<Card> parsed = Arrays.stream(cards).map(HandEvaluatorTest::card).toList();
-        return HandEvaluator.bestOfSeven(parsed);
+        return HAND_EVALUATOR.bestOfSeven(parsed);
     }
 
     private static Card card(String notation) {

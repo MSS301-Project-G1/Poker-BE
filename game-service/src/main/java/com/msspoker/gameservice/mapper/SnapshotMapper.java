@@ -1,8 +1,8 @@
 package com.msspoker.gameservice.mapper;
 
 import com.msspoker.gameservice.dto.response.GameSnapshotResponse;
-import com.msspoker.gameservice.dto.response.PlayerSnapshotResponse;
 import com.msspoker.gameservice.dto.response.PlacementResponse;
+import com.msspoker.gameservice.dto.response.PlayerSnapshotResponse;
 import com.msspoker.gameservice.enums.ActionType;
 import com.msspoker.gameservice.enums.Street;
 import com.msspoker.gameservice.model.game.ManagedTable;

@@ -4,6 +4,7 @@ import com.msspoker.gameservice.enums.HandCategory;
 import com.msspoker.gameservice.model.poker.HandRank;
 import com.msspoker.gameservice.model.poker.PotAward;
 import com.msspoker.gameservice.model.poker.PotContribution;
+import com.msspoker.gameservice.service.impl.poker.PotDistributorImpl;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,9 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PotDistributorTest {
+    private final PotDistributor potDistributor = new PotDistributorImpl();
     @Test
     void sidePotsAndUncalledBetAreAssignedToTheRightPlayers() {
-        var result = PotDistributor.distribute(List.of(
+        var result = potDistributor.distribute(List.of(
                 new PotContribution(0, 100, false),
                 new PotContribution(1, 50, false),
                 new PotContribution(2, 20, false)),
@@ -31,7 +33,7 @@ class PotDistributorTest {
 
     @Test
     void soleRemainingPlayerWinsContestedChipsAndGetsOwnExcessBack() {
-        var result = PotDistributor.distribute(List.of(
+        var result = potDistributor.distribute(List.of(
                 new PotContribution(0, 100, false),
                 new PotContribution(1, 30, true),
                 new PotContribution(2, 20, true)), Map.of(), 2, 3);
@@ -42,7 +44,7 @@ class PotDistributorTest {
 
     @Test
     void shortBigBlindCanWinOnlyTheMainPotWhenOthersCallTheFullBlind() {
-        var result = PotDistributor.distribute(List.of(
+        var result = potDistributor.distribute(List.of(
                 new PotContribution(0, 20, false),
                 new PotContribution(1, 5, false),
                 new PotContribution(2, 20, false)),
@@ -54,7 +56,7 @@ class PotDistributorTest {
 
     @Test
     void tiedPotGivesOddChipToWinnerNearestLeftOfDealer() {
-        var result = PotDistributor.distribute(List.of(
+        var result = potDistributor.distribute(List.of(
                 new PotContribution(0, 1, false),
                 new PotContribution(1, 1, false),
                 new PotContribution(3, 1, false)),
@@ -71,7 +73,7 @@ class PotDistributorTest {
             long a = random.nextInt(100) + 1;
             long b = random.nextInt(100) + 1;
             long c = random.nextInt(100) + 1;
-            var result = PotDistributor.distribute(List.of(
+            var result = potDistributor.distribute(List.of(
                     new PotContribution(0, a, false),
                     new PotContribution(1, b, false),
                     new PotContribution(2, c, false)),
@@ -84,10 +86,10 @@ class PotDistributorTest {
 
     @Test
     void duplicateSeatsAndMissingShowdownHandsAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> PotDistributor.distribute(List.of(
+        assertThrows(IllegalArgumentException.class, () -> potDistributor.distribute(List.of(
                 new PotContribution(0, 10, false),
                 new PotContribution(0, 10, false)), Map.of(), 0, 2));
-        assertThrows(IllegalArgumentException.class, () -> PotDistributor.distribute(List.of(
+        assertThrows(IllegalArgumentException.class, () -> potDistributor.distribute(List.of(
                 new PotContribution(0, 10, false),
                 new PotContribution(1, 10, false)), Map.of(0, highCard(14)), 0, 2));
     }

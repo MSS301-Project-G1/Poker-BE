@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.random.RandomGenerator;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +36,10 @@ public final class PokerTable {
     private final Set<Integer> pending = new LinkedHashSet<>();
     @Getter(AccessLevel.NONE)
     private final RandomGenerator random;
+    @Getter(AccessLevel.NONE)
+    private final HandEvaluator handEvaluator;
+    @Getter(AccessLevel.NONE)
+    private final PotDistributor potDistributor;
     private Deck deck;
     private Street street;
     private int dealerSeat = TableRules.NO_SEAT;
@@ -50,11 +53,8 @@ public final class PokerTable {
     private PotDistribution distribution;
     private Map<Integer, HandRank> showdownHands = Map.of();
 
-    public PokerTable(UUID tableId, UUID matchId, List<UUID> playerIds, TableRules rules, long seed) {
-        this(tableId, matchId, playerIds, rules, new Random(seed));
-    }
-
-    public PokerTable(UUID tableId, UUID matchId, List<UUID> playerIds, TableRules rules, RandomGenerator random) {
+    public PokerTable(UUID tableId, UUID matchId, List<UUID> playerIds, TableRules rules,
+                      RandomGenerator random, HandEvaluator handEvaluator, PotDistributor potDistributor) {
         if (playerIds == null || playerIds.size() < rules.minPlayers()
                 || playerIds.size() > rules.maxPlayers() || playerIds.stream().anyMatch(java.util.Objects::isNull)
                 || new java.util.HashSet<>(playerIds).size() != playerIds.size()) {
@@ -64,6 +64,8 @@ public final class PokerTable {
         this.matchId = matchId;
         this.rules = rules;
         this.random = random;
+        this.handEvaluator = handEvaluator;
+        this.potDistributor = potDistributor;
         List<Seat> players = new ArrayList<>();
         for (UUID id : playerIds) {
             Seat seat = new Seat(id, players.size());
@@ -255,12 +257,12 @@ public final class PokerTable {
                 if (!seat.folded && !seat.eliminated) {
                     List<Card> seven = new ArrayList<>(board);
                     seven.addAll(seat.holeCards);
-                    hands.put(seat.getSeatIndex(), HandEvaluator.bestOfSeven(seven));
+                    hands.put(seat.getSeatIndex(), handEvaluator.bestOfSeven(seven));
                 }
             }
         }
         showdownHands = Map.copyOf(hands);
-        distribution = PotDistributor.distribute(seats.stream().filter(s -> !s.eliminated)
+        distribution = potDistributor.distribute(seats.stream().filter(s -> !s.eliminated)
                 .map(s -> new PotContribution(s.getSeatIndex(), s.contribution, s.folded)).toList(),
                 hands, dealerSeat, seats.size());
         for (Seat seat : seats) {

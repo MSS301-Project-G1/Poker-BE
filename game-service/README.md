@@ -15,9 +15,12 @@ gameservice/
 │   ├── request/        # Validated request records
 │   ├── response/       # JSON responses, snapshots and pagination
 │   └── event/          # RabbitMQ event envelopes and payloads
-├── service/
-│   ├── poker/          # Hand evaluation and pot distribution algorithms
-│   └── event/          # Transactional outbox publishing
+├── service/            # Application service interfaces
+│   ├── poker/          # Hand evaluation and pot distribution interfaces
+│   ├── event/          # Outbox publishing interface
+│   └── impl/           # Spring-managed implementations of every service
+│       ├── poker/      # HandEvaluatorImpl, PotDistributorImpl
+│       └── event/      # OutboxPublisherImpl
 ├── model/
 │   ├── game/           # Table, seat, rules and synchronized table state
 │   └── poker/          # Cards, deck, hand rank and pot values
@@ -39,6 +42,13 @@ models/entities to DTOs. Response DTOs are the backend JSON representation;
 the rendered View belongs to the React FE repository. There is no server HTML
 view layer in this REST service. Each request/response record has its own file;
 entities and repositories are not mixed in a persistence package.
+
+Controllers and collaborating services inject interfaces such as `TableService`
+and `GameplayService`. Spring discovers `TableServiceImpl`, `GameplayServiceImpl`
+and the other implementations under `service/impl`. Transactions, scheduling,
+dev profiles and conditional event publishing remain on the implementation
+classes. Poker tables receive `HandEvaluator`/`PotDistributor` dependencies;
+their implementations remain stateless and can be tested without Spring.
 
 ## Run with PostgreSQL and RabbitMQ in Docker
 

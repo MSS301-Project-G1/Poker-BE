@@ -2,6 +2,10 @@ package com.msspoker.gameservice.model.game;
 
 import com.msspoker.gameservice.enums.ActionType;
 import com.msspoker.gameservice.enums.Street;
+import com.msspoker.gameservice.service.poker.HandEvaluator;
+import com.msspoker.gameservice.service.poker.PotDistributor;
+import com.msspoker.gameservice.service.impl.poker.HandEvaluatorImpl;
+import com.msspoker.gameservice.service.impl.poker.PotDistributorImpl;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +17,8 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PokerTableTest {
+    private static final HandEvaluator HAND_EVALUATOR = new HandEvaluatorImpl();
+    private static final PotDistributor POT_DISTRIBUTOR = new PotDistributorImpl();
     private static final TableRules RULES = new TableRules(10, 20, 1000, 20, 2, 8);
 
     @Test
@@ -186,7 +192,8 @@ class PokerTableTest {
 
     private static PokerTable table(int players, long seed) {
         List<UUID> ids = IntStream.range(0, players).mapToObj(i -> UUID.randomUUID()).toList();
-        return new PokerTable(UUID.randomUUID(), UUID.randomUUID(), ids, RULES, seed);
+        return new PokerTable(UUID.randomUUID(), UUID.randomUUID(), ids, RULES,
+                new Random(seed), HAND_EVALUATOR, POT_DISTRIBUTOR);
     }
 
     private static void act(PokerTable table, ActionType action) {
