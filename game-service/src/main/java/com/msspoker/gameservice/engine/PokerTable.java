@@ -7,6 +7,7 @@ import com.msspoker.gameservice.poker.HandEvaluator;
 import com.msspoker.gameservice.poker.HandRank;
 import com.msspoker.gameservice.poker.PotDistributor;
 import lombok.Getter;
+import lombok.AccessLevel;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.random.RandomGenerator;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -28,7 +30,8 @@ public final class PokerTable {
     private final List<Seat> seats;
     private final List<Card> board = new ArrayList<>(TableRules.BOARD_CARDS);
     private final Set<Integer> pending = new LinkedHashSet<>();
-    private final Random shuffleSeeds;
+    @Getter(AccessLevel.NONE)
+    private final RandomGenerator random;
     private Deck deck;
     private Street street;
     private int dealerSeat = TableRules.NO_SEAT;
@@ -43,6 +46,10 @@ public final class PokerTable {
     private Map<Integer, HandRank> showdownHands = Map.of();
 
     public PokerTable(UUID tableId, UUID matchId, List<UUID> playerIds, TableRules rules, long seed) {
+        this(tableId, matchId, playerIds, rules, new Random(seed));
+    }
+
+    public PokerTable(UUID tableId, UUID matchId, List<UUID> playerIds, TableRules rules, RandomGenerator random) {
         if (playerIds == null || playerIds.size() < rules.minPlayers()
                 || playerIds.size() > rules.maxPlayers() || playerIds.stream().anyMatch(java.util.Objects::isNull)
                 || new java.util.HashSet<>(playerIds).size() != playerIds.size()) {
@@ -51,7 +58,7 @@ public final class PokerTable {
         this.tableId = tableId;
         this.matchId = matchId;
         this.rules = rules;
-        this.shuffleSeeds = new Random(seed);
+        this.random = random;
         List<Seat> players = new ArrayList<>();
         for (UUID id : playerIds) {
             Seat seat = new Seat(id, players.size());
@@ -72,7 +79,7 @@ public final class PokerTable {
         pending.clear();
         distribution = null;
         showdownHands = Map.of();
-        deck = new Deck(shuffleSeeds.nextLong());
+        deck = new Deck(random);
         for (Seat seat : seats) {
             seat.streetBet = 0;
             seat.contribution = 0;
@@ -257,14 +264,11 @@ public final class PokerTable {
             seat.contribution = 0;
         }
         List<Seat> busted = seats.stream().filter(s -> !s.eliminated && s.chips == 0)
-                .sorted(Comparator.comparingLong(Seat::getHandStartingChips)).toList();
+                .sorted(Comparator.comparingLong(Seat::getHandStartingChips)
+                        .thenComparing(Comparator.comparingInt(Seat::getSeatIndex).reversed())).toList();
         int remaining = (int) seats.stream().filter(s -> !s.eliminated).count();
-        long previousStack = TableRules.NOT_ACTED;
-        int sharedPlace = remaining;
         for (Seat seat : busted) {
-            if (seat.handStartingChips != previousStack) sharedPlace = remaining;
-            seat.place = sharedPlace;
-            previousStack = seat.handStartingChips;
+            seat.place = remaining;
             seat.eliminated = true;
             remaining--;
         }

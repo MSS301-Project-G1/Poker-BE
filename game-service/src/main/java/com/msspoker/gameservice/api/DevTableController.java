@@ -14,7 +14,7 @@ public class DevTableController {
     private final DevTableService tables;
 
     @PostMapping("/tables")
-    public DevTableService.DevTable create(@RequestParam(defaultValue = "1") @Min(1) @Max(6) int humans,
+    public GameDtos.DevTable create(@RequestParam(defaultValue = "1") @Min(1) @Max(6) int humans,
             @RequestParam(defaultValue = "5") @Min(0) @Max(5) int bots) {
         return tables.create(humans, bots);
     }

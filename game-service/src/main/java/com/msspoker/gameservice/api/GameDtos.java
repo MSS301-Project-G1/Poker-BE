@@ -39,6 +39,9 @@ public final class GameDtos {
     public record TableCreated(UUID tableId, UUID matchId) {
     }
 
+    public record DevTable(UUID tableId, UUID matchId, List<UUID> humanIds, List<UUID> botIds) {
+    }
+
     public record MatchSettings(UUID id, GameMode mode, long smallBlind, long bigBlind, long startingChips,
                                 int turnTimeSeconds, int minPlayers, int maxPlayers) {
     }

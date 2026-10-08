@@ -118,6 +118,41 @@ class PokerTableTest {
     }
 
     @Test
+    void equalStartingStacksUseSeatOrderForUniqueEliminationPlaces() {
+        boolean observed = false;
+        for (int seed = 0; seed < 200 && !observed; seed++) {
+            PokerTable table = table(3, seed);
+            act(table, ActionType.ALL_IN);
+            act(table, ActionType.CALL);
+            act(table, ActionType.CALL);
+            if (table.getStreet() == Street.FINISHED) {
+                assertEquals(3, table.getSeats().stream().map(Seat::getPlace).distinct().count());
+                List<Seat> eliminated = table.getSeats().stream().filter(Seat::isEliminated).toList();
+                assertTrue(eliminated.getFirst().getPlace() < eliminated.getLast().getPlace());
+                observed = true;
+            }
+        }
+        assertTrue(observed);
+    }
+
+    @Test
+    void afkPlayersKeepPostingBlindsWithoutLosingChipsOutsideThePot() {
+        PokerTable table = table(3, 6);
+        table.timeout(table.getSequence(), 1);
+        assertTrue(table.getSeats().get(0).isLeftEarly());
+        while (table.getStreet() != Street.HAND_FINISHED && table.getStreet() != Street.FINISHED) {
+            Seat actor = table.getSeats().get(table.getActorSeat());
+            act(table, actor.getStreetBet() >= table.getCurrentBet() ? ActionType.CHECK : ActionType.CALL);
+        }
+        if (table.getStreet() == Street.HAND_FINISHED) {
+            table.getSeats().forEach(s -> s.leftEarly = true);
+            table.startHand();
+            assertTrue(table.getStreet() == Street.HAND_FINISHED || table.getStreet() == Street.FINISHED);
+        }
+        table.assertConserved();
+    }
+
+    @Test
     void seededBotsPlayThousandsOfHandsWithoutCreatingOrLosingChips() {
         Random decisions = new Random(20261008);
         int hands = 0;

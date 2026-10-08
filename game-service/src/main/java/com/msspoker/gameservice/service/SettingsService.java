@@ -22,9 +22,7 @@ public class SettingsService {
     @Transactional
     public MatchSettingsEntity defaults(GameMode mode) {
         return repository.findByMode(mode).orElseGet(() -> repository.save(mapper.settingsEntity(
-                new TableRules(properties.getSmallBlind(), properties.getBigBlind(), properties.getStartingChips(),
-                        properties.getTurnTimeSeconds(), properties.getMinPlayers(),
-                        mode == GameMode.TOURNAMENT ? properties.getTournamentMaxPlayers() : properties.getMaxPlayers()), mode)));
+                mapper.defaults(properties, mode), mode)));
     }
 
     @Transactional
@@ -42,8 +40,6 @@ public class SettingsService {
     public TableRules resolve(GameDtos.CreateTable request) {
         TableRules rules = mapper.rules(defaults(request.mode()));
         if (request.settings() == null) return rules;
-        GameDtos.Settings override = request.settings();
-        return new TableRules(override.smallBlind(), override.bigBlind(), override.startingChips(),
-                override.turnTimeSeconds(), rules.minPlayers(), rules.maxPlayers());
+        return mapper.override(request.settings(), rules);
     }
 }
