@@ -1,8 +1,15 @@
 package com.msspoker.gameservice.service;
 
-import com.msspoker.gameservice.api.GameDtos;
-import com.msspoker.gameservice.engine.*;
-import com.msspoker.gameservice.realtime.ActionRequest;
+import com.msspoker.gameservice.dto.request.ActionRequest;
+import com.msspoker.gameservice.dto.request.CreateTableRequest;
+import com.msspoker.gameservice.dto.response.TableCreatedResponse;
+import com.msspoker.gameservice.enums.ActionType;
+import com.msspoker.gameservice.enums.GameMode;
+import com.msspoker.gameservice.enums.Street;
+import com.msspoker.gameservice.model.game.ManagedTable;
+import com.msspoker.gameservice.model.game.PokerTable;
+import com.msspoker.gameservice.model.game.Seat;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,8 +32,8 @@ class ManyTablesTest {
 
     @Test
     void thirtyTwoTablesFinishIndependentlyWithConservedChipsAndPersistedPlacements() throws Exception {
-        List<GameDtos.TableCreated> created = IntStream.range(0, 32).mapToObj(index -> tables.create(
-                new GameDtos.CreateTable(GameMode.TOURNAMENT, UUID.randomUUID(),
+        List<TableCreatedResponse> created = IntStream.range(0, 32).mapToObj(index -> tables.create(
+                new CreateTableRequest(GameMode.TOURNAMENT, UUID.randomUUID(),
                         IntStream.range(0, 2 + index % 7).mapToObj(i -> UUID.randomUUID()).toList(), null, 0))).toList();
         try (ExecutorService workers = Executors.newFixedThreadPool(BACKGROUND_CPU_WORKERS)) {
             var tasks = created.stream().map(table -> workers.submit(() -> play(table))).toList();
@@ -42,7 +49,7 @@ class ManyTablesTest {
         }
     }
 
-    private void play(GameDtos.TableCreated created) {
+    private void play(TableCreatedResponse created) {
         ManagedTable table = registry.require(created.tableId());
         int guard = 0;
         while (table.getEngine().getStreet() != Street.FINISHED) {

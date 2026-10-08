@@ -1,5 +1,7 @@
 package com.msspoker.gameservice.exception;
 
+import com.msspoker.gameservice.enums.GameError;
+
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 

@@ -1,7 +1,10 @@
 package com.msspoker.gameservice.security;
 
-import com.msspoker.gameservice.api.GameExceptionHandler.ErrorResponse;
-import com.msspoker.gameservice.exception.*;
+import com.msspoker.gameservice.constant.GameHeaders;
+import com.msspoker.gameservice.dto.response.ErrorResponse;
+import com.msspoker.gameservice.exception.GameApiException;
+import com.msspoker.gameservice.exception.GameExceptions;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.*;

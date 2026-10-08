@@ -1,6 +1,8 @@
 package com.msspoker.gameservice.security;
 
+import com.msspoker.gameservice.constant.GameHeaders;
 import com.msspoker.gameservice.exception.GameExceptions;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;

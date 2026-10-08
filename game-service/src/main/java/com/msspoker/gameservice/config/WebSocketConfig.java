@@ -1,8 +1,9 @@
 package com.msspoker.gameservice.config;
 
-import com.msspoker.gameservice.realtime.GameChannelInterceptor;
-import com.msspoker.gameservice.realtime.GameStompErrorHandler;
-import com.msspoker.gameservice.realtime.GameSocketSessions;
+import com.msspoker.gameservice.websocket.GameChannelInterceptor;
+import com.msspoker.gameservice.websocket.GameSocketSessions;
+import com.msspoker.gameservice.websocket.GameStompErrorHandler;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.*;
