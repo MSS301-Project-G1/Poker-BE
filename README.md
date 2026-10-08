@@ -1,6 +1,12 @@
 # Poker-BE
 
-Backend dạng Maven multi-module cho dự án Poker. Đây là bộ khung khởi tạo; chưa có API nghiệp vụ, xác thực JWT hoặc schema database.
+Backend dạng Maven multi-module cho dự án Poker. `game-service` đã có engine, API,
+STOMP xác thực JWT, schema PostgreSQL/Flyway, lịch sử và Match Settings.
+Các service còn lại và gateway tiếp tục được chủ module tích hợp.
+
+Chạy phần game với PostgreSQL/RabbitMQ Docker theo
+[game-service/README.md](game-service/README.md); kế hoạch và kết quả kiểm thử ở
+[IMPLEMENTATION_PLAN.md](game-service/IMPLEMENTATION_PLAN.md).
 
 ## Yêu cầu
 
@@ -50,18 +56,19 @@ poker-be/
 
 Trên macOS/Linux, dùng `./mvnw` thay cho `./mvnw.cmd`. Khi chạy service riêng lẻ, gateway chuyển tiếp từ `/api/{service}/**` tới service tương ứng trên localhost và bỏ hai segment đầu của path. Các URL đích có thể đổi bằng biến môi trường `IDENTITY_SERVICE_URL`, `GAME_SERVICE_URL`, v.v.
 
-Chạy toàn bộ bằng Docker:
+Compose scaffold cho toàn bộ service (cần cấu hình DB/JWT của từng module;
+để chạy riêng game, dùng Compose trong hướng dẫn game ở trên):
 
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build
 ```
 
-Các port public trong `.env` có thể đổi để tránh xung đột trên máy. Gateway có health endpoint tại `http://localhost:8080/actuator/health`; mỗi service cũng có `/actuator/health` trên port của mình. Chưa có endpoint nghiệp vụ nên route API hiện trả về 404 từ service đích.
+Các port public trong `.env` có thể đổi để tránh xung đột trên máy. Gateway có health endpoint tại `http://localhost:8080/actuator/health`; mỗi service cũng có `/actuator/health` trên port của mình. Gateway cần cập nhật route/JWT theo SPEC để nối các endpoint nghiệp vụ game đã triển khai.
 
 ## Migration
 
-Mỗi service sở hữu database đặt script Flyway tại `src/main/resources/db/migration/`, ví dụ `identity-service/src/main/resources/db/migration/V1__create_users_table.sql`. Không đặt migration tại `common` hoặc `api-gateway`. Thư mục hiện chỉ có `.gitkeep`; khi chọn database và thiết kế bảng, thêm JDBC driver, Flyway và script của service tương ứng. Không sửa script đã áp dụng ở môi trường dùng chung; tạo migration phiên bản mới.
+Mỗi service sở hữu database đặt script Flyway tại `src/main/resources/db/migration/`, ví dụ `identity-service/src/main/resources/db/migration/V1__create_users_table.sql`. Không đặt migration tại `common` hoặc `api-gateway`. Game đã có migration V1; các module còn lại thêm driver/Flyway và migration khi triển khai. Không sửa script đã áp dụng ở môi trường dùng chung; tạo migration phiên bản mới.
 
 ## Quy tắc Git
 

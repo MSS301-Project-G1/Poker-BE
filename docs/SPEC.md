@@ -4,7 +4,7 @@
 > Mọi thay đổi về **hợp đồng giữa các service** (API nội bộ, event, WebSocket) sau khi chốt phải sửa file này trước, qua Pull Request, và được người dùng API đó đồng ý.
 > Các con số có ghi *(đề xuất)* là giá trị mặc định, nằm trong config để chỉnh sau, không cần họp lại.
 >
-> **Trạng thái repo hiện tại:** mới có scaffold 10 ứng dụng Spring Boot và module `common`. Gateway đang có route mẫu theo tên service; PostgreSQL, Redis, RabbitMQ, Mailpit, JWT, database và hợp đồng mục 6 chưa được triển khai. Trước khi tích hợp FE, gateway phải đổi route theo mục 6.4.
+> **Trạng thái repo:** trên nhánh triển khai của Bảo, game đã có PostgreSQL/Flyway, RabbitMQ outbox, REST và STOMP/JWT cùng FE game/Admin; xem `game-service/README.md`. Các phần còn lại vẫn cần chủ module tích hợp. Gateway đang có route mẫu theo tên service và phải đổi route/JWT theo mục 6.4 trước khi tích hợp production.
 
 ## Mục lục
 
@@ -389,6 +389,44 @@ Các `type` của `notification.requested`: `FRIEND_REQUEST`, `FRIEND_ACCEPTED`,
 | `/ws/social` | Duy | — | `/user/queue/notifications` · `/user/queue/presence` |
 
 `type` hành động trong bàn: `FOLD`, `CHECK`, `CALL`, `RAISE` (kèm `amount` = tổng cược muốn đạt tới), `ALL_IN`.
+
+#### Chi tiết tích hợp game đã triển khai trên nhánh Bảo
+
+Các chi tiết bổ sung sau cần bên gọi/gateway review trước khi merge:
+
+- Action có thể thêm `actionSequence` từ snapshot để chống gửi trùng hoặc action
+  đến muộn; FE của Bảo luôn gửi trường này. Các hành động ngoài RAISE không gửi
+  `amount`. Business error gửi riêng qua `/user/queue/game-errors`.
+- Snapshot gồm `tableId`, `matchId`, `mode`, `accountId`, `street`, `handNumber`,
+  `actionSequence`, các chỉ số ghế dealer/blind/actor, `board`, `pot`, `currentBet`,
+  `deadline`, `serverTime`, `seats`, `legalActions`, `callAmount`, `minRaiseTo`,
+  `maxRaiseTo`, `placements`, `distribution`. Card dùng enum `{ rank, suit }`.
+  `seats[].cards` chỉ có bài của người nhận hoặc bài showdown chưa fold.
+- `GET /api/game/me/active-table` trả `{ tableId, matchId }` hoặc `null`;
+  `GET /api/game/tables/{tableId}` trả snapshot cá nhân;
+  `GET /api/game/tables/{tableId}/result` trả kết quả đã lưu. Hai endpoint theo
+  tableId bắt buộc membership. Lịch sử internal dùng `PageResponse`, hỗ trợ
+  `page` từ 0 và `size` 1–100, mặc định 20.
+- Admin: GET `/api/admin/match-settings`; PUT `/api/admin/match-settings/{mode}`
+  nhận `{ settings: { smallBlind, bigBlind, startingChips, turnTimeSeconds },
+  minPlayers, maxPlayers }`. Thay đổi chỉ áp dụng bàn mở sau đó.
+- CreateTable idempotent theo `(mode, sourceId)` và request giống nhau; request
+  khác cho cùng khóa trả conflict. Thứ tự `playerIds` là thứ tự ghế. Một account
+  chỉ ở một bàn đang chạy. NORMAL/CUSTOM phải có `entryFee = 0`.
+- Xếp hạng khi bị loại cùng ván: chip đầu ván lớn hơn đứng trên; nếu bằng nhau,
+  seatIndex nhỏ hơn đứng trên, bảo đảm placements duy nhất (Hoài Anh review).
+  AFK đủ N lượt fold tự động các ván sau, vẫn đóng blind để bảo toàn chip.
+- REST ngoài dev yêu cầu header server `X-Game-Service-Key` khớp cấu hình
+  `GAME_SERVICE_KEY`; gateway phải loại bỏ header giả từ client, xác thực JWT và
+  cấp `X-User-*`. WebSocket tự kiểm tra RS256/JWKS, issuer, audience, hạn token
+  và UUID subject. Không đưa service key vào FE.
+- Dev chạy PostgreSQL/RabbitMQ trong `game-service/compose.dev.yml`; H2 chỉ dành
+  cho test. Xem `game-service/README.md` để chạy và cấu hình. Restart service hủy
+  trận RAM đang dở; không phát match.finished để trao thưởng cho trận bị hủy.
+
+Đây là phần triển khai của Bảo, không xác nhận gateway/auth/chat/skin/Elo/wallet
+đã tích hợp. Consumer GĐ2 `account.penalized` còn phụ thuộc hợp đồng loại xử phạt
+của identity; hiện game kiểm tra restrictions khi tạo bàn.
 
 ### 6.4. Bảng route public qua gateway
 
