@@ -1,6 +1,7 @@
 package com.msspoker.gameservice.exception;
 
 import java.util.NoSuchElementException;
+import org.springframework.http.HttpStatus;
 
 public final class GameExceptions {
     private GameExceptions() {
@@ -80,5 +81,37 @@ public final class GameExceptions {
 
     public static IllegalArgumentException invalidRaise() {
         return new IllegalArgumentException("Mức raise không hợp lệ hoặc quyền raise chưa được mở lại.");
+    }
+
+    public static GameApiException tableNotFound() {
+        return new GameApiException(GameError.GAME_NOT_FOUND, HttpStatus.NOT_FOUND, "Không tìm thấy bàn chơi.");
+    }
+
+    public static GameApiException forbidden() {
+        return new GameApiException(GameError.GAME_FORBIDDEN, HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập bàn hoặc chức năng này.");
+    }
+
+    public static GameApiException playerBusy() {
+        return new GameApiException(GameError.GAME_PLAYER_BUSY, HttpStatus.CONFLICT, "Một người chơi đang ở bàn khác.");
+    }
+
+    public static GameApiException sourceConflict() {
+        return new GameApiException(GameError.GAME_SOURCE_CONFLICT, HttpStatus.CONFLICT, "Nguồn tạo bàn đã được dùng với dữ liệu khác.");
+    }
+
+    public static GameApiException invalidRequest() {
+        return new GameApiException(GameError.GAME_INVALID_REQUEST, HttpStatus.BAD_REQUEST, "Dữ liệu không hợp lệ. Vui lòng kiểm tra thông tin gửi lên.");
+    }
+
+    public static GameApiException unauthorized() {
+        return new GameApiException(GameError.GAME_UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
+    }
+
+    public static GameApiException dependencyUnavailable() {
+        return new GameApiException(GameError.GAME_DEPENDENCY_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ tài khoản tạm thời không khả dụng. Vui lòng thử lại.");
+    }
+
+    public static GameApiException internalError() {
+        return new GameApiException(GameError.GAME_INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR, "Không thể xử lý yêu cầu lúc này. Vui lòng thử lại.");
     }
 }
