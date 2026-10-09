@@ -1,0 +1,40 @@
+name: poker-auth-dev
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: ${AUTH_DB_USERNAME:-poker}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
+    ports:
+      - "127.0.0.1:54330:5432"
+    volumes:
+      - auth-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  mailpit:
+    image: axllent/mailpit:v1.27.0
+    ports:
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:8026:8025"
+  auth-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        MODULE: auth-service
+    ports:
+      - "127.0.0.1:${AUTH_SERVICE_PORT:-8090}:8090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ${AUTH_DB_USERNAME:-poker}
+      SPRING_DATASOURCE_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  auth-db:

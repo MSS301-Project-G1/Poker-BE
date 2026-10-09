@@ -35,6 +35,26 @@ services:
         MODULE: auth-service
     ports:
       - "${AUTH_SERVICE_PORT:-8090}:8090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ${AUTH_DB_USERNAME:-poker}
+      SPRING_DATASOURCE_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+  auth-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: ${AUTH_DB_USERNAME:-poker}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
+    volumes:
+      - auth-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
   identity-service:
     build:
       context: .
@@ -98,3 +118,5 @@ services:
         MODULE: wallet-service
     ports:
       - "${WALLET_SERVICE_PORT:-8089}:8089"
+volumes:
+  auth-db:

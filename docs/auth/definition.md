@@ -1,6 +1,6 @@
 # Định nghĩa phạm vi auth-service và api-gateway
 
-> Cập nhật: 2026-10-07. Chủ sở hữu: Khanh.
+> Cập nhật: 2026-10-10. Chủ sở hữu: Khanh.
 >
 > Tài liệu này ghi phạm vi đã thống nhất với Khanh và các vấn đề cần debate trước khi triển khai. Không phải tài liệu API đã chạy. Endpoint chi tiết, DTO, status code và lỗi sẽ được bổ sung theo implementation; hợp đồng giữa service phải đồng bộ với [SPEC](../SPEC.md).
 
@@ -9,7 +9,7 @@
 - Ưu tiên một luồng hoàn chỉnh: đăng ký → xác thực email → đăng nhập → nhận xu lần đầu → vào sảnh → ghép Rank → chơi → xem kết quả Elo/xu.
 - Khanh phụ trách `api-gateway` và **toàn bộ** phạm vi tài khoản trong SPEC: auth, hồ sơ, điểm danh, báo cáo, xử phạt và Admin liên quan; cùng phần hạ tầng/common/khung FE đã phân công.
 - Tạo `auth-service` để triển khai phạm vi này. Giữ nguyên module `identity-service` hiện có; không chia đôi hoặc xây trùng nghiệp vụ tài khoản ở hai service. Khanh sẽ thông báo cập nhật cho nhóm.
-- `auth-service`: package `com.msspoker.authservice`, port mặc định `8090`, database nghiệp vụ dự kiến `auth_db`. Không thay đổi port của các service khác. Database chưa được tạo.
+- `auth-service`: package `com.msspoker.authservice`, port mặc định `8090`, database nghiệp vụ `auth_db`. Không thay đổi port của các service khác. Đã có cấu hình và migration; test chạy trên PostgreSQL 17 riêng, chưa tạo dữ liệu nghiệp vụ ở DB dev.
 - Phần phức tạp không phục vụ luồng đầu tiên được làm ở phase sau; vẫn thuộc phạm vi tổng thể của Khanh.
 - Chỉ xử lý nghiệp vụ của Khanh. Phần ví, ghép trận, engine, Elo, chat và shop do chủ module quyết định/triển khai; cần gì thì dùng API/event đã thống nhất.
 - Đang đầu tuần học 5, deadline tuần học 10. Lịch tích hợp chung còn cần nhóm xác nhận.
@@ -19,6 +19,8 @@
 - Đăng ký phải hoàn tất xác thực email bằng OTP trước khi được login. Sau đó login bằng email + mật khẩu; **không yêu cầu OTP ở mỗi lần đăng nhập**. Tự đăng nhập hay chuyển về màn login sau xác thực chưa được chốt.
 
 Câu hỏi và chỗ trả lời trực tiếp: [debate/debate.md](debate/debate.md). Các đề xuất chưa được trả lời trong file đó không phải quyết định đã chốt.
+
+Kế hoạch chia phase theo cấu trúc đã commit: [implementation-plan.md](implementation-plan.md). Kế hoạch mô tả việc sẽ làm; không thay thế API thực tế hoặc đánh dấu nghiệp vụ đã triển khai.
 
 ## 2. Thứ tự thực hiện
 
@@ -151,10 +153,14 @@ Nhóm route mục tiêu của auth vẫn là `/api/auth/**`, `/api/profiles/**`,
 
 ## 8. Trạng thái triển khai hiện tại
 
-- Đã có scaffold `auth-service`: POM, Spring Boot entry point, cấu hình health, test khởi động context và thư mục migration trống.
-- Đã đăng ký module ở parent POM và thêm cấu hình Compose/biến môi trường; Docker chưa được khởi chạy cho cập nhật này.
+- Đã có nền tảng phase 1: JPA/Flyway/PostgreSQL, entity/repository accounts và profiles tối thiểu, UUID v7/UTC/soft delete, mapper, password encoder và chuẩn lỗi/validation.
+- `common` có BaseEntity và ErrorResponse; chưa chuyển đổi game hoặc các service khác sang các kiểu mới.
+- 12 test auth pass trên PostgreSQL 17 thật qua Testcontainers (Flyway tạo schema, Hibernate validate); đã bỏ H2 khỏi auth. Có cấu hình PostgreSQL/Mailpit dev và PostgreSQL auth trong root Compose; app qua Compose/Mailpit chưa khởi chạy cho cập nhật này.
+- Style tham khảo module identify của StellarStay: Lombok/builder, request record/response class, MapStruct, service interface/impl và ApiException/ErrorCode/GlobalExceptionHandler. Quy ước cụ thể ở phase-1.md; giữ UUID v7/Instant/format lỗi của SPEC Poker.
 - Gateway có route **scaffold** `/api/auth-service/**` và `StripPrefix=2`, giống kiểu scaffold hiện tại. Chưa route các nhóm nghiệp vụ mục tiêu, chưa xác thực JWT.
-- Chưa có controller, nghiệp vụ, schema, JWT, OTP, mail, cơ chế thưởng hoặc điểm danh.
+- Chưa có controller/API nghiệp vụ, JWT, OTP, gửi mail, cơ chế thưởng hoặc điểm danh.
 - `identity-service` giữ nguyên nội dung. Không có bước migrate dữ liệu vì chưa có schema nghiệp vụ.
+
+Chi tiết code/lựa chọn và giới hạn kiểm chứng: [phase-1.md](phase-1.md). Hướng dẫn chạy: [README auth](../../auth-service/README.md).
 
 Nguồn tham khảo cho bước thiết kế tiếp theo: [Spring STOMP token authentication](https://docs.spring.io/spring-framework/reference/web/websocket/stomp/authentication-token-based.html). Đây là tài liệu kỹ thuật, không chốt thay các chính sách nghiệp vụ phía trên.
