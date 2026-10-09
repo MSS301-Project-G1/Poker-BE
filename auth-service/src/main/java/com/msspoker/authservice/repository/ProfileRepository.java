@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     Optional<Profile> findByAccountId(UUID accountId);
+
+    Optional<Profile> findByAccountIdAndAccount_DeletedFalse(UUID accountId);
 }

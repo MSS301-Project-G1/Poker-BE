@@ -38,8 +38,16 @@ port DB. Khi dùng root Compose, app kết nối tên service này trong mạng 
 không dùng URL localhost dành cho Java trên máy. Volume root và volume Compose dev
 là hai database khác nhau. Chọn một cách chạy app để tránh trùng port 8090.
 
-Flyway áp dụng `V1__create_accounts_and_profiles.sql` khi khởi động;
+Flyway áp dụng V1 và `V2__share_profile_account_id_and_expand_user_fields.sql` khi khởi động.
+V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
+không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,
+V2 dừng để review dữ liệu thay vì tự làm profile đó xuất hiện lại.
 Hibernate chỉ `validate`, không tự sửa schema. Mọi thay đổi tiếp theo dùng migration mới.
+
+Entity chỉ mapping dữ liệu; chuẩn hóa email, validation nghiệp vụ và soft delete
+sẽ được triển khai trong service. Cờ xóa ở Account; Profile không có ID/cờ xóa riêng.
+`cascade = ALL` ở Profile → Account có cả REMOVE: luồng soft delete cần cập nhật
+`account.deleted`, không gọi `delete(profile)` hoặc `delete(account)`.
 
 ## Kiểm tra
 

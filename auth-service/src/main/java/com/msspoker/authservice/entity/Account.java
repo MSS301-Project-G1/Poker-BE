@@ -8,22 +8,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.SQLRestriction;
 
-import java.util.Locale;
+import java.time.Instant;
 
 @Entity
 @Table(name = "accounts")
@@ -32,22 +26,17 @@ import java.util.Locale;
 @SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
-@SQLDelete(sql = "UPDATE accounts SET is_deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-@SQLRestriction("is_deleted = false")
 public class Account extends BaseEntity {
-    @NotBlank
-    @Email
-    @Size(max = 254)
     @Column(nullable = false, unique = true, length = 254)
     private String email;
 
-    @NotBlank
-    @Size(max = 255)
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
     @Builder.Default
-    @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false, length = 32)
     private AccountStatus accountStatus = AccountStatus.PENDING_VERIFICATION;
@@ -56,19 +45,19 @@ public class Account extends BaseEntity {
     private boolean emailVerified;
 
     @Builder.Default
-    @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private AccountRole role = AccountRole.USER;
 
-    public void setEmail(String email) {
-        this.email = email == null ? null : email.strip().toLowerCase(Locale.ROOT);
-    }
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
 
-    @PrePersist
-    @PreUpdate
-    private void normalizeEmail() {
-        // Builders and constructors bypass setters; normalize before validation/persistence too.
-        setEmail(email);
-    }
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
+
+    @Column(name = "first_login_rewarded", nullable = false)
+    private boolean firstLoginRewarded;
+
+    @OneToOne(mappedBy = "account", fetch = FetchType.LAZY)
+    private Profile profile;
 }

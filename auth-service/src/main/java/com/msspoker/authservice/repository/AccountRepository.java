@@ -11,4 +11,8 @@ import java.util.UUID;
 public interface AccountRepository extends JpaRepository<Account, UUID> {
     // Callers must pass the canonical (stripped, lowercase) email.
     Optional<Account> findByEmail(String email);
+
+    Optional<Account> findByEmailAndDeletedFalse(String email);
+
+    Optional<Account> findByIdAndDeletedFalse(UUID accountId);
 }
