@@ -141,7 +141,7 @@ Với đăng nhập sai nhiều lần, bro muốn giới hạn thử và chờ t
 
 Bro đồng ý thời điểm và mức quà không? Việc phát event cần thông báo cho Tùng/Hoài Anh; phần xử lý ví/Elo vẫn do họ làm.
 
-==> Đúng rồi, về việc quà lần đầu thì sau khi xác thực thành công, vào dashboard thì sẽ nhận quà lần đầu thôi ;v 
++==> Đúng rồi, về việc quà lần đầu thì sau khi xác thực thành công, vào dashboard thì sẽ nhận quà lần đầu thôi ;v 
 
 ### R2. Ví chưa sẵn sàng hoặc cấp quà bị lỗi có chặn đăng nhập không?
 
