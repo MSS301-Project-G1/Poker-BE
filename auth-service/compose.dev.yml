@@ -20,6 +20,21 @@ services:
     ports:
       - "127.0.0.1:1026:1025"
       - "127.0.0.1:8026:8025"
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${AUTH_RABBIT_USERNAME:-poker}
+      RABBITMQ_DEFAULT_PASS: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+    ports:
+      - "127.0.0.1:5673:5672"
+      - "127.0.0.1:15673:15672"
+    volumes:
+      - auth-rabbit:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
   auth-service:
     profiles: ["app"]
     build:
@@ -33,8 +48,25 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
       SPRING_DATASOURCE_USERNAME: ${AUTH_DB_USERNAME:-poker}
       SPRING_DATASOURCE_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
+      AUTH_MAIL_HOST: mailpit
+      AUTH_MAIL_PORT: 1025
+      AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-no-reply@poker.local}
+      AUTH_OTP_TTL: ${AUTH_OTP_TTL:-5m}
+      AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
+      AUTH_OTP_RESEND_COOLDOWN: ${AUTH_OTP_RESEND_COOLDOWN:-60s}
+      AUTH_RABBIT_HOST: rabbitmq
+      AUTH_RABBIT_PORT: 5672
+      AUTH_RABBIT_USERNAME: ${AUTH_RABBIT_USERNAME:-poker}
+      AUTH_RABBIT_PASSWORD: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+      AUTH_EVENTS_DISPATCH_ENABLED: ${AUTH_EVENTS_DISPATCH_ENABLED:-true}
+      AUTH_EVENTS_DISPATCH_DELAY: ${AUTH_EVENTS_DISPATCH_DELAY:-5000}
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 volumes:
   auth-db:
+  auth-rabbit:

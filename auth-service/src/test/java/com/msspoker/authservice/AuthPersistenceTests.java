@@ -63,7 +63,7 @@ class AuthPersistenceTests {
         assertThat(stored.isFirstLoginRewarded()).isFalse();
         assertThat(stored.getCreatedAt()).isBetween(before.minusMillis(1), Instant.now());
         assertThat(stored.getUpdatedAt()).isEqualTo(stored.getCreatedAt());
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("2");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
     }
 
