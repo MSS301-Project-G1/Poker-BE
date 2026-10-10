@@ -45,6 +45,20 @@ class AuthServiceApplicationTests {
         assertThat(register.get("responses").has("409")).isTrue();
         assertThat(register.get("responses").has("503")).isTrue();
         JsonNode schemas = document.get("components").get("schemas");
+        for (String path : new String[]{"/api/auth/register", "/api/auth/register/verify-otp", "/api/auth/register/resend-otp"}) {
+            String status = path.equals("/api/auth/register") ? "201" : "200";
+            JsonNode content = paths.get(path).get("post").get("responses").get(status).get("content");
+            JsonNode responseSchema = content.iterator().next().get("schema");
+            JsonNode envelope = schemas.get(responseSchema.get("$ref").asString().substring("#/components/schemas/".length()));
+            JsonNode envelopeProperties = envelope.get("properties");
+            assertThat(envelopeProperties.has("code")).isTrue();
+            assertThat(envelopeProperties.has("message")).isTrue();
+            assertThat(envelopeProperties.has("timestamp")).isTrue();
+            assertThat(envelopeProperties.has("path")).isTrue();
+            String resultType = path.endsWith("verify-otp") ? "EmailVerificationResponse" : "RegistrationResponse";
+            assertThat(envelopeProperties.get("result").get("$ref").asString())
+                    .isEqualTo("#/components/schemas/" + resultType);
+        }
         JsonNode properties = schemas.get("RegisterRequest").get("properties");
         assertThat(properties.has("confirmPassword")).isTrue();
         assertThat(properties.get("password").get("format").asString()).isEqualTo("password");

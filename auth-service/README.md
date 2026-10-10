@@ -52,6 +52,12 @@ Swagger có mô tả field, JSON mẫu, response schema và mã lỗi cho cả b
 mã `012345` chỉ là ví dụ, cần thay bằng OTP thật trong Mailpit. Các API hiện tại
 public, chưa cần bấm Authorize. UI gọi auth-service ở địa chỉ đang mở.
 
+Response thành công theo style StellarStay: `code`, `message`, `result`, `timestamp`,
+`path`; dữ liệu nghiệp vụ nằm trong `result` (ví dụ `result.accountId`,
+`result.accountStatus`). `code` thành công là `success_request`, timestamp UTC.
+Đăng ký trả HTTP 201, xác thực/gửi lại trả 200. Swagger hiển thị envelope và DTO
+trong `result`. Lỗi dùng format chung `code`, `message`, `timestamp`, `requestId`.
+
 Mặc định Swagger bật. `AUTH_SWAGGER_ENABLED=false` tắt cả UI và OpenAPI JSON;
 biến được chuyển vào app ở cả Compose dev và root Compose. Java trên máy cần
 export/IDE env như các biến cấu hình khác. Nếu BE đang chạy trước khi thêm dependency,

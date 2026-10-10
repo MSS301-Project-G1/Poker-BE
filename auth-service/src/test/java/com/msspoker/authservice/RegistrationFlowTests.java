@@ -79,7 +79,7 @@ class RegistrationFlowTests {
         MvcResult registration = request("/register", new RegisterRequest(email.toUpperCase(),
                 "test-password", "test-password", "  Khanh  "));
         assertThat(registration.getResponse().getStatus()).isEqualTo(201);
-        JsonNode response = jsonMapper.readTree(registration.getResponse().getContentAsString());
+        JsonNode response = successResult(registration, "/api/auth/register");
         UUID accountId = UUID.fromString(response.get("accountId").asString());
         assertThat(accountId.version()).isEqualTo(7);
         assertThat(response.get("email").asString()).isEqualTo(email);
@@ -98,7 +98,7 @@ class RegistrationFlowTests {
         MvcResult verification = request("/register/verify-otp", new VerifyRegistrationOtpRequest(email, code));
         assertThat(verification.getResponse().getStatus()).isEqualTo(200);
         assertThat(verification.getResponse().getHeaders("Set-Cookie")).isEmpty();
-        assertThat(jsonMapper.readTree(verification.getResponse().getContentAsString())
+        assertThat(successResult(verification, "/api/auth/register/verify-otp")
                 .get("accountStatus").asString()).isEqualTo("ACTIVE");
         assertThat(accounts.findById(accountId).orElseThrow().isEmailVerified()).isTrue();
         assertThat(otps.findById(accountId)).isEmpty();
@@ -176,8 +176,11 @@ class RegistrationFlowTests {
         assertError(request("/register/resend-otp", new ResendRegistrationOtpRequest(email)),
                 429, "AUTH_OTP_RESEND_TOO_SOON");
         clock.set(clock.instant().plusSeconds(1));
-        assertThat(request("/register/resend-otp", new ResendRegistrationOtpRequest(email)).getResponse().getStatus())
-                .isEqualTo(200);
+        MvcResult resend = request("/register/resend-otp", new ResendRegistrationOtpRequest(email));
+        assertThat(resend.getResponse().getStatus()).isEqualTo(200);
+        JsonNode resendResult = successResult(resend, "/api/auth/register/resend-otp");
+        assertThat(resendResult.get("email").asString()).isEqualTo(email);
+        assertThat(resendResult.get("resendAvailableAt").asString()).isEqualTo("2026-10-10T01:02:00Z");
         String newCode = readCode(email);
         assertThat(newCode).isNotEqualTo(oldCode);
         assertError(request("/register/verify-otp", new VerifyRegistrationOtpRequest(email, oldCode)),
@@ -250,6 +253,16 @@ class RegistrationFlowTests {
     private MvcResult request(String path, Object body) throws Exception {
         return mvc.perform(post("/api/auth" + path).contentType(MediaType.APPLICATION_JSON)
                 .content(jsonMapper.writeValueAsString(body))).andReturn();
+    }
+
+    private JsonNode successResult(MvcResult result, String path) throws Exception {
+        JsonNode envelope = jsonMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(envelope.get("code").asString()).isEqualTo("success_request");
+        assertThat(envelope.get("message").asString()).isNotBlank();
+        assertThat(envelope.get("path").asString()).isEqualTo(path);
+        assertThat(Instant.parse(envelope.get("timestamp").asString())).isNotNull();
+        assertThat(envelope.has("accountId")).isFalse();
+        return envelope.get("result");
     }
 
     private void assertError(MvcResult result, int status, String code) throws Exception {
