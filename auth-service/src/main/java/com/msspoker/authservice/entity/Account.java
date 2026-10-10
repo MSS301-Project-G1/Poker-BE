@@ -17,8 +17,6 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-import java.time.Instant;
-
 @Entity
 @Table(name = "accounts")
 @Getter
@@ -48,12 +46,6 @@ public class Account extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private AccountRole role = AccountRole.USER;
-
-    @Column(name = "last_login_at")
-    private Instant lastLoginAt;
-
-    @Column(name = "password_changed_at")
-    private Instant passwordChangedAt;
 
     @Column(name = "first_login_rewarded", nullable = false)
     private boolean firstLoginRewarded;

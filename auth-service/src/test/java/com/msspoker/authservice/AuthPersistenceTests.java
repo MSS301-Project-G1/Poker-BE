@@ -136,11 +136,8 @@ class AuthPersistenceTests {
 
     @Test
     void cascadePersistDerivesProfileIdFromNewAccountAndStoresUserFields() {
-        Instant loginAt = Instant.parse("2026-10-10T01:00:00Z");
         Account account = account("khanh@example.com");
         account.setPhoneNumber("+84901234567");
-        account.setLastLoginAt(loginAt);
-        account.setPasswordChangedAt(loginAt.minusSeconds(60));
         Profile profile = Profile.builder()
                 .account(account)
                 .displayName("Khanh")
@@ -167,8 +164,6 @@ class AuthPersistenceTests {
         assertThat(stored.getCountryCode()).isEqualTo("VN");
         assertThat(stored.getCity()).isEqualTo("Ho Chi Minh City");
         assertThat(stored.getAccount().getPhoneNumber()).isEqualTo("+84901234567");
-        assertThat(stored.getAccount().getLastLoginAt()).isEqualTo(loginAt);
-        assertThat(stored.getAccount().getPasswordChangedAt()).isEqualTo(loginAt.minusSeconds(60));
     }
 
     @Test

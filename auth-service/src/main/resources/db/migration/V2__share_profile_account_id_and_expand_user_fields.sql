@@ -1,7 +1,5 @@
 ALTER TABLE accounts
     ADD COLUMN phone_number VARCHAR(20),
-    ADD COLUMN last_login_at TIMESTAMP WITH TIME ZONE,
-    ADD COLUMN password_changed_at TIMESTAMP WITH TIME ZONE,
     ADD COLUMN first_login_rewarded BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Do not silently revive a previously deleted profile belonging to an active account.
