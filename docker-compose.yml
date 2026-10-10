@@ -39,9 +39,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/auth_db
       SPRING_DATASOURCE_USERNAME: ${AUTH_DB_USERNAME:-poker}
       SPRING_DATASOURCE_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
-      AUTH_MAIL_HOST: auth-mailpit
-      AUTH_MAIL_PORT: 1025
+      AUTH_MAIL_HOST: ${AUTH_MAIL_HOST:-smtp.gmail.com}
+      AUTH_MAIL_PORT: ${AUTH_MAIL_PORT:-587}
       AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-no-reply@poker.local}
+      AUTH_MAIL_USERNAME: ${AUTH_MAIL_USERNAME:-}
+      AUTH_MAIL_PASSWORD: ${AUTH_MAIL_PASSWORD:-}
+      AUTH_MAIL_SMTP_AUTH: ${AUTH_MAIL_SMTP_AUTH:-true}
+      AUTH_MAIL_STARTTLS: ${AUTH_MAIL_STARTTLS:-true}
       AUTH_OTP_TTL: ${AUTH_OTP_TTL:-5m}
       AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
       AUTH_OTP_RESEND_COOLDOWN: ${AUTH_OTP_RESEND_COOLDOWN:-60s}
@@ -55,11 +59,10 @@ services:
     depends_on:
       auth-postgres:
         condition: service_healthy
-      auth-mailpit:
-        condition: service_started
       rabbitmq:
         condition: service_healthy
   auth-mailpit:
+    profiles: ["mailpit"]
     image: axllent/mailpit:v1.27.0
     ports:
       - "127.0.0.1:8026:8025"
