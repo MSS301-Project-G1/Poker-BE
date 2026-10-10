@@ -51,6 +51,7 @@ services:
       AUTH_RABBIT_PASSWORD: ${AUTH_RABBIT_PASSWORD:-poker_dev}
       AUTH_EVENTS_DISPATCH_ENABLED: ${AUTH_EVENTS_DISPATCH_ENABLED:-true}
       AUTH_EVENTS_DISPATCH_DELAY: ${AUTH_EVENTS_DISPATCH_DELAY:-5000}
+      AUTH_SWAGGER_ENABLED: ${AUTH_SWAGGER_ENABLED:-true}
     depends_on:
       auth-postgres:
         condition: service_healthy

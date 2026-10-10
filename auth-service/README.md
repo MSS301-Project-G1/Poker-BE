@@ -37,6 +37,26 @@ Profile `local` dùng password mặc định của Compose dev. Ngoài local ph�
 file `.env`: export biến vào shell, cấu hình trong IDE hoặc dùng Compose `--env-file .env`.
 Giá trị trong `.env.example` chỉ phục vụ local, không dùng làm secret triển khai.
 
+## Test API bằng Swagger UI
+
+Sau khi auth-service khởi động, mở **http://localhost:8090/swagger-ui.html**.
+OpenAPI JSON: `http://localhost:8090/v3/api-docs`.
+
+1. Mở nhóm **Đăng ký và OTP**, chọn **1. Đăng ký tài khoản** → **Try it out**.
+2. Sửa JSON mẫu, giữ `password` và `confirmPassword` khớp nhau → **Execute**. Thành công trả 201.
+3. Mở Mailpit tại `http://localhost:8026`, lấy OTP trong mail vừa nhận.
+4. Chọn **2. Xác thực OTP đăng ký**, nhập cùng email và OTP dạng string 6 chữ số → **Execute**. Thành công trả ACTIVE; chưa cấp token.
+5. Khi chưa xác thực và cần mã mới, dùng **3. Gửi lại OTP đăng ký** sau thời gian chờ (mặc định 60 giây).
+
+Swagger có mô tả field, JSON mẫu, response schema và mã lỗi cho cả ba API;
+mã `012345` chỉ là ví dụ, cần thay bằng OTP thật trong Mailpit. Các API hiện tại
+public, chưa cần bấm Authorize. UI gọi auth-service ở địa chỉ đang mở.
+
+Mặc định Swagger bật. `AUTH_SWAGGER_ENABLED=false` tắt cả UI và OpenAPI JSON;
+biến được chuyển vào app ở cả Compose dev và root Compose. Java trên máy cần
+export/IDE env như các biến cấu hình khác. Nếu BE đang chạy trước khi thêm dependency,
+khởi động lại để tải Swagger. Nguồn thư viện: [springdoc-openapi](https://springdoc.org/).
+
 Root `docker-compose.yml` cũng có PostgreSQL riêng `auth-postgres`, không publish
 port DB. Khi dùng root Compose, app kết nối tên service này trong mạng Docker;
 không dùng URL localhost dành cho Java trên máy. Volume root và volume Compose dev
