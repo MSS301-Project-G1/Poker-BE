@@ -1,0 +1,8 @@
+services:
+  competition-service:
+    build:
+      context: ..
+      args:
+        MODULE: competition-service
+    ports:
+      - "${COMPETITION_SERVICE_PORT:-8087}:8087"

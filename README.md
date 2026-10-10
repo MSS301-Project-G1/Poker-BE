@@ -30,8 +30,10 @@ poker-be/
 ├── competition-service/
 ├── shop-service/
 ├── wallet-service/
+├── docker/
+│   └── compose.infra.yml   # hạ tầng dùng chung (RabbitMQ)
 ├── Dockerfile
-└── docker-compose.yml
+└── docker-compose.yml      # chỉ include docker/ và <service>/compose.yml
 ```
 
 | Module | Người phụ trách | Port | Chức năng dự kiến |
@@ -56,15 +58,38 @@ poker-be/
 
 Trên macOS/Linux, dùng `./mvnw` thay cho `./mvnw.cmd`. Khi chạy service riêng lẻ, gateway chuyển tiếp từ `/api/{service}/**` tới service tương ứng trên localhost và bỏ hai segment đầu của path. Các URL đích có thể đổi bằng biến môi trường `IDENTITY_SERVICE_URL`, `GAME_SERVICE_URL`, v.v.
 
-Compose scaffold cho toàn bộ service (cần cấu hình DB/JWT của từng module;
-để chạy riêng game, dùng Compose trong hướng dẫn game ở trên):
+## Chạy bằng Docker Compose
+
+`docker-compose.yml` ở root chỉ `include` các file con:
+
+- `docker/compose.infra.yml`: hạ tầng dùng chung cho cả dự án (RabbitMQ).
+- `<service>/compose.yml`: từng service và database riêng của nó (nếu có).
+
+Luôn chạy lệnh từ thư mục root:
 
 ```powershell
-Copy-Item .env.example .env
-docker compose up --build
+Copy-Item .env.example .env                # tùy chọn: đổi port, mật khẩu DB
+docker compose up -d --build               # chạy toàn bộ service
+docker compose up -d --build game-service  # chỉ chạy game (tự bật game-db và rabbitmq)
+docker compose ps                          # xem container đang chạy
+docker compose logs -f game-service        # xem log một service
+docker compose stop                        # dừng, giữ container và dữ liệu
+docker compose down                        # xóa container, giữ dữ liệu trong volume
 ```
 
+- Chạy một service bằng tên thì Compose tự bật các service nó phụ thuộc (`depends_on`), không bật service khác. Bỏ `--build` nếu code không đổi.
+- Không chạy trực tiếp `<service>/compose.yml`: hạ tầng dùng chung nằm ở file khác nên Compose sẽ báo thiếu service.
+- `docker compose down -v` xóa luôn volume, tức là **mất dữ liệu** DB.
+- Chạy game với profile `dev` (cho FE local): xem [game-service/README.md](game-service/README.md).
+
 Các port public trong `.env` có thể đổi để tránh xung đột trên máy. Gateway có health endpoint tại `http://localhost:8080/actuator/health`; mỗi service cũng có `/actuator/health` trên port của mình. Gateway cần cập nhật route/JWT theo SPEC để nối các endpoint nghiệp vụ game đã triển khai.
+
+### Database per service
+
+- Mỗi service sở hữu database riêng và tự chọn công nghệ (PostgreSQL, MySQL...). Khai báo DB trong `<service>/compose.yml`, theo mẫu `game-service/compose.yml`.
+- DB chỉ nằm trong mạng riêng `<service>-net` cùng service sở hữu nó; service khác không kết nối được. Cần dữ liệu của service khác thì gọi API nội bộ (`/internal/**`) hoặc nhận event qua RabbitMQ, không truy cập DB của nhau.
+- Đặt tên không trùng giữa các service: container `<service>-db`, mạng `<service>-net`, volume `<service>-db-data`, biến `<SERVICE>_DB_*` trong `.env.example`, và một port host riêng trên `127.0.0.1` (game dùng `54329`).
+- Thêm service mới: tạo `<service>/compose.yml` rồi thêm một dòng vào `include` của `docker-compose.yml`.
 
 ## Migration
 

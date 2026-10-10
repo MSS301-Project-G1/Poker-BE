@@ -1,52 +1,9 @@
-name: poker-game-dev
 services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: game_db
-      POSTGRES_USER: poker
-      POSTGRES_PASSWORD: ${GAME_DEV_DB_PASSWORD:-poker_dev}
-    ports:
-      - "127.0.0.1:54329:5432"
-    volumes:
-      - game-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U poker -d game_db"]
-      interval: 5s
-      timeout: 3s
-      retries: 15
-  rabbitmq:
-    image: rabbitmq:4-management
-    ports:
-      - "127.0.0.1:56729:5672"
-      - "127.0.0.1:15679:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
   game-service:
-    profiles: ["app"]
-    build:
-      context: ..
-      dockerfile: Dockerfile
-      args:
-        MODULE: game-service
-    ports:
+    ports: !override
       - "127.0.0.1:8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SERVER_ADDRESS: 0.0.0.0
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/game_db
-      SPRING_DATASOURCE_USERNAME: poker
-      SPRING_DATASOURCE_PASSWORD: ${GAME_DEV_DB_PASSWORD:-poker_dev}
-      RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
-      GAME_EVENTS_ENABLED: "true"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-volumes:
-  game-db:
+      GAME_DEV_DB_PASSWORD: ${GAME_DB_PASSWORD:-poker_dev}

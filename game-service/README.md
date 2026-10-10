@@ -55,23 +55,29 @@ their implementations remain stateless and can be tested without Spring.
 From the BE repository root, with Docker Desktop running:
 
 ```powershell
-docker compose -f game-service/compose.dev.yml up -d postgres rabbitmq
+docker compose up -d game-db rabbitmq
 .\mvnw.cmd -pl game-service -am -DskipTests package
 java -jar game-service/target/game-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
 ```
 
+The game owns its PostgreSQL container `game-db`, declared in
+`game-service/compose.yml` on the private `game-net` network, so other services
+cannot reach it. RabbitMQ is shared infrastructure in `docker/compose.infra.yml`.
 Dev uses PostgreSQL `127.0.0.1:54329/game_db` (user `poker`, local password
 `poker_dev`) and RabbitMQ `127.0.0.1:56729`; management UI is at
-`http://localhost:15679` (`guest`/`guest`). Override `GAME_DEV_DB_PASSWORD` for
-both Compose and the Java process when changing the local password. Flyway
-creates the schema; Hibernate validates it. The named `game-db` volume retains
-matches and settings across container restarts. H2 is a **test-scope dependency
-only** and is absent from the executable JAR.
+`http://localhost:15679` (`guest`/`guest`). When changing the local password,
+set `GAME_DB_PASSWORD` for Compose and `GAME_DEV_DB_PASSWORD` to the same value
+for the Java process. Flyway creates the schema; Hibernate validates it. The
+named `game-db-data` volume retains matches and settings across container
+restarts. H2 is a **test-scope dependency only** and is absent from
+the executable JAR.
 
-To build and run the application itself in Docker:
+To build and run the application itself in Docker with the `dev` profile,
+`game-service/compose.dev.yml` overrides only the dev differences on top of the
+root stack:
 
 ```powershell
-docker compose -f game-service/compose.dev.yml --profile app up -d --build
+docker compose -f docker-compose.yml -f game-service/compose.dev.yml up -d --build game-service
 ```
 
 Use either the Java process or the application container on port 8082. Dev is

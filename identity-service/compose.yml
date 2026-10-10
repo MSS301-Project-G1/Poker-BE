@@ -1,0 +1,8 @@
+services:
+  identity-service:
+    build:
+      context: ..
+      args:
+        MODULE: identity-service
+    ports:
+      - "${IDENTITY_SERVICE_PORT:-8081}:8081"

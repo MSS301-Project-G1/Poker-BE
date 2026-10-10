@@ -107,11 +107,11 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 
 - **Backend:** Java 21, Spring Boot (bản ổn định mới nhất trên start.spring.io), Maven multi-module, một repo `MS-Poker-BE`.
 - **Frontend:** một repo `MS-Poker-FE` riêng.
-- **Hạ tầng local dự kiến (chưa có trong Compose scaffold hiện tại):**
-  - PostgreSQL — 1 container, 9 database (tạo bằng script init).
-  - Redis — hàng chờ ghép trận, presence, cache.
-  - RabbitMQ — event giữa các service.
-  - Mailpit — hộp thư giả để test OTP.
+- **Hạ tầng local (Docker Compose):**
+  - Database — mỗi service sở hữu DB riêng (*Database per Service*) và tự chọn công nghệ (PostgreSQL, MySQL...). DB khai báo trong `<service>/compose.yml`, nằm trong mạng riêng `<service>-net` nên service khác không kết nối được; cần dữ liệu của nhau thì gọi API nội bộ hoặc nhận event. Hiện có `game-db` (PostgreSQL).
+  - RabbitMQ — event giữa các service; một broker dùng chung, khai báo trong `docker/compose.infra.yml`.
+  - Redis — hàng chờ ghép trận, presence, cache (dự kiến, chưa có trong Compose).
+  - Mailpit — hộp thư giả để test OTP (dự kiến, chưa có trong Compose).
 - **Chưa dùng** Eureka / Config Server ở MVP. Service gọi nhau bằng tên container, vd `http://wallet-service:8089`.
 
 ### 3.3. Cấu trúc repo backend
@@ -130,9 +130,9 @@ MS-Poker-BE/
 ├── competition-service/
 ├── shop-service/
 ├── wallet-service/
-├── docker/                  ← sẽ thêm khi triển khai PostgreSQL
-│   └── postgres-init.sql    ← tạo 9 database
-├── docker-compose.yml
+├── docker/
+│   └── compose.infra.yml    ← hạ tầng dùng chung (RabbitMQ)
+├── docker-compose.yml       ← chỉ include docker/compose.infra.yml và <service>/compose.yml (service + DB riêng)
 ├── docs/
 │   └── SPEC.md              ← file này
 └── README.md
@@ -184,6 +184,7 @@ Package gốc hiện có: `com.msspoker.<tên-service-bỏ-dấu-gạch>` (vd `c
 | `pom.xml` gốc | Khanh | Mọi thay đổi qua PR, ít nhất 1 người review |
 | `common/` | Khanh | Chỉ chứa event, `BaseEntity`, format lỗi. Thêm event mới thì người phát event tự thêm, chủ `common` review |
 | `docker-compose.yml`, `docker/` | Khanh | Ai cần thêm hạ tầng thì PR, Khanh review |
+| `<service>/compose.yml` | Chủ service | Tự khai báo service và DB riêng; đặt tên theo mục "Database per service" trong `README.md` |
 | `docs/SPEC.md` | Cả nhóm | PR, người bị ảnh hưởng phải approve |
 | FE `shared/` (layout, UI kit, API client) | Khanh | PR, Khanh review |
 | FE `shared/skin/` | Tùng | PR, Tùng review |
@@ -420,7 +421,9 @@ Các chi tiết bổ sung sau cần bên gọi/gateway review trước khi merge
   `GAME_SERVICE_KEY`; gateway phải loại bỏ header giả từ client, xác thực JWT và
   cấp `X-User-*`. WebSocket tự kiểm tra RS256/JWKS, issuer, audience, hạn token
   và UUID subject. Không đưa service key vào FE.
-- Dev chạy PostgreSQL/RabbitMQ trong `game-service/compose.dev.yml`; H2 chỉ dành
+- Dev chạy PostgreSQL riêng của game (`game-db`, khai báo trong
+  `game-service/compose.yml`) và RabbitMQ dùng chung bằng Docker Compose ở root;
+  `game-service/compose.dev.yml` chỉ ghi đè cấu hình profile `dev`. H2 chỉ dành
   cho test. Xem `game-service/README.md` để chạy và cấu hình. Restart service hủy
   trận RAM đang dở; không phát match.finished để trao thưởng cho trận bị hủy.
 

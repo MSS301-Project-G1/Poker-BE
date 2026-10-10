@@ -1,0 +1,42 @@
+services:
+  game-service:
+    build:
+      context: ..
+      args:
+        MODULE: game-service
+    ports:
+      - "${GAME_SERVICE_PORT:-8082}:8082"
+    environment:
+      GAME_DB_URL: jdbc:postgresql://game-db:5432/game_db
+      GAME_DB_USER: ${GAME_DB_USER:-poker}
+      GAME_DB_PASSWORD: ${GAME_DB_PASSWORD:-poker_dev}
+      RABBITMQ_HOST: rabbitmq
+    networks:
+      - default
+      - game-net
+    depends_on:
+      game-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  game-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: game_db
+      POSTGRES_USER: ${GAME_DB_USER:-poker}
+      POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:-poker_dev}
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - game-db-data:/var/lib/postgresql/data
+    networks:
+      - game-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+networks:
+  game-net:
+volumes:
+  game-db-data:
