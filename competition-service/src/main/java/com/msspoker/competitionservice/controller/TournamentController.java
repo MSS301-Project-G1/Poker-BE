@@ -36,4 +36,10 @@ public class TournamentController {
             @RequestHeader(CompetitionHeaders.USER_ID) UUID accountId) {
         return tournaments.register(tournamentId, accountId);
     }
+
+    @PostMapping("/{tournamentId}/confirm")
+    public TournamentResponse confirm(@PathVariable UUID tournamentId,
+            @RequestHeader(CompetitionHeaders.USER_ID) UUID accountId) {
+        return tournaments.confirm(tournamentId, accountId);
+    }
 }

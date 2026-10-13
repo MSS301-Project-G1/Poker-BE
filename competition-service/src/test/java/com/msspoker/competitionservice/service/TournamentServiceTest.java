@@ -44,6 +44,7 @@ class TournamentServiceTest {
     @Autowired TournamentTableRepository tables;
     @Autowired TournamentSeatRepository seats;
     @Autowired WalletCreditRepository credits;
+    @Autowired ItemGrantRepository itemGrants;
     @Autowired OutboxRepository outbox;
     @Autowired JsonMapper json;
     @MockitoBean GameClient game;
@@ -53,7 +54,7 @@ class TournamentServiceTest {
 
     @BeforeEach
     void setup() {
-        clean(seats, tables, entries, tournamentRepository, credits, outbox);
+        clean(seats, tables, entries, tournamentRepository, credits, itemGrants, outbox);
         when(game.createTable(any())).thenAnswer(call -> new TableCreatedResponse(UUID.randomUUID(), UUID.randomUUID()));
     }
 
@@ -146,6 +147,15 @@ class TournamentServiceTest {
         assertEquals(TournamentStatus.FINISHED, done.status());
         assertEquals(List.of(1, 2, 3, 4, 5, 6), expectedFinalists.stream().map(account -> done.entries().stream()
                 .filter(e -> e.accountId().equals(account)).findFirst().orElseThrow().finalPlace()).toList());
+
+        // Pool of 18 fees of 50 split 50/30/20 over the podium; no skin was configured.
+        assertEquals(900, done.prizePool());
+        assertEquals(List.of(450L, 270L, 180L), expectedFinalists.subList(0, 3).stream().map(account -> credits.findAll()
+                .stream().filter(c -> c.getAccountId().equals(account)).findFirst().orElseThrow().getAmount()).toList());
+        assertTrue(credits.findAll().stream().allMatch(c -> c.getReason().equals("TOURNAMENT_PRIZE")
+                && c.getIdempotencyKey().equals("tournament-prize:" + id + ":" + c.getAccountId())));
+        assertEquals(3, credits.count());
+        assertEquals(0, itemGrants.count());
     }
 
     @Test

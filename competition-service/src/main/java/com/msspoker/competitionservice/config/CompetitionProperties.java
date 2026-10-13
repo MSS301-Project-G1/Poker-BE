@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Getter
 @Setter
 @Component
@@ -33,8 +35,14 @@ public class CompetitionProperties {
         /** Must not exceed game-service's TOURNAMENT maxPlayers. */
         private int tableSize = 8;
         private int advancePerTable = 2;
-        /** Fewer registered players cannot start; the admin cancels and fees are refunded. */
+        /** Fewer players cannot start; at startAt such a tournament is cancelled and fees are refunded. */
         private int minPlayers = 4;
+        /** SPEC §7.7: ELITE invitations go out this long before startAt. */
+        private int inviteLeadMinutes = 30;
+        /** SPEC §7.7: invitations still unconfirmed this long before startAt go to the next ranks. */
+        private int confirmDeadlineMinutes = 10;
+        /** SPEC §8: prize pool share of final places 1, 2, 3 in percent. */
+        private List<Integer> prizeShares = List.of(50, 30, 20);
 
         /** Largest field whose qualifier winners still fit one final table. */
         public int maxSlots() {

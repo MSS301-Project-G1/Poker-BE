@@ -112,6 +112,22 @@ public final class CompetitionExceptions {
         return new CompetitionApiException(CompetitionError.COMP_FORBIDDEN, HttpStatus.FORBIDDEN, "Giải Cao thủ chỉ dành cho người chơi được mời.");
     }
 
+    public static CompetitionApiException notInvited() {
+        return new CompetitionApiException(CompetitionError.COMP_FORBIDDEN, HttpStatus.FORBIDDEN, "Bạn không có lời mời tham dự giải này.");
+    }
+
+    public static CompetitionApiException inviteExpired() {
+        return new CompetitionApiException(CompetitionError.COMP_CONFLICT, HttpStatus.CONFLICT, "Lời mời tham dự giải đã hết hạn.");
+    }
+
+    public static CompetitionApiException eliteStartTooSoon(int inviteLeadMinutes) {
+        return new CompetitionApiException(CompetitionError.COMP_INVALID_REQUEST, HttpStatus.BAD_REQUEST, "Giải Cao thủ phải bắt đầu sau ít nhất " + inviteLeadMinutes + " phút để kịp gửi lời mời.");
+    }
+
+    public static CompetitionApiException rankingUnavailable() {
+        return new CompetitionApiException(CompetitionError.COMP_DEPENDENCY_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Không lấy được bảng xếp hạng lúc này. Hệ thống sẽ thử lại.");
+    }
+
     public static CompetitionApiException registrationClosed() {
         return new CompetitionApiException(CompetitionError.COMP_CONFLICT, HttpStatus.CONFLICT, "Giải đấu đã đóng đăng ký.");
     }

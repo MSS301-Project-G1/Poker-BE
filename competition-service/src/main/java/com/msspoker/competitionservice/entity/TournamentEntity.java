@@ -22,11 +22,15 @@ public class TournamentEntity {
     private long entryFee;
     private int slots;
     @Enumerated(EnumType.STRING) private TournamentStatus status;
-    /** ELITE coin prize; OPEN prizes come from the entry fee pool (GĐ2). */
+    /** Coins added to the prize pool; the whole ELITE pool, a bonus on top of OPEN entry fees. */
     private long rewardCoins;
-    /** Exclusive skin granted to the ELITE winner (GĐ2). */
+    /** Exclusive skin granted to the champion. */
     private UUID rewardProductId;
     private UUID createdBy;
     private Instant createdAt;
+    /** ELITE: when the top of the leaderboard was invited. */
+    private Instant invitesSentAt;
+    /** ELITE: when unconfirmed invitations expired and the next ranks were invited. */
+    private Instant replacementsSentAt;
     private boolean isDeleted;
 }

@@ -15,9 +15,14 @@ public final class CompetitionConstants {
     public static final String WALLET_INSUFFICIENT_BALANCE = "WALLET_INSUFFICIENT_BALANCE";
     public static final String TOURNAMENT_ENTRY_FEE = "TOURNAMENT_ENTRY_FEE";
     public static final String TOURNAMENT_REFUND = "TOURNAMENT_REFUND";
+    public static final String TOURNAMENT_PRIZE = "TOURNAMENT_PRIZE";
     /** SPEC §5.4 key format: reason:sourceId:accountId. */
     public static final String TOURNAMENT_FEE_KEY_FORMAT = "tournament-fee:%s:%s";
     public static final String TOURNAMENT_REFUND_KEY_FORMAT = "tournament-refund:%s:%s";
+    public static final String TOURNAMENT_PRIZE_KEY_FORMAT = "tournament-prize:%s:%s";
+    public static final String TOURNAMENT_ITEM_KEY_FORMAT = "tournament-item:%s:%s";
+    /** Largest limit ranking-service accepts on /internal/ranking/top. */
+    public static final int MAX_RANKING_LIMIT = 100;
 
     private CompetitionConstants() {
     }

@@ -47,7 +47,7 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
 - Giải đấu: số bàn vòng loại = ⌈n/8⌉, chia đều sau khi xáo, mỗi bàn lấy top 2 vào
   chung kết (32 người → 4×8 → 8 như §2.4). Tối đa 32 suất; ≤ 8 người thì đấu thẳng
   chung kết; ít hơn `competition.tournament.min-players` (4) thì không bắt đầu được.
-- Admin bấm bắt đầu/hủy; lịch tự động để GĐ2. Đăng ký đóng khi tới `startAt`.
+- Admin bấm bắt đầu/hủy; GĐ2 thêm lịch tự động. Đăng ký đóng khi tới `startAt`.
 - Phí trừ khi đăng ký (key `tournament-fee:{tournamentId}:{accountId}`), không có
   rút đăng ký. Hủy giải hoàn phí qua `wallet_credits` (key
   `tournament-refund:{tournamentId}:{accountId}`), gửi lại tới khi ví nhận.
@@ -56,6 +56,16 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
   được ở trạng thái PENDING và được thử lại mỗi 2 giây.
 - Thêm bảng `tournament_seats` (ghế và thứ hạng từng bàn) và `wallet_credits`
   ngoài danh sách bảng của SPEC.
+- Giải Cao thủ: mời top `slots` lúc T-30 phút, ai được mời trước mốc T-10 phải xác
+  nhận trước T-10; tới T-10 lời mời chưa xác nhận thành `EXPIRED` và mời hạng kế
+  tiếp vào chỗ trống (một đợt bù, người được bù xác nhận tới giờ đấu). Tới giờ đấu
+  lời mời còn lại hết hạn. Giải Cao thủ phải tạo trước giờ đấu ít nhất 30 phút.
+- Lịch tự động chạy mỗi 30 giây cho cả hai loại: tới `startAt` đủ 4 người thì bắt
+  đầu, thiếu thì hủy và hoàn phí. Admin vẫn bắt đầu sớm/hủy tay được.
+- Thưởng: pool = phí × số suất + `rewardCoins` (Cao thủ chỉ có `rewardCoins`), chia
+  50/30/20 cho top 3 chung kết, phần dư do làm tròn cho hạng 1; chung kết ít hơn 3
+  người thì chia lại theo tỷ lệ các hạng có mặt. Skin (`rewardProductId`) chỉ cho vô
+  địch, qua bảng `item_grants` gửi lại tới khi shop nhận.
 
 ## Tiến độ
 
@@ -72,6 +82,12 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
   mật khẩu, sai mật khẩu bị từ chối, sẵn sàng, chủ phòng bắt đầu, cả hai tự sang
   bàn CUSTOM của game. Phòng chờ hỏi lại mỗi 3 giây cho tới khi có `/ws/social`.
 - [ ] Đợt 4: GĐ2.
+  - [x] Backend giải đấu GĐ2: V3 (`invites_sent_at`, `replacements_sent_at`,
+    `item_grants`), mời top qua `/internal/ranking/top` + `TOURNAMENT_INVITE`,
+    `POST /api/tournaments/{id}/confirm`, bù người vắng, lịch tự động bắt đầu/hủy và
+    hoàn phí, prize pool 50/30/20 (`TOURNAMENT_PRIZE`), skin cho vô địch qua
+    `/internal/inventory/grant`. 34 test H2.
+  - [ ] Bracket realtime, FE giải đấu, Admin giải đấu.
 
 ## Phụ thuộc và review trước khi merge
 
@@ -84,4 +100,6 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
 - Duy: consumer `notification.requested` (chưa có, thông báo phòng nằm chờ trong
   outbox), `/internal/friends/{a}/with/{b}`.
 - Khanh: route gateway `/api/rooms/**`, `/api/tournaments/**`, `/api/admin/tournaments/**`.
-- Tùng: `debit`/`credit` cho phí và thưởng giải.
+- Tùng: `debit`/`credit` cho phí và thưởng giải; `POST /internal/inventory/grant`
+  `{ accountId, productId, idempotencyKey }` cho skin thưởng (shop chưa merge, dev
+  dùng bản giả).

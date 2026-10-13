@@ -22,17 +22,21 @@ import com.msspoker.competitionservice.enums.TournamentStatus;
 import com.msspoker.competitionservice.enums.TournamentType;
 import com.msspoker.competitionservice.exception.CompetitionExceptions;
 import com.msspoker.competitionservice.mapper.TournamentMapper;
+import com.msspoker.competitionservice.repository.ItemGrantRepository;
 import com.msspoker.competitionservice.repository.TournamentEntryRepository;
 import com.msspoker.competitionservice.repository.TournamentRepository;
 import com.msspoker.competitionservice.repository.TournamentSeatRepository;
 import com.msspoker.competitionservice.repository.TournamentTableRepository;
 import com.msspoker.competitionservice.repository.WalletCreditRepository;
+import com.msspoker.competitionservice.service.PrizeCalculator;
 import com.msspoker.competitionservice.service.TournamentService;
 import com.msspoker.competitionservice.service.TournamentTableLauncher;
 import com.msspoker.competitionservice.service.WalletClient;
+import com.msspoker.competitionservice.validator.EliteInviteValidator;
 import com.msspoker.competitionservice.validator.TournamentResultValidator;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -53,6 +57,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TournamentServiceImpl implements TournamentService {
@@ -64,8 +69,11 @@ public class TournamentServiceImpl implements TournamentService {
     private final TournamentTableRepository tables;
     private final TournamentSeatRepository seats;
     private final WalletCreditRepository credits;
+    private final ItemGrantRepository itemGrants;
     private final TournamentMapper mapper;
     private final TournamentResultValidator results;
+    private final EliteInviteValidator invites;
+    private final PrizeCalculator prizes;
     private final WalletClient wallet;
     private final TournamentTableLauncher launcher;
     private final CompetitionProperties properties;
@@ -78,7 +86,9 @@ public class TournamentServiceImpl implements TournamentService {
         CompetitionProperties.Tournament defaults = properties.getTournament();
         int slots = request.slots() == null ? defaults.getSlots() : request.slots();
         if (slots < 2 || slots > defaults.maxSlots()) throw CompetitionExceptions.invalidTournamentSettings(defaults.maxSlots());
-        return view(tournaments.save(mapper.newTournament(request, slots, adminId, Instant.now())));
+        Instant now = Instant.now();
+        if (request.type() == TournamentType.ELITE) invites.validateSchedule(request.startAt(), now);
+        return view(tournaments.save(mapper.newTournament(request, slots, adminId, now)));
     }
 
     @Transactional(readOnly = true)
@@ -86,7 +96,10 @@ public class TournamentServiceImpl implements TournamentService {
     public PageResponse<TournamentSummaryResponse> list(int page, int size) {
         Page<TournamentEntity> result = tournaments.findByIsDeletedFalse(PageRequest.of(page, size, UPCOMING_FIRST));
         List<TournamentSummaryResponse> content = result.getContent().stream()
-                .map(t -> mapper.summary(t, (int) entries.countByTournamentId(t.getId()))).toList();
+                .map(t -> {
+                    long held = heldPlaces(t.getId());
+                    return mapper.summary(t, (int) held, prizePool(t, held));
+                }).toList();
         return new PageResponse<>(content, page, size, result.getTotalElements(), result.getTotalPages());
     }
 
@@ -119,12 +132,55 @@ public class TournamentServiceImpl implements TournamentService {
         return view(tournament);
     }
 
+    @Transactional
+    @Override
+    public TournamentResponse confirm(UUID tournamentId, UUID accountId) {
+        TournamentEntity tournament = lock(tournamentId);
+        TournamentEntryEntity entry = entries.findByTournamentIdAndAccountId(tournamentId, accountId)
+                .filter(found -> tournament.getType() == TournamentType.ELITE)
+                .orElseThrow(CompetitionExceptions::notInvited);
+        if (entry.getStatus() == EntryStatus.CONFIRMED) return view(tournament);
+        if (tournament.getStatus() != TournamentStatus.SCHEDULED || !Instant.now().isBefore(tournament.getStartAt())) {
+            throw CompetitionExceptions.registrationClosed();
+        }
+        if (entry.getStatus() != EntryStatus.INVITED) throw CompetitionExceptions.inviteExpired();
+        invites.validateConfirm(tournament, entry);
+        entry.setStatus(EntryStatus.CONFIRMED);
+        return view(tournament);
+    }
+
     /** Seats are committed first; tables then open through the launcher, which retries on failure. */
     @Override
     public TournamentResponse start(UUID tournamentId) {
-        transactions.executeWithoutResult(status -> seatPlayers(tournamentId));
+        transactions.executeWithoutResult(status -> {
+            TournamentEntity tournament = lock(tournamentId);
+            if (tournament.getStatus() != TournamentStatus.SCHEDULED) throw CompetitionExceptions.tournamentNotScheduled();
+            List<UUID> players = closeEntries(tournament);
+            int minPlayers = properties.getTournament().getMinPlayers();
+            if (players.size() < minPlayers) throw CompetitionExceptions.notEnoughPlayers(minPlayers);
+            seatPlayers(tournament, players);
+        });
         launcher.launchPending();
         return get(tournamentId);
+    }
+
+    @Override
+    public void startDue(UUID tournamentId) {
+        Boolean started = transactions.execute(status -> {
+            TournamentEntity tournament = lock(tournamentId);
+            if (tournament.getStatus() != TournamentStatus.SCHEDULED || tournament.getStartAt().isAfter(Instant.now())) {
+                return false;
+            }
+            List<UUID> players = closeEntries(tournament);
+            if (players.size() < properties.getTournament().getMinPlayers()) {
+                log.info("Tournament {} cancelled at its start with {} players", tournamentId, players.size());
+                cancelScheduled(tournament);
+                return false;
+            }
+            seatPlayers(tournament, players);
+            return true;
+        });
+        if (Boolean.TRUE.equals(started)) launcher.launchPending();
     }
 
     @Transactional
@@ -132,15 +188,7 @@ public class TournamentServiceImpl implements TournamentService {
     public TournamentResponse cancel(UUID tournamentId) {
         TournamentEntity tournament = lock(tournamentId);
         if (tournament.getStatus() != TournamentStatus.SCHEDULED) throw CompetitionExceptions.tournamentNotScheduled();
-        tournament.setStatus(TournamentStatus.CANCELLED);
-        if (tournament.getEntryFee() > 0) {
-            Instant now = Instant.now();
-            for (TournamentEntryEntity entry : entries.findByTournamentIdOrderByRegisteredAtAscIdAsc(tournamentId)) {
-                credits.save(mapper.newCredit(entry.getAccountId(), tournament.getEntryFee(),
-                        CompetitionConstants.TOURNAMENT_REFUND, tournamentId.toString(),
-                        String.format(CompetitionConstants.TOURNAMENT_REFUND_KEY_FORMAT, tournamentId, entry.getAccountId()), now));
-            }
-        }
+        cancelScheduled(tournament);
         return view(tournament);
     }
 
@@ -167,6 +215,7 @@ public class TournamentServiceImpl implements TournamentService {
         if (table.getRound() == TournamentRound.FINAL) {
             roster.forEach(seat -> players.get(seat.getAccountId()).setFinalPlace(seat.getPlace()));
             tournament.setStatus(TournamentStatus.FINISHED);
+            awardPrizes(tournament, roster);
             return;
         }
         int advance = properties.getTournament().getAdvancePerTable();
@@ -188,14 +237,60 @@ public class TournamentServiceImpl implements TournamentService {
         }
     }
 
+    /** Unconfirmed ELITE invitations expire at the start; returns the players who take part. */
+    private List<UUID> closeEntries(TournamentEntity tournament) {
+        List<TournamentEntryEntity> all = entries.findByTournamentIdOrderByRegisteredAtAscIdAsc(tournament.getId());
+        all.stream().filter(entry -> entry.getStatus() == EntryStatus.INVITED)
+                .forEach(entry -> entry.setStatus(EntryStatus.EXPIRED));
+        return all.stream().filter(entry -> SEATED.contains(entry.getStatus())).map(TournamentEntryEntity::getAccountId).toList();
+    }
+
+    private void cancelScheduled(TournamentEntity tournament) {
+        tournament.setStatus(TournamentStatus.CANCELLED);
+        if (tournament.getEntryFee() <= 0) return;
+        Instant now = Instant.now();
+        UUID tournamentId = tournament.getId();
+        for (TournamentEntryEntity entry : entries.findByTournamentIdOrderByRegisteredAtAscIdAsc(tournamentId)) {
+            credits.save(mapper.newCredit(entry.getAccountId(), tournament.getEntryFee(),
+                    CompetitionConstants.TOURNAMENT_REFUND, tournamentId.toString(),
+                    String.format(CompetitionConstants.TOURNAMENT_REFUND_KEY_FORMAT, tournamentId, entry.getAccountId()), now));
+        }
+    }
+
+    /** Pool coins go to the podium (TOURNAMENT_PRIZE) and the exclusive skin to the champion. */
+    private void awardPrizes(TournamentEntity tournament, List<TournamentSeatEntity> finalists) {
+        List<UUID> podium = finalists.stream().sorted(Comparator.comparing(TournamentSeatEntity::getPlace))
+                .map(TournamentSeatEntity::getAccountId).toList();
+        List<Long> amounts = prizes.split(prizePool(tournament, heldPlaces(tournament.getId())), podium.size());
+        UUID tournamentId = tournament.getId();
+        Instant now = Instant.now();
+        for (int i = 0; i < amounts.size(); i++) {
+            if (amounts.get(i) <= 0) continue;
+            UUID accountId = podium.get(i);
+            credits.save(mapper.newCredit(accountId, amounts.get(i), CompetitionConstants.TOURNAMENT_PRIZE,
+                    tournamentId.toString(), String.format(CompetitionConstants.TOURNAMENT_PRIZE_KEY_FORMAT, tournamentId, accountId), now));
+        }
+        if (tournament.getRewardProductId() != null) {
+            UUID champion = podium.getFirst();
+            itemGrants.save(mapper.newItemGrant(champion, tournament.getRewardProductId(), tournamentId.toString(),
+                    String.format(CompetitionConstants.TOURNAMENT_ITEM_KEY_FORMAT, tournamentId, champion), now));
+        }
+    }
+
+    private long heldPlaces(UUID tournamentId) {
+        return entries.countByTournamentIdAndStatusNot(tournamentId, EntryStatus.EXPIRED);
+    }
+
+    /** Every entry holding a place paid the fee (ELITE is free); rewardCoins is added on top. */
+    private long prizePool(TournamentEntity tournament, long heldPlaces) {
+        return Math.addExact(Math.multiplyExact(tournament.getEntryFee(), heldPlaces), tournament.getRewardCoins());
+    }
+
     /** Spreads shuffled players over ceil(n / tableSize) tables; one table means a direct final. */
-    private void seatPlayers(UUID tournamentId) {
-        TournamentEntity tournament = lock(tournamentId);
-        if (tournament.getStatus() != TournamentStatus.SCHEDULED) throw CompetitionExceptions.tournamentNotScheduled();
-        List<UUID> players = new ArrayList<>(entries.findByTournamentIdOrderByRegisteredAtAscIdAsc(tournamentId).stream()
-                .filter(entry -> SEATED.contains(entry.getStatus())).map(TournamentEntryEntity::getAccountId).toList());
+    private void seatPlayers(TournamentEntity tournament, List<UUID> seated) {
+        UUID tournamentId = tournament.getId();
         CompetitionProperties.Tournament defaults = properties.getTournament();
-        if (players.size() < defaults.getMinPlayers()) throw CompetitionExceptions.notEnoughPlayers(defaults.getMinPlayers());
+        List<UUID> players = new ArrayList<>(seated);
         Collections.shuffle(players, random);
         int tableCount = Math.ceilDiv(players.size(), defaults.getTableSize());
         TournamentRound round = tableCount == 1 ? TournamentRound.FINAL : TournamentRound.QUALIFIER;
@@ -227,7 +322,10 @@ public class TournamentServiceImpl implements TournamentService {
                 seatsByTable.getOrDefault(table.getId(), List.of()).stream()
                         .sorted(Comparator.comparingInt(TournamentSeatEntity::getSeatIndex)).map(mapper::seat).toList()))
                 .toList();
-        return mapper.tournament(tournament, entries.findByTournamentIdOrderByRegisteredAtAscIdAsc(tournament.getId())
-                .stream().map(mapper::entry).toList(), tableViews);
+        List<TournamentEntryEntity> all = entries.findByTournamentIdOrderByRegisteredAtAscIdAsc(tournament.getId());
+        long pool = prizePool(tournament, all.stream().filter(entry -> entry.getStatus() != EntryStatus.EXPIRED).count());
+        return mapper.tournament(tournament, pool, prizes.split(pool, properties.getTournament().getPrizeShares().size()),
+                all.stream().map(entry -> mapper.entry(entry, entry.getStatus() == EntryStatus.INVITED
+                        ? invites.confirmBy(tournament, entry.getRegisteredAt()) : null)).toList(), tableViews);
     }
 }

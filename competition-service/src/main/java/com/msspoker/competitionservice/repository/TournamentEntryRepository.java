@@ -20,4 +20,7 @@ public interface TournamentEntryRepository extends JpaRepository<TournamentEntry
     Optional<TournamentEntryEntity> findByTournamentIdAndAccountId(UUID tournamentId, UUID accountId);
 
     long countByTournamentId(UUID tournamentId);
+
+    /** Entries that hold a place: everything except expired ELITE invitations. */
+    long countByTournamentIdAndStatusNot(UUID tournamentId, EntryStatus status);
 }
