@@ -1,3 +1,5 @@
+# Keep the existing auth project/volumes; compose.dev.yml uses this same project.
+name: poker-auth-dev
 services:
   auth-service:
     build:
@@ -22,9 +24,8 @@ services:
       AUTH_OTP_RESEND_COOLDOWN: ${AUTH_OTP_RESEND_COOLDOWN:-60s}
       AUTH_RABBIT_HOST: rabbitmq
       AUTH_RABBIT_PORT: 5672
-      # Shared broker in docker/compose.infra.yml keeps the image default account.
-      AUTH_RABBIT_USERNAME: guest
-      AUTH_RABBIT_PASSWORD: guest
+      AUTH_RABBIT_USERNAME: ${AUTH_RABBIT_USERNAME:-poker}
+      AUTH_RABBIT_PASSWORD: ${AUTH_RABBIT_PASSWORD:-poker_dev}
       AUTH_EVENTS_DISPATCH_ENABLED: ${AUTH_EVENTS_DISPATCH_ENABLED:-true}
       AUTH_EVENTS_DISPATCH_DELAY: ${AUTH_EVENTS_DISPATCH_DELAY:-5000}
       AUTH_SWAGGER_ENABLED: ${AUTH_SWAGGER_ENABLED:-true}
@@ -52,8 +53,14 @@ services:
     image: axllent/mailpit:v1.27.0
     ports:
       - "127.0.0.1:8026:8025"
-    networks:
-      - auth-net
+  # Auth-only overrides of docker/compose.infra.yml; the shared file stays intact.
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${AUTH_RABBIT_USERNAME:-poker}
+      RABBITMQ_DEFAULT_PASS: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+    volumes:
+      - auth-rabbit:/var/lib/rabbitmq
   auth-postgres:
     image: postgres:17-alpine
     environment:
@@ -62,15 +69,18 @@ services:
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
     volumes:
       - auth-db:/var/lib/postgresql/data
-    networks:
-      - auth-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 15
+    networks:
+      - auth-net
 networks:
   auth-net:
 volumes:
+  auth-rabbit:
   auth-db:
+    name: ${AUTH_DB_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_auth-db}
   auth-keys:
+    name: ${AUTH_JWT_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_auth-keys}

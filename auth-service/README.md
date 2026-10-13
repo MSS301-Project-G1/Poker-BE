@@ -10,24 +10,80 @@ Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/ap
 
 ## Chạy auth riêng bằng Docker
 
-Từ root repo, điền SMTP trong `.env`, rồi chỉ khởi động hạ tầng/auth riêng:
+Chạy từ root repo và điền SMTP trong `.env`. Ghép hạ tầng gốc với cấu hình auth:
 
 ```bash
-docker compose --env-file .env -f auth-service/compose.dev.yml --profile app up --build -d auth-service
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml up -d --build auth-service
+```
+
+Lệnh này chỉ chạy `auth-service`, `auth-postgres` và `rabbitmq`.
+`docker/compose.infra.yml` được giữ nguyên; file auth chỉ ghi đè image/tài khoản
+RabbitMQ và bổ sung volume broker cho bộ auth. Các override này áp dụng trong
+project auth, không chỉnh cấu hình hay container của project khác.
+Root `docker-compose.yml` giữ nguyên bản đã commit, không được dùng làm base của bộ này.
+
+Auth ở `http://localhost:8090`. Cấu hình chính không publish port PostgreSQL;
+RabbitMQ kế thừa port AMQP `127.0.0.1:56729` và UI `http://localhost:15679` từ infra.
+Auth và broker dùng `AUTH_RABBIT_USERNAME`/`AUTH_RABBIT_PASSWORD`, mặc định local
+`poker`/`poker_dev`. Auth trong Docker luôn kết nối `rabbitmq:5672`.
+
+### Override khi phát triển
+
+`auth-service/compose.dev.yml` chỉ chứa các khác biệt dành cho dev:
+
+- `auth-service`: thay port binding API bằng binding localhost.
+- `auth-postgres`: mở PostgreSQL ở `127.0.0.1:54330` để dùng DBeaver/IDE.
+- `auth-mailpit`: mở SMTP ở `127.0.0.1:1026` khi bật profile `mailpit`.
+- `rabbitmq`: thay port publish thành `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
+
+File dev không khai báo lại image, environment, dependency hay volume và không
+đổi project name. Cần Docker Compose 2.24.4+ để dùng `!override`.
+Nếu đang chạy bộ dev cũ, đọc mục chuyển đổi bên dưới trước khi chạy lần đầu.
+Ghép file dev **sau** infra và cấu hình auth; không chạy file dev một mình:
+
+```bash
+# Build và chạy auth + PostgreSQL + RabbitMQ.
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml up -d --build auth-service
+
+# Chạy cùng nhóm từ image có sẵn.
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml up -d auth-service
+
 curl http://localhost:8090/actuator/health
 ```
 
-PostgreSQL ở `127.0.0.1:54330`, DB `auth_db`, user `poker`, password local
-`poker_dev`. Có thể đổi bằng `AUTH_DB_USERNAME`/`AUTH_DB_PASSWORD`.
-RabbitMQ: `localhost:5673`, UI `http://localhost:15673`, user/password local `poker`/`poker_dev`.
-Compose này có project/volume riêng `poker-auth-dev`, không dùng DB của service khác.
-`-f auth-service/compose.dev.yml` chọn riêng file này; không tự ghép với
-`docker-compose.yml` ở root. Chạy `docker compose up` tại root mà không có `-f`
-sẽ dùng file root và khởi động toàn bộ service không có profile.
+Không cần profile `app`. Cấu hình chính và dev dùng cùng project `poker-auth-dev`
+(được khai báo trong `auth-service/compose.yml` để giữ tên project cũ), cùng volume
+DB, RabbitMQ và khóa JWT. Đây là một bộ auth với hai cách cấu hình port.
+PostgreSQL là `auth_db`, tài khoản lấy từ `AUTH_DB_USERNAME`/`AUTH_DB_PASSWORD`
+(mặc định local `poker`/`poker_dev`). Root Compose là cách chạy khác, không dùng
+chung các volume auth này và không tự ghép các file auth vào khi chạy.
+
+### Chuyển từ Compose dev cũ
+
+Mặc định giữ nguyên ba volume: `poker-auth-dev_auth-db`,
+`poker-auth-dev_auth-keys`, `poker-auth-dev_auth-rabbit`. Không xóa volume hay sao
+chép DB để áp dụng thay đổi này. Giữ nguyên user/password DB/RabbitMQ trong `.env`.
+Các biến khởi tạo không tự đổi tài khoản đã tồn tại trong dữ liệu.
+
+Service PostgreSQL đổi tên từ `postgres` sang `auth-postgres`; trước lần chạy đầu,
+xem container DB cũ và dừng nó nếu đang chạy:
+
+```bash
+docker ps -a --filter label=com.docker.compose.project=poker-auth-dev --filter label=com.docker.compose.service=postgres
+# Khi dùng tên mặc định và container cũ đang chạy:
+docker stop poker-auth-dev-postgres-1
+```
+
+Không chạy hai PostgreSQL cùng ghi vào volume `auth-db`. Nếu Mailpit cũ (`mailpit`)
+đang chạy, dừng container đó trước khi bật Mailpit mới (`auth-mailpit`) để nhường port.
+Không dùng `down -v` hay `--remove-orphans` để thực hiện chuyển đổi.
+Nếu trước đây đã tự đặt tên project/volume khác, giữ `-p` như cũ hoặc cấu hình
+`AUTH_DB_VOLUME_NAME`/`AUTH_JWT_VOLUME_NAME` cho đúng volume; không tự chuyển dữ liệu.
+Việc dừng/tạo lại container chưa được thực hiện trong thay đổi code này.
 
 ## Gửi OTP vào hộp thư thật
 
-Cả Compose dev và root đều truyền các biến `AUTH_MAIL_*` trong `.env` vào app.
+Cấu hình auth chính truyền các biến `AUTH_MAIL_*` trong `.env` vào app; file dev kế thừa nguyên cấu hình SMTP.
 Ví dụ Gmail:
 
 ```dotenv
@@ -51,7 +107,7 @@ Khi chỉ sửa `.env` hoặc cấu hình Compose và app đã được build, t
 container auth để nạp cấu hình mới (hạ tầng phải đang chạy):
 
 ```bash
-docker compose --env-file .env -f auth-service/compose.dev.yml --profile app up -d --no-deps --force-recreate auth-service
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml up -d --no-deps --force-recreate auth-service
 ```
 
 Không cần build lại image chỉ để đổi biến môi trường; `restart` đơn thuần không
@@ -60,24 +116,25 @@ nạp lại cấu hình Compose mới. Khanh đã xác nhận test đăng ký/OT
 ### Mailpit tùy chọn
 
 Mailpit chỉ chạy khi chọn profile `mailpit` hoặc gọi đích danh service. Nếu muốn
-test không gửi mail thật, đổi `.env` sang `AUTH_MAIL_HOST=mailpit`,
+test không gửi mail thật, đổi `.env` sang `AUTH_MAIL_HOST=auth-mailpit`,
 `AUTH_MAIL_PORT=1025`, `AUTH_MAIL_FROM=no-reply@poker.local`, để trống username/password,
 và đặt `AUTH_MAIL_SMTP_AUTH=false`, `AUTH_MAIL_STARTTLS=false`, rồi chạy:
 
 ```bash
-docker compose --env-file .env -f auth-service/compose.dev.yml --profile app --profile mailpit up -d
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml --profile mailpit up -d auth-service auth-mailpit
 ```
 
 Mailpit UI: `http://localhost:8026`. Khi Java chạy trên máy, dùng host `localhost`
 và port `1026` thay cho tên service/port nội bộ Docker ở trên.
-Root Compose dùng tên service `auth-mailpit`, cùng port nội bộ `1025` và profile `mailpit`.
+Cấu hình chính và dev đều dùng service `auth-mailpit`, port nội bộ `1025` và profile `mailpit`.
 
 ## Chạy Java trên máy
 
 ```bash
-docker compose --env-file .env -f auth-service/compose.dev.yml up -d postgres rabbitmq
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml up -d auth-postgres rabbitmq
 mvn -B -pl auth-service -am install -DskipTests
-# Export AUTH_* và JWT_* trong .env vào môi trường chạy Java trước khi chạy lệnh này.
+# Export AUTH_* và JWT_* trong .env vào môi trường Java trước khi chạy.
+# Khi dùng dev override, AUTH_RABBIT_PORT mặc định 5673; export giá trị tùy chỉnh từ .env nếu có.
 mvn -pl auth-service spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
@@ -114,10 +171,11 @@ biến được chuyển vào app ở cả Compose dev và root Compose. Java tr
 export/IDE env như các biến cấu hình khác. Nếu BE đang chạy trước khi thêm dependency,
 khởi động lại để tải Swagger. Nguồn thư viện: [springdoc-openapi](https://springdoc.org/).
 
-Root `docker-compose.yml` cũng có PostgreSQL riêng `auth-postgres`, không publish
-port DB. Khi dùng root Compose, app kết nối tên service này trong mạng Docker;
-không dùng URL localhost dành cho Java trên máy. Volume root và volume Compose dev
-là hai database khác nhau. Chọn một cách chạy app để tránh trùng port 8090.
+`auth-service/compose.yml` định nghĩa PostgreSQL `auth-postgres`, không publish
+port DB; file dev chỉ bổ sung port host. Auth trong Docker luôn kết nối
+`auth-postgres:5432`, không dùng URL localhost dành cho Java trên máy.
+Cấu hình chính và dev dùng cùng database/volume. Không bật đồng thời app Java
+trên host và container auth trên cùng port 8090.
 
 Flyway áp dụng V1–V4 khi khởi động; V4 thêm `refresh_tokens`, không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
@@ -209,7 +267,7 @@ bản sao vẫn hợp lệ đến hạn, đúng phạm vi phase hiện tại.
 
 Khóa ký được tạo một lần khi `AUTH_JWT_GENERATE_KEY=true`; Compose lưu trong named volume
 `auth-keys` tại `/app/keys/jwt-private.pem`. Java trên host lưu ở `.local/auth/jwt-private.pem`,
-đã loại khỏi Git và Docker build context. Restart/recreate giữ cùng khóa; root/dev có volume riêng.
+đã loại khỏi Git và Docker build context. Restart/recreate giữ cùng khóa; cấu hình chính/dev dùng chung volume.
 Deploy phải cấp khóa RSA PKCS#8 riêng, tắt tự sinh bằng `AUTH_JWT_GENERATE_KEY=false`;
 chưa có xoay khóa hoặc nhiều khóa JWKS. Không xóa volume khóa để cập nhật app.
 
@@ -217,8 +275,8 @@ chưa có xoay khóa hoặc nhiều khóa JWKS. Không xóa volume khóa để c
 
 ```bash
 mvn -B -pl auth-service -am verify
-docker compose -f auth-service/compose.dev.yml --profile app config --quiet
-docker compose config --quiet
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml config --quiet
+docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml config --quiet
 ```
 
 Test auth dùng PostgreSQL 17 thật qua Testcontainers; cần Docker daemon đang chạy
