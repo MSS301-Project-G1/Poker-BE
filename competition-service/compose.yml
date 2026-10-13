@@ -6,3 +6,43 @@ services:
         MODULE: competition-service
     ports:
       - "${COMPETITION_SERVICE_PORT:-8087}:8087"
+    environment:
+      COMPETITION_DB_URL: jdbc:postgresql://competition-db:5432/competition_db
+      COMPETITION_DB_USER: ${COMPETITION_DB_USER:-poker}
+      COMPETITION_DB_PASSWORD: ${COMPETITION_DB_PASSWORD:-poker_dev}
+      RABBITMQ_HOST: rabbitmq
+      GAME_SERVICE_URL: http://game-service:8082
+      GAME_SERVICE_KEY: ${GAME_SERVICE_KEY:-}
+      SOCIAL_SERVICE_URL: http://social-service:8084
+      WALLET_SERVICE_URL: http://wallet-service:8089
+      RANKING_SERVICE_URL: http://ranking-service:8086
+      SHOP_SERVICE_URL: http://shop-service:8088
+    networks:
+      - default
+      - competition-net
+    depends_on:
+      competition-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  competition-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: competition_db
+      POSTGRES_USER: ${COMPETITION_DB_USER:-poker}
+      POSTGRES_PASSWORD: ${COMPETITION_DB_PASSWORD:-poker_dev}
+    ports:
+      - "127.0.0.1:54332:5432"
+    volumes:
+      - competition-db-data:/var/lib/postgresql/data
+    networks:
+      - competition-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+networks:
+  competition-net:
+volumes:
+  competition-db-data:
