@@ -1,0 +1,9 @@
+services:
+  competition-service:
+    ports: !override
+      - "127.0.0.1:8087:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_ADDRESS: 0.0.0.0
+      RABBITMQ_PORT: 5672
+      COMPETITION_DEV_DB_PASSWORD: ${COMPETITION_DB_PASSWORD:-poker_dev}

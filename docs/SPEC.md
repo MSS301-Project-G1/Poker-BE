@@ -484,7 +484,7 @@ Giống 7.2 nhưng: không kiểm tra/trừ xu, không có popup chấp nhận *
 
 1. **Hoài Anh** — người chơi tạo phòng, nhận Room ID. Mời bạn: kiểm tra quan hệ bạn bè (hỏi Duy), phát `ROOM_INVITE`.
 2. **Hoài Anh** — mỗi khi phòng thay đổi (vào, rời, sẵn sàng, kick) → phát `ROOM_UPDATED` cho các thành viên.
-3. **Hoài Anh** — chủ phòng bấm bắt đầu → gọi `CreateTable` với `mode = CUSTOM`, `sourceId = roomId` → phát `ROOM_STARTED` kèm `tableId`.
+3. **Hoài Anh** — chủ phòng bấm bắt đầu → gọi `CreateTable` với `mode = CUSTOM`, `sourceId` = UUID mới cho mỗi lần bắt đầu (lưu ở `custom_rooms.current_source_id`; game chặn trùng `(mode, sourceId)` nên không dùng lại `roomId` cho ván sau) → phát `ROOM_STARTED` kèm `tableId`.
 4. Sau trận, **Hoài Anh** nhận `match.finished` và đưa phòng về trạng thái chờ để chơi tiếp.
 
 ### 7.5. Mua skin 🟢
