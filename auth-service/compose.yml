@@ -1,0 +1,86 @@
+# Keep the existing auth project/volumes; compose.dev.yml uses this same project.
+name: poker-auth-dev
+services:
+  auth-service:
+    build:
+      context: ..
+      args:
+        MODULE: auth-service
+    ports:
+      - "${AUTH_SERVICE_PORT:-8090}:8090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ${AUTH_DB_USERNAME:-poker}
+      SPRING_DATASOURCE_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
+      AUTH_MAIL_HOST: ${AUTH_MAIL_HOST:-smtp.gmail.com}
+      AUTH_MAIL_PORT: ${AUTH_MAIL_PORT:-587}
+      AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-no-reply@poker.local}
+      AUTH_MAIL_USERNAME: ${AUTH_MAIL_USERNAME:-}
+      AUTH_MAIL_PASSWORD: ${AUTH_MAIL_PASSWORD:-}
+      AUTH_MAIL_SMTP_AUTH: ${AUTH_MAIL_SMTP_AUTH:-true}
+      AUTH_MAIL_STARTTLS: ${AUTH_MAIL_STARTTLS:-true}
+      AUTH_OTP_TTL: ${AUTH_OTP_TTL:-5m}
+      AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
+      AUTH_OTP_RESEND_COOLDOWN: ${AUTH_OTP_RESEND_COOLDOWN:-60s}
+      AUTH_RABBIT_HOST: rabbitmq
+      AUTH_RABBIT_PORT: 5672
+      AUTH_RABBIT_USERNAME: ${AUTH_RABBIT_USERNAME:-poker}
+      AUTH_RABBIT_PASSWORD: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+      AUTH_EVENTS_DISPATCH_ENABLED: ${AUTH_EVENTS_DISPATCH_ENABLED:-true}
+      AUTH_EVENTS_DISPATCH_DELAY: ${AUTH_EVENTS_DISPATCH_DELAY:-5000}
+      AUTH_SWAGGER_ENABLED: ${AUTH_SWAGGER_ENABLED:-true}
+      JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8090}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-poker}
+      AUTH_ACCESS_TOKEN_TTL: ${AUTH_ACCESS_TOKEN_TTL:-15m}
+      AUTH_REFRESH_TOKEN_TTL: ${AUTH_REFRESH_TOKEN_TTL:-7d}
+      AUTH_JWT_PRIVATE_KEY_PATH: /app/keys/jwt-private.pem
+      AUTH_JWT_GENERATE_KEY: ${AUTH_JWT_GENERATE_KEY:-true}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-Lax}
+      AUTH_CORS_ALLOWED_ORIGINS: ${AUTH_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8090,http://localhost:8080}
+    volumes:
+      - auth-keys:/app/keys
+    networks:
+      - default
+      - auth-net
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  auth-mailpit:
+    profiles: ["mailpit"]
+    image: axllent/mailpit:v1.27.0
+    ports:
+      - "127.0.0.1:8026:8025"
+  # Auth-only overrides of docker/compose.infra.yml; the shared file stays intact.
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${AUTH_RABBIT_USERNAME:-poker}
+      RABBITMQ_DEFAULT_PASS: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+    volumes:
+      - auth-rabbit:/var/lib/rabbitmq
+  auth-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: ${AUTH_DB_USERNAME:-poker}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-poker_dev}
+    volumes:
+      - auth-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks:
+      - auth-net
+networks:
+  auth-net:
+volumes:
+  auth-rabbit:
+  auth-db:
+    name: ${AUTH_DB_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_auth-db}
+  auth-keys:
+    name: ${AUTH_JWT_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_auth-keys}
