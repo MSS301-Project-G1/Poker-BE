@@ -24,10 +24,17 @@ services:
       - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID:-}
       - PAYOS_API_KEY=${PAYOS_API_KEY:-}
       - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY:-}
+      - S3_ENDPOINT=${S3_ENDPOINT:-http://shop-minio:9000}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-admin}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-poker123456}
+      - S3_BUCKET=${S3_BUCKET:-poker-assets}
+      - S3_PUBLIC_URL=${S3_PUBLIC_URL:-http://localhost:9000/poker-assets}
     depends_on:
       shop-postgres:
         condition: service_healthy
       shop-redis:
+        condition: service_healthy
+      shop-minio:
         condition: service_healthy
 
   shop-postgres:
@@ -62,9 +69,29 @@ services:
       timeout: 3s
       retries: 5
 
+  shop-minio:
+    image: minio/minio:RELEASE.2024-05-10T01-41-38Z
+    container_name: shop-minio
+    restart: unless-stopped
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-poker123456}
+    volumes:
+      - shop-minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   shop-postgres-data:
   shop-redis-data:
+  shop-minio-data:
 
 networks:
   default:
