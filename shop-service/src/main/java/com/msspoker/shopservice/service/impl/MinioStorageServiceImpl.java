@@ -26,7 +26,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class MinioStorageServiceImpl implements S3StorageService {
 
@@ -35,6 +34,11 @@ public class MinioStorageServiceImpl implements S3StorageService {
 
     // Thread pool dành riêng cho song song hóa upload assets S3
     private final ExecutorService uploadExecutor = Executors.newFixedThreadPool(12);
+
+    public MinioStorageServiceImpl(MinioClient minioClient, S3Properties s3Properties) {
+        this.minioClient = minioClient;
+        this.s3Properties = s3Properties;
+    }
 
     @Override
     public String uploadFile(String objectKey, byte[] content, String contentType) {

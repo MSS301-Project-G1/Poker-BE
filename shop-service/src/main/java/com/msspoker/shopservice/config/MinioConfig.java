@@ -10,32 +10,43 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@RequiredArgsConstructor
 @Slf4j
 public class MinioConfig {
 
     private final S3Properties s3Properties;
 
+    public MinioConfig(S3Properties s3Properties) {
+        this.s3Properties = s3Properties;
+    }
+
     @Bean
     public MinioClient minioClient() {
-        try {
-            MinioClient client = MinioClient.builder()
-                    .endpoint(s3Properties.getEndpoint())
-                    .credentials(s3Properties.getAccessKey(), s3Properties.getSecretKey())
-                    .build();
+        String endpoint = (s3Properties.getEndpoint() != null && !s3Properties.getEndpoint().isBlank())
+                ? s3Properties.getEndpoint()
+                : "http://localhost:9000";
+        String accessKey = s3Properties.getAccessKey();
+        String secretKey = s3Properties.getSecretKey();
 
-            initializeBucketQuietly(client, s3Properties.getBucket());
-            return client;
-        } catch (Exception e) {
-            log.warn("⚠️ MinIO bucket initialization deferred: {}", e.getMessage());
-            return MinioClient.builder()
-                    .endpoint(s3Properties.getEndpoint())
-                    .credentials(s3Properties.getAccessKey(), s3Properties.getSecretKey())
-                    .build();
+        boolean hasCredentials = accessKey != null && !accessKey.isBlank()
+                && secretKey != null && !secretKey.isBlank();
+
+        MinioClient.Builder builder = MinioClient.builder().endpoint(endpoint);
+        if (hasCredentials) {
+            builder.credentials(accessKey, secretKey);
         }
+        MinioClient client = builder.build();
+
+        if (hasCredentials && s3Properties.getBucket() != null && !s3Properties.getBucket().isBlank()) {
+            initializeBucketQuietly(client, s3Properties.getBucket());
+        }
+
+        return client;
     }
 
     private void initializeBucketQuietly(MinioClient client, String bucketName) {
+        if (bucketName == null || bucketName.isBlank()) {
+            return;
+        }
         try {
             boolean exists = client.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
             if (!exists) {

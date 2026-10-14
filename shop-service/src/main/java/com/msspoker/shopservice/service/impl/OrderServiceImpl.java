@@ -206,13 +206,13 @@ public class OrderServiceImpl implements OrderService {
         CoinBundle bundle = coinBundleRepository.findByIdAndIsActiveTrue(bundleId)
                 .orElseThrow(OrderExceptions::bundleNotFound);
 
-        // 1. Tầng 1: Redis Idempotency Check (Fast-path siêu tốc trên RAM < 1ms)
+        // 1. Redis Idempotency Check
         Optional<OrderResponse> cachedOrder = paymentIdempotencyService.getCachedOrder(accountId, bundleId);
         if (cachedOrder.isPresent()) {
             return cachedOrder.get();
         }
 
-        // 2. Tầng 2: Database Idempotency Check
+        // 2. Database Idempotency Check
         Optional<Order> existingBundleOrderOpt = orderRepository.findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
                 accountId, bundleId, OrderStatus.PENDING);
         if (existingBundleOrderOpt.isPresent()) {
