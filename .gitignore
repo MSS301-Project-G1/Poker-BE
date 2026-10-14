@@ -19,8 +19,10 @@
 !.env.example
 !**/.env.example
 *.log
-
+.local/
 # OS
 .DS_Store
 Thumbs.db
 AGENTS.md
+
+docs/

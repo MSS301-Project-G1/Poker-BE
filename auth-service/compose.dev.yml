@@ -1,0 +1,15 @@
+# Apply after docker/compose.infra.yml and auth-service/compose.yml.
+services:
+  auth-service:
+    ports: !override
+      - "127.0.0.1:${AUTH_SERVICE_PORT:-8090}:8090"
+  auth-postgres:
+    ports:
+      - "127.0.0.1:54330:5432"
+  auth-mailpit:
+    ports:
+      - "127.0.0.1:1026:1025"
+  rabbitmq:
+    ports: !override
+      - "127.0.0.1:${AUTH_RABBIT_PORT:-5673}:5672"
+      - "127.0.0.1:15673:15672"

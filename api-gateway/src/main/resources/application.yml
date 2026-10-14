@@ -6,6 +6,12 @@ spring:
       server:
         webflux:
           routes:
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URL:http://localhost:8090}
+              predicates:
+                - Path=/api/auth-service/**
+              filters:
+                - StripPrefix=2
             - id: identity-service
               uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
               predicates:

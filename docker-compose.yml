@@ -1,6 +1,7 @@
 include:
   - docker/compose.infra.yml
   - api-gateway/compose.yml
+  - auth-service/compose.yml
   - identity-service/compose.yml
   - game-service/compose.yml
   - matchmaking-service/compose.yml
