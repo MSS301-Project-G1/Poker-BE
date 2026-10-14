@@ -18,13 +18,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/payments/payos")
 @RequiredArgsConstructor
-@Tag(name = "Payment Webhook APIs", description = "Endpoint tiếp nhận webhook từ cổng thanh toán PayOS (Public, xác thực chữ ký )")
+@Tag(name = "Payment Webhook APIs", description = "Webhook thanh toán PayOS")
 public class PaymentWebhookController {
 
     private final OrderService orderService;
 
     @PostMapping("/webhook")
-    @Operation(summary = "Tiếp nhận webhook thanh toán từ PayOS", description = "Xử lý thông báo biến động giao dịch từ PayOS với chữ ký và cơ chế Idempotency")
+    @Operation(summary = "Webhook PayOS", description = "Tiếp nhận thông báo thanh toán từ PayOS")
     public ResponseEntity<Map<String, Object>> handleWebhook(@RequestBody Webhook webhook) {
         log.info("Incoming PayOS webhook notification: code={}, desc={}", webhook.getCode(), webhook.getDesc());
         orderService.handlePayosWebhook(webhook);

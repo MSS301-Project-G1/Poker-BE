@@ -16,13 +16,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/shop/bundles")
 @RequiredArgsConstructor
-@Tag(name = "Coin Bundles APIs", description = "Các API hiển thị danh sách gói nạp VIP Coin")
+@Tag(name = "Shop Coin Bundle APIs", description = "Danh sách gói nạp VIP Coin")
 public class CoinBundleController {
 
     private final CoinBundleService coinBundleService;
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách gói nạp VIP Coin", description = "Lấy danh sách các gói nạp đang mở bán có sắp xếp theo thứ tự ưu tiên (hỗ trợ Redis Cache)")
+    @Operation(summary = "Danh sách gói nạp", description = "Lấy danh sách các gói nạp VIP Coin đang mở bán")
     public ResponseEntity<ApiResponse<List<CoinBundleResponse>>> getActiveBundles() {
         List<CoinBundleResponse> bundles = coinBundleService.getActiveBundles();
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách gói nạp thành công", bundles));

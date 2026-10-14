@@ -23,13 +23,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/inventory")
 @RequiredArgsConstructor
-@Tag(name = "Public Inventory APIs", description = "Các API túi đồ của người dùng (yêu cầu header X-User-Id do Gateway đính kèm)")
+@Tag(name = "Inventory APIs", description = "Túi đồ người chơi")
 public class InventoryController {
 
     private final InventoryService inventoryService;
 
     @GetMapping("/me")
-    @Operation(summary = "Xem túi đồ của tôi", description = "Lấy danh sách các vật phẩm hiện có trong túi đồ của người dùng")
+    @Operation(summary = "Túi đồ của tôi", description = "Lấy danh sách vật phẩm trong túi đồ của người chơi")
     public ResponseEntity<ApiResponse<List<InventoryItemResponse>>> getMyInventory(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId
@@ -39,7 +39,7 @@ public class InventoryController {
     }
 
     @GetMapping("/{productId}")
-    @Operation(summary = "Xem chi tiết vật phẩm trong túi đồ", description = "Lấy thông tin chi tiết một vật phẩm mà người dùng đang sở hữu")
+    @Operation(summary = "Chi tiết vật phẩm", description = "Lấy thông tin chi tiết vật phẩm trong túi đồ")
     public ResponseEntity<ApiResponse<InventoryItemResponse>> getMyInventoryItem(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,
@@ -51,7 +51,7 @@ public class InventoryController {
     }
 
     @PutMapping("/{productId}/equip")
-    @Operation(summary = "Trang bị vật phẩm", description = "Trang bị vật phẩm vào ô tương ứng (tự động gỡ vật phẩm cũ cùng danh mục)")
+    @Operation(summary = "Trang bị vật phẩm", description = "Trang bị vật phẩm vào ô sử dụng")
     public ResponseEntity<ApiResponse<InventoryItemResponse>> equipItem(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,
@@ -63,7 +63,7 @@ public class InventoryController {
     }
 
     @DeleteMapping("/{productId}/equip")
-    @Operation(summary = "Tháo trang bị vật phẩm", description = "Gỡ trạng thái trang bị của một vật phẩm trong túi đồ")
+    @Operation(summary = "Tháo trang bị", description = "Tháo vật phẩm đang trang bị")
     public ResponseEntity<ApiResponse<InventoryItemResponse>> unequipItem(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,

@@ -27,20 +27,20 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/shop/categories")
 @RequiredArgsConstructor
-@Tag(name = "Shop Category APIs", description = "Các API quản lý danh mục sản phẩm của cửa hàng")
+@Tag(name = "Shop Category APIs", description = "Danh mục sản phẩm của cửa hàng")
 public class CategoryController {
 
     private final CategoryService categoryService;
 
     @GetMapping
-    @Operation(summary = "Xem danh mục cửa hàng", description = "Lấy danh sách tất cả danh mục vật phẩm trong shop (có hỗ trợ Redis cache)")
+    @Operation(summary = "Danh sách danh mục", description = "Lấy danh sách tất cả danh mục sản phẩm")
     public ResponseEntity<ApiResponse<List<CategoryResponse>>> getCategories() {
         List<CategoryResponse> categories = categoryService.getCategories();
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách danh mục thành công", categories));
     }
 
     @PostMapping
-    @Operation(summary = "Tạo danh mục mới", description = "Thêm danh mục vật phẩm mới vào shop")
+    @Operation(summary = "Tạo danh mục", description = "Tạo danh mục sản phẩm mới")
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(@Valid @RequestBody CreateCategoryRequest request) {
         CategoryResponse response = categoryService.createCategory(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -58,7 +58,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Xóa danh mục", description = "Xóa danh mục nếu không chứa sản phẩm đang hoạt động")
+    @Operation(summary = "Xóa danh mục", description = "Xóa danh mục sản phẩm theo ID")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(
             @Parameter(description = "ID của danh mục") @PathVariable UUID id
     ) {

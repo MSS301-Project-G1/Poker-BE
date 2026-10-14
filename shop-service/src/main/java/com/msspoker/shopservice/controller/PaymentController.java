@@ -27,13 +27,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
-@Tag(name = "Payment & Order APIs", description = "Các API tạo đơn hàng, thanh toán qua cổng PayOS và lịch sử giao dịch")
+@Tag(name = "Payment APIs", description = "Đơn hàng và thanh toán PayOS")
 public class PaymentController {
 
     private final OrderService orderService;
 
     @PostMapping("/orders")
-    @Operation(summary = "Tạo đơn hàng thanh toán PayOS", description = "Tạo đơn hàng mua vật phẩm và nhận link thanh toán từ PayOS")
+    @Operation(summary = "Tạo đơn hàng thanh toán", description = "Tạo đơn hàng mua vật phẩm qua PayOS")
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,
@@ -45,7 +45,7 @@ public class PaymentController {
     }
 
     @PostMapping("/bundles/{bundleId}/orders")
-    @Operation(summary = "Tạo đơn hàng thanh toán mua gói VIP Coin", description = "Tạo đơn hàng mua gói nạp VIP Coin qua cổng PayOS và nhận link/mã VietQR")
+    @Operation(summary = "Tạo đơn hàng mua gói nạp", description = "Tạo đơn hàng mua gói VIP Coin qua PayOS")
     public ResponseEntity<ApiResponse<OrderResponse>> createBundleOrder(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,
@@ -58,7 +58,7 @@ public class PaymentController {
     }
 
     @GetMapping("/orders/me")
-    @Operation(summary = "Lịch sử đơn hàng của tôi", description = "Lấy danh sách các đơn hàng đã tạo của người dùng hiện tại")
+    @Operation(summary = "Lịch sử đơn hàng của tôi", description = "Lấy danh sách các đơn hàng đã tạo")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getMyOrders(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId
@@ -68,7 +68,7 @@ public class PaymentController {
     }
 
     @GetMapping("/orders/{orderId}")
-    @Operation(summary = "Xem chi tiết đơn hàng", description = "Xem chi tiết một đơn hàng theo ID")
+    @Operation(summary = "Chi tiết đơn hàng", description = "Lấy thông tin chi tiết một đơn hàng theo ID")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderDetail(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,
@@ -80,7 +80,7 @@ public class PaymentController {
     }
 
     @PutMapping("/orders/{orderId}/cancel")
-    @Operation(summary = "Hủy đơn hàng", description = "Hủy đơn hàng đang ở trạng thái PENDING")
+    @Operation(summary = "Hủy đơn hàng", description = "Hủy đơn hàng đang chờ thanh toán")
     public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,
@@ -92,8 +92,7 @@ public class PaymentController {
     }
 
     @PostMapping("/orders/{orderId}/sync")
-    @Operation(summary = "Kiểm tra và đồng bộ trạng thái thanh toán từ PayOS",
-               description = "Chủ động truy vấn cổng PayOS theo mã đơn để cập nhật trạng thái PAID và cộng VIP Coin vào ví (dùng khi test không mở webhook public)")
+    @Operation(summary = "Đồng bộ trạng thái thanh toán", description = "Tra cứu và cập nhật trạng thái đơn hàng từ PayOS")
     public ResponseEntity<ApiResponse<OrderResponse>> syncOrder(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,

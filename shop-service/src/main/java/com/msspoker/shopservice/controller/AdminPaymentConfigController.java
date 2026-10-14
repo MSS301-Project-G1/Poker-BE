@@ -26,29 +26,29 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/payments/methods")
 @RequiredArgsConstructor
-@Tag(name = "Admin Payment Methods APIs", description = "Quản lý và chuyển đổi phương thức/ngân hàng thanh toán (PayOS vs Ngân hàng phụ)")
+@Tag(name = "Admin Payment Methods APIs", description = "Cấu hình phương thức thanh toán")
 public class AdminPaymentConfigController {
 
     private final PaymentConfigService paymentConfigService;
 
     @GetMapping
-    @Operation(summary = "Danh sách phương thức thanh toán", description = "Lấy toàn bộ các cấu hình phương thức thanh toán và trạng thái active")
+    @Operation(summary = "Danh sách phương thức thanh toán", description = "Lấy danh sách các cấu hình phương thức thanh toán")
     public ResponseEntity<ApiResponse<List<PaymentConfigResponse>>> getAllConfigs() {
         List<PaymentConfigResponse> configs = paymentConfigService.getAllConfigs();
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách phương thức thanh toán thành công", configs));
     }
 
     @GetMapping("/active")
-    @Operation(summary = "Phương thức thanh toán đang kích hoạt", description = "Lấy thông tin phương thức thanh toán đang được kích hoạt cho người dùng")
+    @Operation(summary = "Phương thức đang kích hoạt", description = "Lấy cấu hình phương thức thanh toán đang hoạt động")
     public ResponseEntity<ApiResponse<PaymentConfigResponse>> getActiveConfig() {
         PaymentConfigResponse config = paymentConfigService.getActiveConfig();
         return ResponseEntity.ok(ApiResponse.success("Lấy phương thức thanh toán đang hoạt động thành công", config));
     }
 
     @PutMapping("/{id}/switch")
-    @Operation(summary = "Chuyển đổi phương thức thanh toán", description = "Kích hoạt một phương thức/ngân hàng thanh toán cụ thể và hủy kích hoạt các phương thức khác")
+    @Operation(summary = "Chuyển đổi phương thức", description = "Kích hoạt phương thức thanh toán được chọn")
     public ResponseEntity<ApiResponse<PaymentConfigResponse>> switchConfig(
-            @Parameter(description = "UUID của cấu hình thanh toán cần kích hoạt")
+            @Parameter(description = "UUID cấu hình thanh toán")
             @PathVariable UUID id
     ) {
         PaymentConfigResponse switched = paymentConfigService.switchConfig(id);
@@ -56,7 +56,7 @@ public class AdminPaymentConfigController {
     }
 
     @PostMapping
-    @Operation(summary = "Thêm cấu hình thanh toán mới", description = "Thêm một tài khoản ngân hàng hoặc cổng thanh toán tùy chọn mới")
+    @Operation(summary = "Thêm cấu hình thanh toán", description = "Tạo cấu hình phương thức thanh toán mới")
     public ResponseEntity<ApiResponse<PaymentConfigResponse>> createConfig(
             @Valid @RequestBody CreatePaymentConfigRequest request
     ) {
@@ -66,9 +66,9 @@ public class AdminPaymentConfigController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Cập nhật cấu hình thanh toán", description = "Cập nhật thông tin tài khoản ngân hàng hoặc tên phương thức thanh toán")
+    @Operation(summary = "Cập nhật cấu hình thanh toán", description = "Cập nhật thông tin cấu hình phương thức thanh toán")
     public ResponseEntity<ApiResponse<PaymentConfigResponse>> updateConfig(
-            @Parameter(description = "UUID của cấu hình cần cập nhật")
+            @Parameter(description = "UUID cấu hình cần cập nhật")
             @PathVariable UUID id,
             @Valid @RequestBody UpdatePaymentConfigRequest request
     ) {

@@ -24,14 +24,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Profile("!prod")
 @ConditionalOnProperty(name = "features.sandbox-payment.enabled", havingValue = "true", matchIfMissing = true)
-@Tag(name = "Sandbox Payment APIs", description = "Các API nạp tiền giả lập (Sandbox) chỉ kích hoạt trong môi trường Dev / Test")
+@Tag(name = "Sandbox Payment APIs", description = "Nạp thử nghiệm VIP Coin (Môi trường Dev / Test)")
 public class SandboxPaymentController {
 
     private final SandboxPaymentService sandboxPaymentService;
 
     @PostMapping("/{bundleId}/purchase")
-    @Operation(summary = "Sandbox Top-up: Nạp thử nghiệm gói VIP Coin trực tiếp vào ví",
-               description = "Giả lập thanh toán nhanh cho QA/Dev: Chọn gói nạp và tự động cộng VIP Coin vào ví người chơi qua WalletClient mà không cần quét mã QR PayOS.")
+    @Operation(summary = "Nạp thử nghiệm gói VIP Coin", description = "Giả lập nạp VIP Coin trực tiếp vào ví")
     public ResponseEntity<ApiResponse<SandboxPurchaseResponse>> purchaseSandboxBundle(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true)
             @RequestHeader("X-User-Id") UUID accountId,

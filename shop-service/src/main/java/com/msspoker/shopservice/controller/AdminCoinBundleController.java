@@ -28,20 +28,20 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/bundles")
 @RequiredArgsConstructor
-@Tag(name = "Admin Coin Bundle APIs", description = "Các API quản trị CRUD gói nạp VIP Coin dành cho Admin")
+@Tag(name = "Admin Coin Bundle APIs", description = "Quản lý gói nạp VIP Coin dành cho Admin")
 public class AdminCoinBundleController {
 
     private final CoinBundleService coinBundleService;
 
     @GetMapping
-    @Operation(summary = "Lấy toàn bộ danh sách gói nạp (Admin)", description = "Lấy danh sách tất cả các gói nạp bao gồm cả gói đang tắt hoặc mở bán")
+    @Operation(summary = "Danh sách gói nạp", description = "Lấy toàn bộ danh sách gói nạp")
     public ResponseEntity<ApiResponse<List<CoinBundleResponse>>> getAllBundles() {
         List<CoinBundleResponse> bundles = coinBundleService.getAllBundles();
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách gói nạp thành công", bundles));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Lấy chi tiết gói nạp (Admin)", description = "Lấy thông tin chi tiết một gói nạp theo ID")
+    @Operation(summary = "Chi tiết gói nạp", description = "Lấy thông tin chi tiết một gói nạp theo ID")
     public ResponseEntity<ApiResponse<CoinBundleResponse>> getBundleDetail(
             @Parameter(description = "UUID gói nạp") @PathVariable UUID id
     ) {
@@ -50,7 +50,7 @@ public class AdminCoinBundleController {
     }
 
     @PostMapping
-    @Operation(summary = "Tạo gói nạp VIP Coin mới", description = "Thêm mới một gói nạp VIP Coin vào hệ thống (tự động xóa cache Redis)")
+    @Operation(summary = "Tạo gói nạp mới", description = "Tạo gói nạp VIP Coin mới")
     public ResponseEntity<ApiResponse<CoinBundleResponse>> createBundle(
             @Valid @RequestBody CreateCoinBundleRequest request
     ) {
@@ -60,7 +60,7 @@ public class AdminCoinBundleController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Cập nhật gói nạp VIP Coin", description = "Chỉnh sửa thông tin giá, khuyến mãi, huy hiệu của gói nạp")
+    @Operation(summary = "Cập nhật gói nạp", description = "Cập nhật thông tin chi tiết gói nạp")
     public ResponseEntity<ApiResponse<CoinBundleResponse>> updateBundle(
             @Parameter(description = "UUID gói nạp cần cập nhật") @PathVariable UUID id,
             @Valid @RequestBody UpdateCoinBundleRequest request
@@ -70,16 +70,16 @@ public class AdminCoinBundleController {
     }
 
     @PatchMapping("/{id}/toggle")
-    @Operation(summary = "Bật / tắt trạng thái mở bán gói nạp", description = "Chuyển đổi trạng thái isActive giữa true và false")
+    @Operation(summary = "Bật tắt trạng thái", description = "Bật hoặc tắt trạng thái mở bán gói nạp")
     public ResponseEntity<ApiResponse<CoinBundleResponse>> toggleActive(
-            @Parameter(description = "UUID gói nạp cần chuyển trạng thái") @PathVariable UUID id
+            @Parameter(description = "UUID gói nạp") @PathVariable UUID id
     ) {
         CoinBundleResponse response = coinBundleService.toggleActive(id);
         return ResponseEntity.ok(ApiResponse.success("Chuyển trạng thái gói nạp thành công", response));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Xóa gói nạp VIP Coin", description = "Xóa hoàn toàn một gói nạp khỏi hệ thống")
+    @Operation(summary = "Xóa gói nạp", description = "Xóa gói nạp theo ID")
     public ResponseEntity<ApiResponse<Void>> deleteBundle(
             @Parameter(description = "UUID gói nạp cần xóa") @PathVariable UUID id
     ) {

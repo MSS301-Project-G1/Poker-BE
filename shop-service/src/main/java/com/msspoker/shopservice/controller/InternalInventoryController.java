@@ -23,13 +23,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/internal/inventory")
 @RequiredArgsConstructor
-@Tag(name = "Internal Inventory APIs", description = "Các API nội bộ chỉ dành cho các microservice khác gọi (Docker network)")
+@Tag(name = "Internal Inventory APIs", description = "API nội bộ giữa các microservices")
 public class InternalInventoryController {
 
     private final InventoryService inventoryService;
 
     @GetMapping("/{accountId}/owns/{productId}")
-    @Operation(summary = "Kiểm tra sở hữu vật phẩm", description = "Kiểm tra xem người dùng đã sở hữu sản phẩm hay chưa")
+    @Operation(summary = "Kiểm tra sở hữu vật phẩm", description = "Kiểm tra quyền sở hữu vật phẩm của tài khoản")
     public ResponseEntity<ApiResponse<OwnershipResponse>> checkOwnership(
             @Parameter(description = "UUID tài khoản người dùng")
             @PathVariable UUID accountId,
@@ -41,7 +41,7 @@ public class InternalInventoryController {
     }
 
     @PostMapping("/grant")
-    @Operation(summary = "Cấp phát vật phẩm (Idempotent)", description = "Cấp vật phẩm vào túi đồ cho tài khoản (dành cho phần thưởng giải đấu / sự kiện)")
+    @Operation(summary = "Cấp phát vật phẩm", description = "Cấp vật phẩm vào túi đồ người chơi")
     public ResponseEntity<ApiResponse<GrantItemResponse>> grantItem(@Valid @RequestBody GrantItemRequest request) {
         GrantItemResponse response = inventoryService.grantItem(request);
         return ResponseEntity.ok(ApiResponse.success("Xử lý cấp phát vật phẩm thành công", response));

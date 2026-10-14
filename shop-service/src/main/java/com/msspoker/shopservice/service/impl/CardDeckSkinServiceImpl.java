@@ -132,7 +132,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
     }
 
     private CardSkinUploadResponse processAndSaveCardSkin(Product product, Map<String, byte[]> cardImages) {
-        // 1. Kiểm tra tính đầy đủ của 53 lá cốt lõi (52 lá front + 1 lá back)
+        // 1. Kiểm tra tính đầy đủ
         cardDeckValidator.validateCoreCards(cardImages.keySet());
 
         // 2. Tạo version định danh theo timestamp (Cache busting)
