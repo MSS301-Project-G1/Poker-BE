@@ -1,11 +1,10 @@
-package com.msspoker.shopservice.service;
+package com.msspoker.shopservice.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.msspoker.shopservice.exception.CardSkinExceptions;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
@@ -17,16 +16,18 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Service
-@RequiredArgsConstructor
+@Component
 @Slf4j
 public class TextureAtlasGenerator {
 
     private final ObjectMapper objectMapper;
+
+    public TextureAtlasGenerator(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     public record AtlasResult(byte[] imageBytes, byte[] jsonBytes) {}
 
