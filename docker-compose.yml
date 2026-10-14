@@ -88,6 +88,11 @@ services:
         MODULE: shop-service
     ports:
       - "${SHOP_SERVICE_PORT:-8088}:8088"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
 
   wallet-service:
     build:
@@ -115,8 +120,23 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: poker-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   rabbitmq-data:
+  redis-data:
 
 networks:
   default:

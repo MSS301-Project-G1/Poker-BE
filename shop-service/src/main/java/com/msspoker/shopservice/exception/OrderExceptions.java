@@ -57,4 +57,12 @@ public final class OrderExceptions {
                 "Gói nạp VIP Coin không tồn tại hoặc đã ngừng mở bán."
         );
     }
+
+    public static AppException paymentConfigNotFound() {
+        return AppException.of(
+                HttpStatus.NOT_FOUND,
+                "SHOP_PAYMENT_CONFIG_NOT_FOUND",
+                "Không tìm thấy cấu hình phương thức thanh toán tương ứng."
+        );
+    }
 }

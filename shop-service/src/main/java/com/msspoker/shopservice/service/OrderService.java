@@ -22,4 +22,6 @@ public interface OrderService {
     OrderResponse syncOrder(UUID accountId, UUID orderId);
 
     void handlePayosWebhook(Webhook webhook);
+
+    void reconcileOrder(UUID orderId);
 }

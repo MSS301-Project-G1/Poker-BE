@@ -2,10 +2,8 @@ package com.msspoker.shopservice.validator;
 
 import com.msspoker.shopservice.dto.request.CreateOrderRequest;
 import com.msspoker.shopservice.entity.Product;
-import com.msspoker.shopservice.enums.OrderStatus;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
-import com.msspoker.shopservice.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,8 +16,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,10 +24,6 @@ class OrderValidatorTest {
     @Mock
     private InventoryItemRepository inventoryItemRepository;
 
-    @Mock
-    private OrderRepository orderRepository;
-
-    @InjectMocks
     private OrderValidator orderValidator;
 
     private UUID accountId;
@@ -39,6 +31,7 @@ class OrderValidatorTest {
 
     @BeforeEach
     void setUp() {
+        orderValidator = new OrderValidator(inventoryItemRepository);
         accountId = UUID.randomUUID();
         product = Product.builder()
                 .id(UUID.randomUUID())
@@ -53,8 +46,6 @@ class OrderValidatorTest {
     void validateCreateOrder_Success() {
         CreateOrderRequest request = new CreateOrderRequest(product.getId());
         when(inventoryItemRepository.existsByAccountIdAndProductId(accountId, product.getId())).thenReturn(false);
-        when(orderRepository.existsByAccountIdAndProductIdAndStatusAndExpiresAtAfter(eq(accountId), eq(product.getId()), eq(OrderStatus.PENDING), any()))
-                .thenReturn(false);
 
         assertThatCode(() -> orderValidator.validateCreateOrder(accountId, request, product))
                 .doesNotThrowAnyException();
@@ -72,14 +63,28 @@ class OrderValidatorTest {
     }
 
     @Test
-    @DisplayName("validateCreateOrder: ném lỗi khi đang có đơn hàng chờ thanh toán")
-    void validateCreateOrder_PendingOrderExistsThrows() {
+    @DisplayName("validateCreateOrder: ném lỗi khi sản phẩm bị xóa hoặc độc quyền")
+    void validateCreateOrder_DeletedOrExclusiveThrows() {
         CreateOrderRequest request = new CreateOrderRequest(product.getId());
-        when(inventoryItemRepository.existsByAccountIdAndProductId(accountId, product.getId())).thenReturn(false);
-        when(orderRepository.existsByAccountIdAndProductIdAndStatusAndExpiresAtAfter(eq(accountId), eq(product.getId()), eq(OrderStatus.PENDING), any()))
-                .thenReturn(true);
 
-        assertThatThrownBy(() -> orderValidator.validateCreateOrder(accountId, request, product))
+        Product deletedProduct = Product.builder()
+                .id(product.getId())
+                .name("Deleted Product")
+                .isExclusive(false)
+                .isDeleted(true)
+                .build();
+
+        assertThatThrownBy(() -> orderValidator.validateCreateOrder(accountId, request, deletedProduct))
+                .isInstanceOf(AppException.class);
+
+        Product exclusiveProduct = Product.builder()
+                .id(product.getId())
+                .name("Exclusive Product")
+                .isExclusive(true)
+                .isDeleted(false)
+                .build();
+
+        assertThatThrownBy(() -> orderValidator.validateCreateOrder(accountId, request, exclusiveProduct))
                 .isInstanceOf(AppException.class);
     }
 }

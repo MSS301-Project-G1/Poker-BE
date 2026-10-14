@@ -1,5 +1,6 @@
 package com.msspoker.shopservice.service;
 
+import com.msspoker.shopservice.config.PaymentProperties;
 import com.msspoker.shopservice.dto.request.CreateOrderRequest;
 import com.msspoker.shopservice.dto.response.OrderResponse;
 import com.msspoker.shopservice.entity.Category;
@@ -86,6 +87,15 @@ class OrderServiceImplTest {
     @Mock
     private WebhooksService webhooksService;
 
+    @Mock
+    private com.msspoker.shopservice.service.PaymentConfigService paymentConfigService;
+
+    @Mock
+    private com.msspoker.shopservice.client.WalletClient walletClient;
+
+    @Mock
+    private com.msspoker.shopservice.service.PaymentIdempotencyService paymentIdempotencyService;
+
     private OrderValidator orderValidator;
 
     private OrderServiceImpl orderService;
@@ -97,7 +107,7 @@ class OrderServiceImplTest {
     @BeforeEach
     void setUp() {
         accountId = UUID.randomUUID();
-        orderValidator = new OrderValidator(inventoryItemRepository, orderRepository);
+        orderValidator = new OrderValidator(inventoryItemRepository);
 
         Category category = Category.builder()
                 .id(UUID.randomUUID())
@@ -129,6 +139,22 @@ class OrderServiceImplTest {
                 .expiresAt(Instant.now().plusSeconds(900))
                 .build();
 
+        com.msspoker.shopservice.entity.PaymentConfig defaultConfig = com.msspoker.shopservice.entity.PaymentConfig.builder()
+                .provider(com.msspoker.shopservice.enums.PaymentProvider.PAYOS)
+                .name("Cổng PayOS Mặc Định")
+                .active(true)
+                .main(true)
+                .build();
+        org.mockito.Mockito.lenient().when(paymentConfigService.getActiveEntity()).thenReturn(defaultConfig);
+        org.mockito.Mockito.lenient().when(paymentIdempotencyService.acquireLock(any(), any(), any())).thenReturn(true);
+
+        PaymentProperties paymentProperties = PaymentProperties.builder()
+                .returnUrl("http://localhost:5173/shop/payment/success")
+                .cancelUrl("http://localhost:5173/shop/payment/cancel")
+                .expireMinutes(15)
+                .vietqrTemplateUrl("https://img.vietqr.io/image")
+                .build();
+
         orderService = new OrderServiceImpl(
                 orderRepository,
                 productRepository,
@@ -137,12 +163,12 @@ class OrderServiceImplTest {
                 orderMapper,
                 orderValidator,
                 payOS,
-                topupEventProducer
+                topupEventProducer,
+                paymentConfigService,
+                walletClient,
+                paymentProperties,
+                paymentIdempotencyService
         );
-
-        ReflectionTestUtils.setField(orderService, "returnUrl", "http://localhost:5173/shop/payment/success");
-        ReflectionTestUtils.setField(orderService, "cancelUrl", "http://localhost:5173/shop/payment/cancel");
-        ReflectionTestUtils.setField(orderService, "expireMinutes", 15);
     }
 
     @Test
@@ -403,5 +429,206 @@ class OrderServiceImplTest {
         assertThat(publishedEvent.vipCoinAmount()).isEqualTo(55000L);
         assertThat(publishedEvent.payosOrderCode()).isEqualTo(300003L);
         verify(inventoryItemRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createOrder - Idempotency: Người dùng click đúp, trả về đơn PENDING cũ còn hạn mà không gọi PayOS lần 2")
+    void createOrder_Idempotency_ReturnsExistingPendingOrder() {
+        CreateOrderRequest request = new CreateOrderRequest(product.getId());
+
+        when(productRepository.findByIdAndIsDeletedFalse(product.getId())).thenReturn(Optional.of(product));
+
+        Order pendingOrder = Order.builder()
+                .id(UUID.randomUUID())
+                .accountId(accountId)
+                .product(product)
+                .amountVnd(50000L)
+                .payosOrderCode(100099L)
+                .checkoutUrl("https://payos.vn/checkout/100099")
+                .qrCode("existing-qr")
+                .status(OrderStatus.PENDING)
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
+
+        when(orderRepository.findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
+                accountId, product.getId(), OrderStatus.PENDING))
+                .thenReturn(Optional.of(pendingOrder));
+
+        OrderResponse response = orderService.createOrder(accountId, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.id()).isEqualTo(pendingOrder.getId());
+        assertThat(response.payosOrderCode()).isEqualTo(100099L);
+        assertThat(response.checkoutUrl()).isEqualTo("https://payos.vn/checkout/100099");
+        assertThat(response.qrCode()).isEqualTo("existing-qr");
+
+        // Không gọi sinh mã PayOS mới hay lưu đơn hàng mới
+        verify(payOS, never()).paymentRequests();
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createOrder - Đơn PENDING cũ đã hết hạn: Hủy đơn cũ và tạo đơn mới")
+    void createOrder_StalePendingOrder_CancelsAndCreatesNew() {
+        CreateOrderRequest request = new CreateOrderRequest(product.getId());
+
+        when(productRepository.findByIdAndIsDeletedFalse(product.getId())).thenReturn(Optional.of(product));
+
+        Order expiredPendingOrder = Order.builder()
+                .id(UUID.randomUUID())
+                .accountId(accountId)
+                .product(product)
+                .amountVnd(50000L)
+                .payosOrderCode(100088L)
+                .status(OrderStatus.PENDING)
+                .expiresAt(Instant.now().minusSeconds(60)) // đã hết hạn
+                .build();
+
+        when(orderRepository.findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
+                accountId, product.getId(), OrderStatus.PENDING))
+                .thenReturn(Optional.of(expiredPendingOrder));
+
+        when(orderRepository.generatePayosOrderCode()).thenReturn(100089L);
+        when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
+
+        CreatePaymentLinkResponse payosResponse = mock(CreatePaymentLinkResponse.class);
+        when(payosResponse.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/100089");
+        when(payosResponse.getQrCode()).thenReturn("new-qr");
+        when(paymentRequestsService.create(any(CreatePaymentLinkRequest.class))).thenReturn(payosResponse);
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.createOrder(accountId, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.payosOrderCode()).isEqualTo(100089L);
+        assertThat(expiredPendingOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("createBundleOrder - Idempotency: Người dùng click đúp gói nạp, trả về đơn PENDING cũ")
+    void createBundleOrder_Idempotency_ReturnsExistingPendingOrder() {
+        UUID bundleId = UUID.randomUUID();
+        CoinBundle bundle = CoinBundle.builder()
+                .id(bundleId)
+                .code("BUNDLE_50K")
+                .name("Gói 50K")
+                .priceVnd(50000L)
+                .baseVipCoin(50000L)
+                .bonusVipCoin(5000L)
+                .isActive(true)
+                .build();
+
+        when(coinBundleRepository.findByIdAndIsActiveTrue(bundleId)).thenReturn(Optional.of(bundle));
+
+        Order existingBundleOrder = Order.builder()
+                .id(UUID.randomUUID())
+                .accountId(accountId)
+                .bundle(bundle)
+                .vipCoinAmount(55000L)
+                .amountVnd(50000L)
+                .payosOrderCode(200055L)
+                .checkoutUrl("https://payos.vn/checkout/200055")
+                .qrCode("bundle-qr")
+                .status(OrderStatus.PENDING)
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
+
+        when(orderRepository.findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
+                accountId, bundleId, OrderStatus.PENDING))
+                .thenReturn(Optional.of(existingBundleOrder));
+
+        OrderResponse response = orderService.createBundleOrder(accountId, bundleId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.id()).isEqualTo(existingBundleOrder.getId());
+        assertThat(response.payosOrderCode()).isEqualTo(200055L);
+        verify(payOS, never()).paymentRequests();
+    }
+
+    @Test
+    @DisplayName("createOrder - Redis Idempotency HIT: Trả về kết quả từ Redis cache < 1ms mà không chạm DB/PayOS")
+    void createOrder_RedisIdempotency_ReturnsCachedOrderImmediately() {
+        CreateOrderRequest request = new CreateOrderRequest(product.getId());
+
+        OrderResponse cachedResponse = new OrderResponse(
+                UUID.randomUUID(),
+                accountId,
+                product.getId(),
+                product.getName(),
+                null,
+                null,
+                null,
+                50000L,
+                999001L,
+                "https://payos.vn/checkout/999001",
+                "cached-qr",
+                "cached-qr-img",
+                OrderStatus.PENDING,
+                null,
+                Instant.now().plusSeconds(600),
+                Instant.now()
+        );
+
+        when(productRepository.findByIdAndIsDeletedFalse(product.getId())).thenReturn(Optional.of(product));
+        when(paymentIdempotencyService.getCachedOrder(accountId, product.getId())).thenReturn(Optional.of(cachedResponse));
+
+        OrderResponse result = orderService.createOrder(accountId, request);
+
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(cachedResponse.id());
+        assertThat(result.payosOrderCode()).isEqualTo(999001L);
+        assertThat(result.qrCode()).isEqualTo("cached-qr");
+
+        // Xác minh không gọi DB check, không gọi PayOS và không lưu đơn mới
+        verify(orderRepository, never()).findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(any(), any(), any());
+        verify(payOS, never()).paymentRequests();
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createBundleOrder - Redis Idempotency HIT: Trả về kết quả gói nạp từ Redis cache")
+    void createBundleOrder_RedisIdempotency_ReturnsCachedOrderImmediately() {
+        UUID bundleId = UUID.randomUUID();
+        CoinBundle bundle = CoinBundle.builder()
+                .id(bundleId)
+                .code("BUNDLE_100K")
+                .name("Gói 100K")
+                .priceVnd(100000L)
+                .baseVipCoin(100000L)
+                .bonusVipCoin(15000L)
+                .isActive(true)
+                .build();
+
+        OrderResponse cachedResponse = new OrderResponse(
+                UUID.randomUUID(),
+                accountId,
+                null,
+                null,
+                bundleId,
+                "Gói 100K",
+                115000L,
+                100000L,
+                888001L,
+                "https://payos.vn/checkout/888001",
+                "cached-bundle-qr",
+                "cached-bundle-qr-img",
+                OrderStatus.PENDING,
+                null,
+                Instant.now().plusSeconds(600),
+                Instant.now()
+        );
+
+        when(coinBundleRepository.findByIdAndIsActiveTrue(bundleId)).thenReturn(Optional.of(bundle));
+        when(paymentIdempotencyService.getCachedOrder(accountId, bundleId)).thenReturn(Optional.of(cachedResponse));
+
+        OrderResponse result = orderService.createBundleOrder(accountId, bundleId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(cachedResponse.id());
+        assertThat(result.payosOrderCode()).isEqualTo(888001L);
+
+        verify(orderRepository, never()).findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(any(), any(), any());
+        verify(payOS, never()).paymentRequests();
+        verify(orderRepository, never()).save(any());
     }
 }

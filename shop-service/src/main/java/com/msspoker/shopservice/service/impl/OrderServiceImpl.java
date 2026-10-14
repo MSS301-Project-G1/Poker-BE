@@ -1,13 +1,17 @@
 package com.msspoker.shopservice.service.impl;
 
+import com.msspoker.shopservice.client.WalletClient;
+import com.msspoker.shopservice.config.PaymentProperties;
 import com.msspoker.shopservice.dto.request.CreateOrderRequest;
 import com.msspoker.shopservice.dto.response.OrderResponse;
 import com.msspoker.shopservice.entity.CoinBundle;
 import com.msspoker.shopservice.entity.InventoryItem;
 import com.msspoker.shopservice.entity.Order;
+import com.msspoker.shopservice.entity.PaymentConfig;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.PaymentProvider;
 import com.msspoker.shopservice.event.VipCoinTopupSuccessEvent;
 import com.msspoker.shopservice.exception.OrderExceptions;
 import com.msspoker.shopservice.exception.ProductExceptions;
@@ -18,10 +22,11 @@ import com.msspoker.shopservice.repository.InventoryItemRepository;
 import com.msspoker.shopservice.repository.OrderRepository;
 import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.service.OrderService;
+import com.msspoker.shopservice.service.PaymentConfigService;
+import com.msspoker.shopservice.service.PaymentIdempotencyService;
 import com.msspoker.shopservice.validator.OrderValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
@@ -34,9 +39,12 @@ import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -53,15 +61,10 @@ public class OrderServiceImpl implements OrderService {
     private final OrderValidator orderValidator;
     private final PayOS payOS;
     private final TopupEventProducer topupEventProducer;
-
-    @Value("${payos.return-url:http://localhost:5173/shop/payment/success}")
-    private String returnUrl;
-
-    @Value("${payos.cancel-url:http://localhost:5173/shop/payment/cancel}")
-    private String cancelUrl;
-
-    @Value("${shop.order.expire-minutes:15}")
-    private int expireMinutes;
+    private final PaymentConfigService paymentConfigService;
+    private final WalletClient walletClient;
+    private final PaymentProperties paymentProperties;
+    private final PaymentIdempotencyService paymentIdempotencyService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -71,62 +74,128 @@ public class OrderServiceImpl implements OrderService {
         Product product = productRepository.findByIdAndIsDeletedFalse(request.productId())
                 .orElseThrow(ProductExceptions::productNotFound);
 
-        // Run validation qua OrderValidator
-        orderValidator.validateCreateOrder(accountId, request, product);
-
-        // Generate atomic unique sequence-based PayOS order code
-        Long orderCode = orderRepository.generatePayosOrderCode();
-        if (orderCode == null) {
-            orderCode = System.currentTimeMillis();
+        // Redis Idempotency Check
+        Optional<OrderResponse> cachedOrder = paymentIdempotencyService.getCachedOrder(accountId, product.getId());
+        if (cachedOrder.isPresent()) {
+            return cachedOrder.get();
         }
 
-        Instant now = Instant.now();
-        Instant expiresAt = now.plus(Duration.ofMinutes(expireMinutes));
+        // Database Idempotency Check
+        Optional<Order> existingOrderOpt = orderRepository.findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
+                accountId, product.getId(), OrderStatus.PENDING);
+        if (existingOrderOpt.isPresent()) {
+            Order pendingOrder = existingOrderOpt.get();
+            if (pendingOrder.getExpiresAt() != null && pendingOrder.getExpiresAt().isAfter(Instant.now())) {
+                log.info("Idempotent createOrder detected for accountId={}, productId={}. Returning existing order id={}, orderCode={}",
+                        accountId, product.getId(), pendingOrder.getId(), pendingOrder.getPayosOrderCode());
+                OrderResponse response = orderMapper.toOrderResponse(pendingOrder);
+                Duration remainingTtl = Duration.between(Instant.now(), pendingOrder.getExpiresAt());
+                if (!remainingTtl.isNegative() && !remainingTtl.isZero()) {
+                    paymentIdempotencyService.cacheOrder(accountId, product.getId(), response, remainingTtl);
+                }
+                return response;
+            } else {
+                log.info("Expiring stale pending order id={} for accountId={}", pendingOrder.getId(), accountId);
+                pendingOrder.setStatus(OrderStatus.CANCELLED);
+                orderRepository.save(pendingOrder);
+                paymentIdempotencyService.evictOrder(accountId, product.getId());
+            }
+        }
 
-        // Short alphanumeric description for PayOS (must not exceed 25 chars)
-        String description = "MSS " + orderCode;
+        // Khóa phân tán Redis chống race condition
+        boolean lockAcquired = paymentIdempotencyService.acquireLock(accountId, product.getId(), Duration.ofSeconds(10));
+        if (!lockAcquired) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            Optional<OrderResponse> polledResponse = paymentIdempotencyService.getCachedOrder(accountId, product.getId());
+            if (polledResponse.isPresent()) {
+                return polledResponse.get();
+            }
+        }
 
-        PaymentLinkItem item = PaymentLinkItem.builder()
-                .name(product.getName())
-                .quantity(1)
-                .price(product.getPriceVnd())
-                .build();
-
-        CreatePaymentLinkRequest payosRequest = CreatePaymentLinkRequest.builder()
-                .orderCode(orderCode)
-                .amount(product.getPriceVnd())
-                .description(description)
-                .returnUrl(returnUrl)
-                .cancelUrl(cancelUrl)
-                .items(List.of(item))
-                .expiredAt(expiresAt.getEpochSecond())
-                .build();
-
-        CreatePaymentLinkResponse payosResponse;
         try {
-            log.info("Requesting PayOS payment link for orderCode={}, amount={}", orderCode, product.getPriceVnd());
-            payosResponse = payOS.paymentRequests().create(payosRequest);
-        } catch (Exception ex) {
-            log.error("Failed to create PayOS payment link for orderCode={}: {}", orderCode, ex.getMessage(), ex);
-            throw OrderExceptions.payosServiceError(ex.getMessage());
+            // Run validation qua OrderValidator
+            orderValidator.validateCreateOrder(accountId, request, product);
+
+            // Generate atomic unique sequence-based PayOS order code
+            Long orderCode = orderRepository.generatePayosOrderCode();
+            if (orderCode == null) {
+                orderCode = System.currentTimeMillis();
+            }
+
+            Instant now = Instant.now();
+            Instant expiresAt = now.plus(Duration.ofMinutes(paymentProperties.getExpireMinutes()));
+
+            // Short alphanumeric description for PayOS (must not exceed 25 chars)
+            String description = "MSS " + orderCode;
+
+            PaymentConfig activeConfig = paymentConfigService.getActiveEntity();
+            String checkoutUrl;
+            String qrCode;
+
+            if (activeConfig.getProvider() == PaymentProvider.MANUAL_BANK && activeConfig.getBankCode() != null && activeConfig.getAccountNumber() != null) {
+                String encodedDesc = URLEncoder.encode(description, StandardCharsets.UTF_8);
+                String qrUrl = String.format("%s/%s-%s-compact2.png?amount=%d&addInfo=%s",
+                        paymentProperties.getVietqrTemplateUrl(), activeConfig.getBankCode(), activeConfig.getAccountNumber(), product.getPriceVnd(), encodedDesc);
+                checkoutUrl = qrUrl;
+                qrCode = qrUrl;
+                log.info("Tạo mã VietQR chuyển khoản trực tiếp cho orderCode={}: {}", orderCode, qrUrl);
+            } else {
+                PaymentLinkItem item = PaymentLinkItem.builder()
+                        .name(product.getName())
+                        .quantity(1)
+                        .price(product.getPriceVnd())
+                        .build();
+
+                CreatePaymentLinkRequest payosRequest = CreatePaymentLinkRequest.builder()
+                        .orderCode(orderCode)
+                        .amount(product.getPriceVnd())
+                        .description(description)
+                        .returnUrl(paymentProperties.getReturnUrl())
+                        .cancelUrl(paymentProperties.getCancelUrl())
+                        .items(List.of(item))
+                        .expiredAt(expiresAt.getEpochSecond())
+                        .build();
+
+                try {
+                    log.info("Requesting PayOS payment link for orderCode={}, amount={}", orderCode, product.getPriceVnd());
+                    CreatePaymentLinkResponse payosResponse = payOS.paymentRequests().create(payosRequest);
+                    checkoutUrl = payosResponse.getCheckoutUrl();
+                    qrCode = payosResponse.getQrCode();
+                } catch (Exception ex) {
+                    log.error("Failed to create PayOS payment link for orderCode={}: {}", orderCode, ex.getMessage(), ex);
+                    throw OrderExceptions.payosServiceError(ex.getMessage());
+                }
+            }
+
+            Order order = Order.builder()
+                    .accountId(accountId)
+                    .product(product)
+                    .amountVnd(product.getPriceVnd())
+                    .payosOrderCode(orderCode)
+                    .checkoutUrl(checkoutUrl)
+                    .qrCode(qrCode)
+                    .status(OrderStatus.PENDING)
+                    .expiresAt(expiresAt)
+                    .build();
+
+            Order savedOrder = orderRepository.save(order);
+            log.info("Order created successfully with id={}, payosOrderCode={}, expiresAt={}",
+                    savedOrder.getId(), savedOrder.getPayosOrderCode(), expiresAt);
+
+            OrderResponse response = orderMapper.toOrderResponse(savedOrder);
+            paymentIdempotencyService.cacheOrder(accountId, product.getId(), response,
+                    Duration.ofMinutes(paymentProperties.getExpireMinutes()));
+
+            return response;
+        } finally {
+            if (lockAcquired) {
+                paymentIdempotencyService.releaseLock(accountId, product.getId());
+            }
         }
-
-        Order order = Order.builder()
-                .accountId(accountId)
-                .product(product)
-                .amountVnd(product.getPriceVnd())
-                .payosOrderCode(orderCode)
-                .checkoutUrl(payosResponse.getCheckoutUrl())
-                .qrCode(payosResponse.getQrCode())
-                .status(OrderStatus.PENDING)
-                .expiresAt(expiresAt)
-                .build();
-
-        Order savedOrder = orderRepository.save(order);
-        log.info("Order created successfully with id={}, payosOrderCode={}, expiresAt={}",
-                savedOrder.getId(), savedOrder.getPayosOrderCode(), expiresAt);
-
-        return orderMapper.toOrderResponse(savedOrder);
     }
 
     @Override
@@ -137,69 +206,141 @@ public class OrderServiceImpl implements OrderService {
         CoinBundle bundle = coinBundleRepository.findByIdAndIsActiveTrue(bundleId)
                 .orElseThrow(OrderExceptions::bundleNotFound);
 
-        Long orderCode = orderRepository.generatePayosOrderCode();
-        if (orderCode == null) {
-            orderCode = System.currentTimeMillis();
+        // 1. Tầng 1: Redis Idempotency Check (Fast-path siêu tốc trên RAM < 1ms)
+        Optional<OrderResponse> cachedOrder = paymentIdempotencyService.getCachedOrder(accountId, bundleId);
+        if (cachedOrder.isPresent()) {
+            return cachedOrder.get();
         }
 
-        Instant now = Instant.now();
-        Instant expiresAt = now.plus(Duration.ofMinutes(expireMinutes));
-
-        String description = "MSS VIP " + orderCode;
-        if (description.length() > 25) {
-            description = description.substring(0, 25);
+        // 2. Tầng 2: Database Idempotency Check
+        Optional<Order> existingBundleOrderOpt = orderRepository.findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
+                accountId, bundleId, OrderStatus.PENDING);
+        if (existingBundleOrderOpt.isPresent()) {
+            Order pendingOrder = existingBundleOrderOpt.get();
+            if (pendingOrder.getExpiresAt() != null && pendingOrder.getExpiresAt().isAfter(Instant.now())) {
+                log.info("Idempotent createBundleOrder detected for accountId={}, bundleId={}. Returning existing bundle order id={}, orderCode={}",
+                        accountId, bundleId, pendingOrder.getId(), pendingOrder.getPayosOrderCode());
+                OrderResponse response = orderMapper.toOrderResponse(pendingOrder);
+                Duration remainingTtl = Duration.between(Instant.now(), pendingOrder.getExpiresAt());
+                if (!remainingTtl.isNegative() && !remainingTtl.isZero()) {
+                    paymentIdempotencyService.cacheOrder(accountId, bundleId, response, remainingTtl);
+                }
+                return response;
+            } else {
+                log.info("Expiring stale pending bundle order id={} for accountId={}", pendingOrder.getId(), accountId);
+                pendingOrder.setStatus(OrderStatus.CANCELLED);
+                orderRepository.save(pendingOrder);
+                paymentIdempotencyService.evictOrder(accountId, bundleId);
+            }
         }
 
-        PaymentLinkItem item = PaymentLinkItem.builder()
-                .name(bundle.getName())
-                .quantity(1)
-                .price(bundle.getPriceVnd())
-                .build();
+        // 3. Khóa phân tán Redis chống race condition
+        boolean lockAcquired = paymentIdempotencyService.acquireLock(accountId, bundleId, Duration.ofSeconds(10));
+        if (!lockAcquired) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            Optional<OrderResponse> polledResponse = paymentIdempotencyService.getCachedOrder(accountId, bundleId);
+            if (polledResponse.isPresent()) {
+                return polledResponse.get();
+            }
+        }
 
-        CreatePaymentLinkRequest payosRequest = CreatePaymentLinkRequest.builder()
-                .orderCode(orderCode)
-                .amount(bundle.getPriceVnd())
-                .description(description)
-                .returnUrl(returnUrl)
-                .cancelUrl(cancelUrl)
-                .items(List.of(item))
-                .expiredAt(expiresAt.getEpochSecond())
-                .build();
-
-        CreatePaymentLinkResponse payosResponse;
         try {
-            log.info("Requesting PayOS payment link for bundle orderCode={}, amount={}", orderCode, bundle.getPriceVnd());
-            payosResponse = payOS.paymentRequests().create(payosRequest);
-        } catch (Exception ex) {
-            log.error("Failed to create PayOS payment link for bundle orderCode={}: {}", orderCode, ex.getMessage(), ex);
-            throw OrderExceptions.payosServiceError(ex.getMessage());
+            Long orderCode = orderRepository.generatePayosOrderCode();
+            if (orderCode == null) {
+                orderCode = System.currentTimeMillis();
+            }
+
+            Instant now = Instant.now();
+            Instant expiresAt = now.plus(Duration.ofMinutes(paymentProperties.getExpireMinutes()));
+
+            String description = "MSS VIP " + orderCode;
+            if (description.length() > 25) {
+                description = description.substring(0, 25);
+            }
+
+            PaymentConfig activeConfig = paymentConfigService.getActiveEntity();
+            String checkoutUrl;
+            String qrCode;
+
+            if (activeConfig.getProvider() == PaymentProvider.MANUAL_BANK && activeConfig.getBankCode() != null && activeConfig.getAccountNumber() != null) {
+                String encodedDesc = URLEncoder.encode(description, StandardCharsets.UTF_8);
+                String qrUrl = String.format("%s/%s-%s-compact2.png?amount=%d&addInfo=%s",
+                        paymentProperties.getVietqrTemplateUrl(), activeConfig.getBankCode(), activeConfig.getAccountNumber(), bundle.getPriceVnd(), encodedDesc);
+                checkoutUrl = qrUrl;
+                qrCode = qrUrl;
+                log.info("Tạo mã VietQR chuyển khoản trực tiếp cho bundle orderCode={}: {}", orderCode, qrUrl);
+            } else {
+                PaymentLinkItem item = PaymentLinkItem.builder()
+                        .name(bundle.getName())
+                        .quantity(1)
+                        .price(bundle.getPriceVnd())
+                        .build();
+
+                CreatePaymentLinkRequest payosRequest = CreatePaymentLinkRequest.builder()
+                        .orderCode(orderCode)
+                        .amount(bundle.getPriceVnd())
+                        .description(description)
+                        .returnUrl(paymentProperties.getReturnUrl())
+                        .cancelUrl(paymentProperties.getCancelUrl())
+                        .items(List.of(item))
+                        .expiredAt(expiresAt.getEpochSecond())
+                        .build();
+
+                try {
+                    log.info("Requesting PayOS payment link for bundle orderCode={}, amount={}", orderCode, bundle.getPriceVnd());
+                    CreatePaymentLinkResponse payosResponse = payOS.paymentRequests().create(payosRequest);
+                    checkoutUrl = payosResponse.getCheckoutUrl();
+                    qrCode = payosResponse.getQrCode();
+                } catch (Exception ex) {
+                    log.error("Failed to create PayOS payment link for bundle orderCode={}: {}", orderCode, ex.getMessage(), ex);
+                    throw OrderExceptions.payosServiceError(ex.getMessage());
+                }
+            }
+
+            Order order = Order.builder()
+                    .accountId(accountId)
+                    .bundle(bundle)
+                    .vipCoinAmount(bundle.getVipCoinAmount())
+                    .amountVnd(bundle.getPriceVnd())
+                    .payosOrderCode(orderCode)
+                    .checkoutUrl(checkoutUrl)
+                    .qrCode(qrCode)
+                    .status(OrderStatus.PENDING)
+                    .expiresAt(expiresAt)
+                    .build();
+
+            Order savedOrder = orderRepository.save(order);
+            log.info("Bundle order created successfully with id={}, payosOrderCode={}, vipCoinAmount={}",
+                    savedOrder.getId(), savedOrder.getPayosOrderCode(), savedOrder.getVipCoinAmount());
+
+            OrderResponse response = orderMapper.toOrderResponse(savedOrder);
+            paymentIdempotencyService.cacheOrder(accountId, bundleId, response,
+                    Duration.ofMinutes(paymentProperties.getExpireMinutes()));
+
+            return response;
+        } finally {
+            if (lockAcquired) {
+                paymentIdempotencyService.releaseLock(accountId, bundleId);
+            }
         }
-
-        Order order = Order.builder()
-                .accountId(accountId)
-                .bundle(bundle)
-                .vipCoinAmount(bundle.getVipCoinAmount())
-                .amountVnd(bundle.getPriceVnd())
-                .payosOrderCode(orderCode)
-                .checkoutUrl(payosResponse.getCheckoutUrl())
-                .qrCode(payosResponse.getQrCode())
-                .status(OrderStatus.PENDING)
-                .expiresAt(expiresAt)
-                .build();
-
-        Order savedOrder = orderRepository.save(order);
-        log.info("Bundle order created successfully with id={}, payosOrderCode={}, vipCoinAmount={}",
-                savedOrder.getId(), savedOrder.getPayosOrderCode(), savedOrder.getVipCoinAmount());
-
-        return orderMapper.toOrderResponse(savedOrder);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public OrderResponse getOrderDetail(UUID accountId, UUID orderId) {
         log.debug("Fetching order detail for accountId={}, orderId={}", accountId, orderId);
         Order order = orderRepository.findById(orderId)
                 .filter(o -> o.getAccountId().equals(accountId))
                 .orElseThrow(OrderExceptions::orderNotFound);
+
+        if (order.getStatus() == OrderStatus.PENDING) {
+            syncOrderEntity(order);
+        }
+
         return orderMapper.toOrderResponse(order);
     }
 
@@ -231,6 +372,7 @@ public class OrderServiceImpl implements OrderService {
 
         order.setStatus(OrderStatus.CANCELLED);
         Order savedOrder = orderRepository.save(order);
+        evictOrderCache(savedOrder);
         log.info("Order id={} successfully marked as CANCELLED", orderId);
         return orderMapper.toOrderResponse(savedOrder);
     }
@@ -240,7 +382,7 @@ public class OrderServiceImpl implements OrderService {
     public void handlePayosWebhook(Webhook webhook) {
         log.info("Received PayOS webhook with code={}, desc={}", webhook.getCode(), webhook.getDesc());
 
-        // 1. Verify HMAC-SHA256 signature
+
         WebhookData data;
         try {
             data = payOS.webhooks().verify(webhook);
@@ -280,6 +422,7 @@ public class OrderServiceImpl implements OrderService {
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(Instant.now());
             orderRepository.save(order);
+            evictOrderCache(order);
 
             fulfillOrder(order);
         } else {
@@ -295,34 +438,72 @@ public class OrderServiceImpl implements OrderService {
                 .filter(o -> o.getAccountId().equals(accountId))
                 .orElseThrow(OrderExceptions::orderNotFound);
 
-        if (order.getStatus() == OrderStatus.PAID) {
-            return orderMapper.toOrderResponse(order);
+        if (order.getStatus() == OrderStatus.PENDING) {
+            syncOrderEntity(order);
+        }
+
+        return orderMapper.toOrderResponse(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reconcileOrder(UUID orderId) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null || order.getStatus() != OrderStatus.PENDING) {
+            return;
+        }
+        syncOrderEntity(order);
+    }
+
+    private void syncOrderEntity(Order order) {
+        if (order.getStatus() != OrderStatus.PENDING) {
+            return;
         }
 
         try {
             PaymentLink link = payOS.paymentRequests().get(order.getPayosOrderCode());
             PaymentLinkStatus status = link.getStatus();
-            log.info("Kết quả kiểm tra trạng thái từ PayOS: orderCode={}, status={}", order.getPayosOrderCode(), status);
+            log.info("Kiểm tra trạng thái từ PayOS: orderCode={}, status={}", order.getPayosOrderCode(), status);
 
             if (PaymentLinkStatus.PAID.equals(status)) {
+                log.info("Đơn hàng code={} đã thanh toán thành công (PAID). Cập nhật và hoàn tất đơn hàng.", order.getPayosOrderCode());
                 order.setStatus(OrderStatus.PAID);
                 order.setPaidAt(Instant.now());
                 orderRepository.save(order);
+                evictOrderCache(order);
                 fulfillOrder(order);
             } else if (PaymentLinkStatus.CANCELLED.equals(status)) {
                 order.setStatus(OrderStatus.CANCELLED);
                 orderRepository.save(order);
-            } else if (PaymentLinkStatus.EXPIRED.equals(status)) {
+                evictOrderCache(order);
+            } else if (PaymentLinkStatus.EXPIRED.equals(status) || (order.getExpiresAt() != null && order.getExpiresAt().isBefore(Instant.now()))) {
+                log.info("Đơn hàng code={} đã hết hạn. Đánh dấu EXPIRED.", order.getPayosOrderCode());
                 order.setStatus(OrderStatus.EXPIRED);
                 orderRepository.save(order);
+                evictOrderCache(order);
+                if (PaymentLinkStatus.PENDING.equals(status)) {
+                    try {
+                        payOS.paymentRequests().cancel(order.getPayosOrderCode(), "Expired");
+                    } catch (Exception ignored) {
+                    }
+                }
             }
         } catch (Exception ex) {
-            log.error("Không thể lấy trạng thái đơn hàng từ cổng PayOS cho orderCode={}: {}",
-                    order.getPayosOrderCode(), ex.getMessage(), ex);
-            throw OrderExceptions.payosServiceError(ex.getMessage());
+            log.warn("Không thể truy vấn PayOS cho orderCode={}: {}", order.getPayosOrderCode(), ex.getMessage());
+            if (order.getExpiresAt() != null && order.getExpiresAt().isBefore(Instant.now())) {
+                order.setStatus(OrderStatus.EXPIRED);
+                orderRepository.save(order);
+                evictOrderCache(order);
+            }
         }
+    }
 
-        return orderMapper.toOrderResponse(order);
+    private void evictOrderCache(Order order) {
+        UUID targetId = order.getProduct() != null ? order.getProduct().getId() :
+                (order.getBundle() != null ? order.getBundle().getId() : null);
+        if (targetId != null) {
+            paymentIdempotencyService.evictOrder(order.getAccountId(), targetId);
+        }
     }
 
     private void fulfillOrder(Order order) {
@@ -341,9 +522,25 @@ public class OrderServiceImpl implements OrderService {
                     .timestamp(Instant.now())
                     .build();
 
-            topupEventProducer.sendTopupSuccessEvent(event);
-            log.info("Đã phát sự kiện nạp VIP Coin cho bundle orderId={}, accountId={}, vipCoin={}",
-                    order.getId(), order.getAccountId(), vipCoinAmount);
+            try {
+                topupEventProducer.sendTopupSuccessEvent(event);
+                log.info("Đã phát sự kiện nạp VIP Coin cho bundle orderId={}, accountId={}, vipCoin={}",
+                        order.getId(), order.getAccountId(), vipCoinAmount);
+            } catch (Exception ex) {
+                log.warn("Không thể gửi event RabbitMQ: {}. Kích hoạt HTTP fallback sang wallet-service.", ex.getMessage());
+                try {
+                    walletClient.creditVipCoin(
+                            order.getAccountId(),
+                            vipCoinAmount,
+                            "TOPUP_BUNDLE_PAYOS",
+                            String.valueOf(order.getPayosOrderCode()),
+                            "ORDER:" + order.getId()
+                    );
+                    log.info("HTTP Fallback: Đã cộng {} VIP Coin thành công cho accountId={}", vipCoinAmount, order.getAccountId());
+                } catch (Exception httpEx) {
+                    log.error("HTTP Fallback sang wallet-service cũng thất bại: {}", httpEx.getMessage(), httpEx);
+                }
+            }
         } else if (order.getProduct() != null) {
             String grantKey = "ORDER:" + order.getId();
             boolean alreadyOwned = inventoryItemRepository.existsByAccountIdAndProductId(
