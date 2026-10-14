@@ -13,8 +13,14 @@
 
 # Local configuration
 .env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 *.log
 
 # OS
 .DS_Store
 Thumbs.db
+AGENTS.md
