@@ -4,6 +4,8 @@ import com.msspoker.authservice.entity.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,4 +14,6 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     Optional<Profile> findByAccountId(UUID accountId);
 
     Optional<Profile> findByAccountIdAndAccount_DeletedFalse(UUID accountId);
+
+    List<Profile> findAllByAccountIdInAndAccount_DeletedFalse(Collection<UUID> accountIds);
 }

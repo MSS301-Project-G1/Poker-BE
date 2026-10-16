@@ -5,9 +5,35 @@ login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Chỉnh sửa profile,
 quên/reset mật khẩu và FE chưa triển khai.
+Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
+API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
 [review phase 2](../docs/auth/phase-2.md), [kế hoạch](../docs/auth/implementation-plan.md),
 [chạy Docker và test Swagger](../docs/auth/local-development.md).
+
+## Lấy hồ sơ công khai theo danh sách ID
+
+Sau khi login trên Swagger qua gateway `http://localhost:8080/swagger-ui.html`,
+mở nhóm **Hồ sơ → GET `/api/profiles/batch`** và nhập account ID lấy từ `/api/auth/me`.
+FE gọi:
+
+```javascript
+const ids = ["019a4c30-8000-7000-8000-000000000001"];
+const response = await fetch(
+  `http://localhost:8080/api/profiles/batch?${new URLSearchParams({ ids: ids.join(",") })}`,
+  { credentials: "include" },
+);
+const body = await response.json();
+if (!response.ok) throw new Error(body.message);
+const profiles = body.result;
+```
+
+- Nhận 1–100 UUID, phân cách bằng dấu phẩy hoặc lặp query `ids`; giới hạn tính trước khi bỏ trùng.
+- `result` là danh sách `{accountId, displayName, avatarUrl}`, giữ thứ tự ID xuất hiện đầu tiên.
+- ID không tồn tại, chưa có profile hoặc tài khoản đã xóa được bỏ qua; không tìm thấy trả `[]`.
+- Không trả email, số điện thoại, mật khẩu hoặc thông tin hồ sơ riêng tư. Avatar chưa có trả `null`.
+- GET không cần CSRF header; vẫn bắt buộc access cookie hợp lệ. Thiếu/sai ID trả 400, chưa login trả 401.
+- Dữ liệu công khai này không xác nhận user được phép chơi; restrictions là hợp đồng riêng ở bước tiếp theo.
 
 ## Chạy auth riêng bằng Docker
 

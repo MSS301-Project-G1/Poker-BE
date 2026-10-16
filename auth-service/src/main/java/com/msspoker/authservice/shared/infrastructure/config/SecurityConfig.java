@@ -62,7 +62,7 @@ public class SecurityConfig {
                                 "/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
                                 "/api/auth/register/resend-otp", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(config -> config
                         .authenticationEntryPoint((request, response, exception) -> errors.write(request, response, ErrorCode.AUTH_UNAUTHENTICATED))

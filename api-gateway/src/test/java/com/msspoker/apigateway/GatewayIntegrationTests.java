@@ -170,13 +170,24 @@ class GatewayIntegrationTests {
 
     @Test
     void meAndWebsocketTokenRequireAnAccessCookieAndIgnoreBearerHeaders() {
-        for (String path : List.of("/api/auth/me", "/api/auth/ws-token", "/api/auth/not-public")) {
+        for (String path : List.of("/api/auth/me", "/api/auth/ws-token", "/api/auth/not-public", "/api/profiles/batch")) {
             client.get().uri(path).exchange().expectStatus().isUnauthorized()
                     .expectBody().jsonPath("$.code").isEqualTo("GATEWAY_UNAUTHENTICATED");
         }
         client.get().uri("/api/auth/me").header("Authorization", "Bearer " + token("USER", "valid"))
                 .exchange().expectStatus().isUnauthorized();
         assertThat(LAST.get()).isNull();
+    }
+
+    @Test
+    void profilesBatchPreservesThePathQueryAndAccessCookieForAuth() {
+        String access = token("USER", "valid");
+        String uri = "/api/profiles/batch?ids=" + ACCOUNT_ID + "," + UUID.randomUUID();
+        client.get().uri(uri).cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(uri);
+        assertThat(LAST.get().headers().get("Cookie")).contains("accessToken=" + access);
+        assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+        assertThat(LAST.get().headers()).doesNotContainKey("X-Game-Service-Key");
     }
 
     @Test
