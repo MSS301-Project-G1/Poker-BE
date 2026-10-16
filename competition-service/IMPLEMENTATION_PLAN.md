@@ -81,6 +81,7 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
   `/rooms/:code`). Kiểm tra trên trình duyệt với 2 người: tạo phòng Private có
   mật khẩu, sai mật khẩu bị từ chối, sẵn sàng, chủ phòng bắt đầu, cả hai tự sang
   bàn CUSTOM của game. Phòng chờ hỏi lại mỗi 3 giây cho tới khi có `/ws/social`.
+  Đã chuyển sang kiến trúc FE mới của `develop` và kiểm tra lại cùng luồng trên.
 - [ ] Đợt 4: GĐ2.
   - [x] Backend giải đấu GĐ2: V3 (`invites_sent_at`, `replacements_sent_at`,
     `item_grants`), mời top qua `/internal/ranking/top` + `TOURNAMENT_INVITE`,

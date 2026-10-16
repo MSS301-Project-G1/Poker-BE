@@ -71,6 +71,9 @@ scope `ranking`/`competition`, không push main.
 - [x] Đợt 6: FE Bảng xếp hạng (`Poker-FE/src/features/ranking`, route `/ranking`,
   xem `Poker-FE/docs/ranking-rooms-integration.md`). Lint/build qua; kiểm tra trên
   trình duyệt với ranking-service dev: mùa, vị trí của mình, top 3, dòng "You".
+  Đã chuyển sang kiến trúc FE mới của `develop` (`docs/ARCHITECTURE.md`): route trong
+  `app/router.jsx` + `paths.js`, API qua `httpClient`, CSS Module + token. Ở profile
+  `dev`, service nhận `X-Dev-User` thay `X-User-Id` (như game-service).
 - [ ] Đợt 7: GĐ2.
   - [x] Mùa giải BE: V3 (`season_tier_rewards`, `season_reward_claims`,
     `reward_grants`, `ranking_outbox`, `player_elo.final_tier`); Admin tạo mùa/quà,
