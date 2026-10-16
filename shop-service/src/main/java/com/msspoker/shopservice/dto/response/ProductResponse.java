@@ -17,6 +17,7 @@ public record ProductResponse(
         long priceVipCoin,
         String assetUrl,
         String previewUrl,
+        String previewVideoUrl,
         String metadata,
         boolean isExclusive,
         boolean isOwned
@@ -24,7 +25,7 @@ public record ProductResponse(
     public ProductResponse withOwned(boolean owned) {
         return new ProductResponse(
                 id, categoryCode, categoryName, name, description, tier,
-                priceVnd, priceVipCoin, assetUrl, previewUrl, metadata, isExclusive, owned
+                priceVnd, priceVipCoin, assetUrl, previewUrl, previewVideoUrl, metadata, isExclusive, owned
         );
     }
 }

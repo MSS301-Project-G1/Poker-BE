@@ -23,3 +23,8 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Test Archives & Temporary Scripts
+*.zip
+generate_test_deck.ps1
+docs/*.md

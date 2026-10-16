@@ -1,5 +1,7 @@
 package com.msspoker.shopservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.msspoker.shopservice.enums.ProductTier;
 import jakarta.persistence.Column;
@@ -29,6 +31,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Product {
 
     @Id
@@ -61,15 +64,36 @@ public class Product {
     @Column(name = "preview_url", length = 500)
     private String previewUrl;
 
+    @Column(name = "preview_video_url", length = 500)
+    private String previewVideoUrl;
+
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "json")
     private String metadata;
 
+    @JsonProperty("isExclusive")
     @Column(name = "is_exclusive", nullable = false)
-    private boolean isExclusive;
+    @Builder.Default
+    private boolean isExclusive = false;
 
+    @JsonProperty("isDeleted")
     @Column(name = "is_deleted", nullable = false)
-    private boolean isDeleted;
+    @Builder.Default
+    private boolean isDeleted = false;
+
+    @JsonProperty("exclusive")
+    public void setExclusiveAlias(Boolean exclusive) {
+        if (exclusive != null) {
+            this.isExclusive = exclusive;
+        }
+    }
+
+    @JsonProperty("deleted")
+    public void setDeletedAlias(Boolean deleted) {
+        if (deleted != null) {
+            this.isDeleted = deleted;
+        }
+    }
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

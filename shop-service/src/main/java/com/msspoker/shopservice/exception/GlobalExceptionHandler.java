@@ -72,10 +72,23 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "SHOP_INVALID_SORT", "Thuộc tính sắp xếp (sort) không hợp lệ", request);
     }
 
-
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotWritableException.class)
+    public void handleNotWritable(org.springframework.http.converter.HttpMessageNotWritableException ex, HttpServletRequest request) {
+        String msg = ex.getMessage();
+        if (msg != null && (msg.contains("ClientAbortException") || msg.contains("aborted by the software in your host machine"))) {
+            log.debug("Client socket closed prematurely while writing response for URI: {}", request.getRequestURI());
+            return;
+        }
+        log.error("Unhandled HttpMessageNotWritableException on URI: {}", request.getRequestURI(), ex);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex, HttpServletRequest request) {
+        String msg = ex.getMessage();
+        if (msg != null && (msg.contains("ClientAbortException") || msg.contains("aborted by the software in your host machine"))) {
+            log.debug("Client disconnected on URI: {}", request.getRequestURI());
+            return null;
+        }
         log.error("Unhandled exception on URI: {} - Error: ", request.getRequestURI(), ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "SHOP_INTERNAL_ERROR", "Đã xảy ra lỗi nội bộ, vui lòng thử lại sau.", request);
     }

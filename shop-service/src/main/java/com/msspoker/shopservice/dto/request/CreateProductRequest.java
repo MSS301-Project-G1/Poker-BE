@@ -30,5 +30,8 @@ public record CreateProductRequest(
         @Size(max = 500, message = "URL tài nguyên không được vượt quá 500 ký tự")
         String assetUrl,
 
+        @Size(max = 500, message = "URL video review không được vượt quá 500 ký tự")
+        String previewVideoUrl,
+
         boolean isExclusive
 ) {}
