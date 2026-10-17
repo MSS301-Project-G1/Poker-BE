@@ -1,0 +1,44 @@
+services:
+  ranking-service:
+    build:
+      context: ..
+      args:
+        MODULE: ranking-service
+    ports:
+      - "${RANKING_SERVICE_PORT:-8086}:8086"
+    environment:
+      RANKING_DB_URL: jdbc:postgresql://ranking-db:5432/ranking_db
+      RANKING_DB_USER: ${RANKING_DB_USER:-poker}
+      RANKING_DB_PASSWORD: ${RANKING_DB_PASSWORD:-poker_dev}
+      RABBITMQ_HOST: rabbitmq
+      WALLET_SERVICE_URL: http://wallet-service:8089
+      SHOP_SERVICE_URL: http://shop-service:8088
+    networks:
+      - default
+      - ranking-net
+    depends_on:
+      ranking-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  ranking-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ranking_db
+      POSTGRES_USER: ${RANKING_DB_USER:-poker}
+      POSTGRES_PASSWORD: ${RANKING_DB_PASSWORD:-poker_dev}
+    ports:
+      - "127.0.0.1:54331:5432"
+    volumes:
+      - ranking-db-data:/var/lib/postgresql/data
+    networks:
+      - ranking-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+networks:
+  ranking-net:
+volumes:
+  ranking-db-data:

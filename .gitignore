@@ -19,12 +19,16 @@
 !.env.example
 !**/.env.example
 *.log
+.local/
 
 # OS
 .DS_Store
 Thumbs.db
 
+# Documentation & AI
+AGENTS.md
+docs/
+
 # Test Archives & Temporary Scripts
 *.zip
 generate_test_deck.ps1
-docs/*.md

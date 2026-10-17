@@ -1,0 +1,35 @@
+services:
+  api-gateway:
+    build:
+      context: ..
+      args:
+        MODULE: api-gateway
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8090
+      GATEWAY_JWK_SET_URI: ${GATEWAY_JWK_SET_URI:-http://auth-service:8090/.well-known/jwks.json}
+      JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8090}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-poker}
+      GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8080,http://localhost:8090}
+      GAME_SERVICE_KEY: ${GAME_SERVICE_KEY:-}
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      GAME_SERVICE_URL: http://game-service:8082
+      MATCHMAKING_SERVICE_URL: http://matchmaking-service:8083
+      SOCIAL_SERVICE_URL: http://social-service:8084
+      CHAT_SERVICE_URL: http://chat-service:8085
+      RANKING_SERVICE_URL: http://ranking-service:8086
+      COMPETITION_SERVICE_URL: http://competition-service:8087
+      SHOP_SERVICE_URL: http://shop-service:8088
+      WALLET_SERVICE_URL: http://wallet-service:8089
+    depends_on:
+      - auth-service
+      - identity-service
+      - game-service
+      - matchmaking-service
+      - social-service
+      - chat-service
+      - ranking-service
+      - competition-service
+      - shop-service
+      - wallet-service
