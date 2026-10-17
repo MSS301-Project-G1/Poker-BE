@@ -6,11 +6,11 @@ import com.msspoker.rankingservice.exception.RankingExceptions;
 import com.msspoker.rankingservice.service.EloCalculator;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Component
+@Service
 @RequiredArgsConstructor
 public class EloCalculatorImpl implements EloCalculator {
     private final RankingProperties properties;

@@ -83,6 +83,6 @@ class WalletClientImplTest {
     }
 
     private WalletClient client() {
-        return new WalletClientImpl("http://127.0.0.1:" + server.getAddress().getPort(), 2000);
+        return new WalletClientImpl("http://127.0.0.1:" + server.getAddress().getPort(), 2000, false);
     }
 }

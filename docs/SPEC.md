@@ -578,6 +578,7 @@ Tất cả nằm trong config / bảng Admin, chỉnh không cần sửa code.
 | Mốc Elo các bậc | Tân thủ 0 · Sắt 100 · Đồng 200 · Bạc 350 · Vàng 500 · Bạch kim 700 · Kim cương 950 · Kiện tướng 1.250 · Đại kiện tướng 1.600 · Thần bài = top 50 Đại kiện tướng *(đề xuất)* | Hoài Anh |
 | Reset mùa | Giữ lại 50% Elo *(đề xuất)* | Hoài Anh |
 | Chia prize pool Giải Mở | 50% / 30% / 20% cho top 3 chung kết *(đề xuất)* | Hoài Anh |
+| Thưởng hoàn thành Tutorial | 200 xu, mỗi tài khoản nhận một lần | Hoài Anh |
 
 Mã enum bậc rank: `NEWBIE`, `IRON`, `BRONZE`, `SILVER`, `GOLD`, `PLATINUM`, `DIAMOND`, `CHAMPION`, `GRAND_CHAMPION`, `CARD_GOD`.
 
@@ -921,8 +922,8 @@ Ca biên cần xử lý: gửi lời mời cho chính mình, cho người đã l
 🔵 GĐ2
 - [ ] Giải Cao thủ và Giải Mở chạy thật (luồng 7.7), bracket cập nhật realtime, bù người vắng, prize pool, trao thưởng.
 - [ ] Mùa giải: đóng mùa, reset Elo theo %, quà dồn theo bậc, nhận quà.
-- [ ] BXH bạn bè.
-- [ ] Tutorial: kịch bản ván bài dựng sẵn ở FE, hướng dẫn từng nút, hoàn thành thì FE gọi `POST /api/tutorial/complete`, ranking-service gọi `credit` `TUTORIAL_REWARD` với key `tutorial:{accountId}` (chỉ thưởng một lần).
+- [ ] BXH bạn bè: `GET /api/ranking/friends` trả người gọi và bạn bè (lấy qua `/internal/friends/{accountId}`, tối đa 200 người), mỗi dòng `{ rank, position, accountId, elo, tier, winStreak, matchesPlayed, you }`. `position` là vị trí trên BXH toàn server; bạn chưa đánh Rank trong mùa xếp cuối với Elo khởi điểm và `position = null`.
+- [ ] Tutorial: kịch bản ván bài dựng sẵn ở FE, hướng dẫn từng nút, hoàn thành thì FE gọi `POST /api/tutorial/complete`, ranking-service gọi `credit` `TUTORIAL_REWARD` 200 xu (mục 8) với key `tutorial:{accountId}` (chỉ thưởng một lần). `GET /api/tutorial/me` trả `{ completed, completedAt, rewardCoins }` để FE biết người chơi đã hoàn thành chưa.
 - [ ] Admin: quản lý mùa giải, quà theo bậc, lịch và cấu hình giải.
 
 **Cung cấp cho người khác:** `/internal/ranking/**` (Duy cần), dữ liệu Elo/bậc cho màn Hồ sơ và Sảnh chờ (Khanh cần).

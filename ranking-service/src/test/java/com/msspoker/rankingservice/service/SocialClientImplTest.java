@@ -77,6 +77,6 @@ class SocialClientImplTest {
     }
 
     private SocialClient client() {
-        return new SocialClientImpl("http://127.0.0.1:" + server.getAddress().getPort(), 2000);
+        return new SocialClientImpl("http://127.0.0.1:" + server.getAddress().getPort(), 2000, false, null, null);
     }
 }

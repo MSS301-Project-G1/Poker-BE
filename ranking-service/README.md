@@ -14,8 +14,8 @@ rankingservice/
 │   ├── request/        # Request records, including the wallet credit body
 │   ├── response/       # JSON responses and pagination
 │   └── event/          # Consumed event payloads (envelope comes from common)
-├── service/            # Application service interfaces
-│   └── impl/           # Spring-managed implementations
+├── service/            # Application service interfaces, clients of other services included
+│   └── impl/           # Exactly one implementation per interface, like game-service
 ├── entity/             # JPA entities only
 ├── repository/         # Spring Data repositories only
 ├── validator/          # Business validation
@@ -46,8 +46,11 @@ Dev uses PostgreSQL `127.0.0.1:54331/ranking_db` (user `poker`, local password
 `http://localhost:15679`). When changing the local password, set
 `RANKING_DB_PASSWORD` for Compose and `RANKING_DEV_DB_PASSWORD` to the same value
 for the Java process. Flyway creates the schema and seeds one ACTIVE season;
-Hibernate validates it. H2 is a test-scope dependency only. In `dev`, rank rewards
-go to a logging wallet stub until wallet-service is available.
+Hibernate validates it. H2 is a test-scope dependency only. The `dev` profile and
+the tests turn on `ranking.wallet.mock`, `ranking.shop.mock` and
+`ranking.social.mock` (SPEC §9.4): wallet and shop calls are logged instead of
+sent, and the season's top 200 players are everyone's friends. Set a flag to
+`false` to call the real service once it runs locally.
 
 To run the application container with the `dev` profile:
 
@@ -74,9 +77,10 @@ Leaderboard order is Elo descending, then account id ascending.
 
 `/api/**` trusts `X-User-Id` set by the gateway (SPEC §5.1); a missing header
 returns `401 RANK_UNAUTHORIZED`. `/internal/**` must not be exposed by the gateway.
-In the `dev` profile only, `X-Dev-User` (sent by the FE shared http client, like
-for game-service) stands in for `X-User-Id`, and such requests act as `ADMIN`
-unless `X-User-Role` is sent.
+In the `dev` profile only, `X-Dev-User` (the FE `?devUser` identity, read like
+game-service does) wins over `X-User-Id`, because the shared FE http client also
+sends a default `X-User-Id` in dev; any dev request without `X-User-Role` acts as
+`ADMIN`.
 
 Consumed events on exchange `poker.events`, each with its own durable queue:
 
@@ -150,9 +154,9 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 - RabbitMQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
 - Wallet: `WALLET_SERVICE_URL` (default `http://localhost:8089`).
 - Shop: `SHOP_SERVICE_URL` (default `http://localhost:8088`).
-- Social: `SOCIAL_SERVICE_URL` (default `http://localhost:8084`). In `dev`/`test` the
-  wallet and shop are logging stubs, and the season's top 200 players are
-  everyone's friends.
+- Social: `SOCIAL_SERVICE_URL` (default `http://localhost:8084`).
+- Mocks for services not running locally: `ranking.wallet.mock`, `ranking.shop.mock`,
+  `ranking.social.mock` (`false`; `true` in `application-dev.properties` and tests).
 - SPEC §8 parameters: `ranking.elo-by-place`, `ranking.tier-thresholds`,
   `ranking.reward-multipliers`, `ranking.win-streak-places`, `ranking.card-god-limit`,
   `ranking.min-elo`, `ranking.starting-elo` in `application.properties`.
