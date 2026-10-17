@@ -31,9 +31,7 @@ spring:
             - id: matchmaking-service
               uri: ${MATCHMAKING_SERVICE_URL:http://localhost:8083}
               predicates:
-                - Path=/api/matchmaking/**
-              filters:
-                - StripPrefix=2
+                - Path=/api/matchmaking/**,/api/party/**
             - id: social-service
               uri: ${SOCIAL_SERVICE_URL:http://localhost:8084}
               predicates:
