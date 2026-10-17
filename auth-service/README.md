@@ -95,27 +95,31 @@ docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compo
 ```
 
 Lệnh này chỉ chạy `auth-service`, `auth-postgres` và `rabbitmq`.
-`docker/compose.infra.yml` được giữ nguyên; file auth chỉ ghi đè image/tài khoản
-RabbitMQ và bổ sung volume broker cho bộ auth. Các override này áp dụng trong
-project auth, không chỉnh cấu hình hay container của project khác.
-Root `docker-compose.yml` giữ nguyên bản đã commit, không được dùng làm base của bộ này.
+`rabbitmq` chỉ được định nghĩa ở `docker/compose.infra.yml`; cấu hình auth chính
+tham chiếu broker qua `depends_on`, không khai báo lại service/volume RabbitMQ.
+Root `docker-compose.yml` include infra và auth nên dùng được cấu hình này mà không trùng service.
+Các lệnh auth riêng bên dưới ghép file bằng `-f`, không dùng root làm base.
 
 Auth ở `http://localhost:8090`. Cấu hình chính không publish port PostgreSQL;
 RabbitMQ kế thừa port AMQP `127.0.0.1:56729` và UI `http://localhost:15679` từ infra.
-Auth và broker dùng `AUTH_RABBIT_USERNAME`/`AUTH_RABBIT_PASSWORD`, mặc định local
-`poker`/`poker_dev`. Auth trong Docker luôn kết nối `rabbitmq:5672`.
+Auth mặc định dùng `guest`/`guest` để khớp broker chung. Auth trong Docker luôn
+kết nối `rabbitmq:5672`. Nếu `.env` đang đặt `AUTH_RABBIT_USERNAME=poker` và
+`AUTH_RABBIT_PASSWORD=poker_dev`, khi chạy root/cấu hình chung cần đổi thành
+`guest`/`guest` hoặc bỏ/comment hai biến để dùng mặc định; `.env` luôn ghi đè fallback.
 
 ### Override khi phát triển
 
 `auth-service/compose.dev.yml` chỉ chứa các khác biệt dành cho dev:
 
-- `auth-service`: thay port binding API bằng binding localhost.
+- `auth-service`: bind API vào localhost và đổi credential RabbitMQ mặc định thành `poker`/`poker_dev`.
 - `auth-postgres`: mở PostgreSQL ở `127.0.0.1:54330` để dùng DBeaver/IDE.
 - `auth-mailpit`: mở SMTP ở `127.0.0.1:1026` khi bật profile `mailpit`.
-- `rabbitmq`: thay port publish thành `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
+- `rabbitmq`: ghi đè broker infra bằng image `4.1-management-alpine`, credential mặc định `poker`/`poker_dev`, volume `auth-rabbit`; port AMQP `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
 
-File dev không khai báo lại image, environment, dependency hay volume và không
-đổi project name. Cần Docker Compose 2.24.4+ để dùng `!override`.
+File dev chỉ override các khác biệt trên, kế thừa healthcheck của RabbitMQ từ infra
+và giữ project name. Biến `AUTH_RABBIT_USERNAME`/`AUTH_RABBIT_PASSWORD` nếu đặt
+trong `.env` sẽ ghi đè mặc định ở cả app lẫn broker dev; bỏ/comment hai biến để
+tự chọn đúng default chung/dev. Cần Docker Compose 2.24.4+ để dùng `!override`.
 Nếu đang chạy bộ dev cũ, đọc mục chuyển đổi bên dưới trước khi chạy lần đầu.
 Ghép file dev **sau** infra và cấu hình auth; không chạy file dev một mình:
 
@@ -131,10 +135,12 @@ curl http://localhost:8090/actuator/health
 
 Không cần profile `app`. Cấu hình chính và dev dùng cùng project `poker-auth-dev`
 (được khai báo trong `auth-service/compose.yml` để giữ tên project cũ), cùng volume
-DB, RabbitMQ và khóa JWT. Đây là một bộ auth với hai cách cấu hình port.
+DB và khóa JWT. Chỉ file dev gắn volume RabbitMQ `auth-rabbit` của bộ auth cũ;
+cấu hình chính dùng broker nguyên bản từ infra.
 PostgreSQL là `auth_db`, tài khoản lấy từ `AUTH_DB_USERNAME`/`AUTH_DB_PASSWORD`
-(mặc định local `poker`/`poker_dev`). Root Compose là cách chạy khác, không dùng
-chung các volume auth này và không tự ghép các file auth vào khi chạy.
+(mặc định local `poker`/`poker_dev`). Root Compose include cấu hình auth chính cùng
+các service khác; không include file dev. Giữ nguyên tên project/volume khi tiếp tục
+bộ dev đang có dữ liệu.
 
 ### Chuyển từ Compose dev cũ
 

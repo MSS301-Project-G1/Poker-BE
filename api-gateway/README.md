@@ -15,6 +15,7 @@ Nếu bộ auth cũ còn container PostgreSQL tên `postgres`, thực hiện
 docker compose --env-file .env \
   -f docker/compose.infra.yml \
   -f auth-service/compose.yml \
+  -f auth-service/compose.dev.yml \
   -f api-gateway/compose.yml \
   -f api-gateway/compose.dev.yml \
   up -d --build api-gateway
@@ -23,14 +24,18 @@ docker compose --env-file .env \
 docker compose --env-file .env \
   -f docker/compose.infra.yml \
   -f auth-service/compose.yml \
+  -f auth-service/compose.dev.yml \
   -f api-gateway/compose.yml \
   -f api-gateway/compose.dev.yml \
   up -d api-gateway
 ```
 
 `api-gateway/compose.dev.yml` chỉ override port gateway về localhost và dependency
-về `auth-service`, tránh khởi động toàn bộ service của nhóm. Nếu cần mở port DB,
-thêm `-f auth-service/compose.dev.yml` trước các file gateway.
+về `auth-service`, tránh khởi động toàn bộ service của nhóm. Lệnh trên dùng thêm
+auth dev override để giữ broker/volume auth cũ, mặc định `poker`/`poker_dev`, đồng thời
+mở port DB `54330`. Nếu bỏ auth dev override, broker lấy nguyên cấu hình infra,
+auth mặc định dùng `guest`/`guest`; bỏ/comment credential dev trong `.env` khi đó.
+Các biến credential nếu đặt trong `.env` luôn ưu tiên hơn fallback của Compose.
 Project vẫn là `poker-auth-dev`, dùng lại volume auth hiện có. Lệnh `up` không xóa
 volume. File root `docker-compose.yml` và `docker/compose.infra.yml` không bị chỉnh.
 Gateway chờ container auth được start, không chờ app auth hoàn tất startup; đợi

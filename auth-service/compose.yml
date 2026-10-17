@@ -24,8 +24,8 @@ services:
       AUTH_OTP_RESEND_COOLDOWN: ${AUTH_OTP_RESEND_COOLDOWN:-60s}
       AUTH_RABBIT_HOST: rabbitmq
       AUTH_RABBIT_PORT: 5672
-      AUTH_RABBIT_USERNAME: ${AUTH_RABBIT_USERNAME:-poker}
-      AUTH_RABBIT_PASSWORD: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+      AUTH_RABBIT_USERNAME: ${AUTH_RABBIT_USERNAME:-guest}
+      AUTH_RABBIT_PASSWORD: ${AUTH_RABBIT_PASSWORD:-guest}
       AUTH_EVENTS_DISPATCH_ENABLED: ${AUTH_EVENTS_DISPATCH_ENABLED:-true}
       AUTH_EVENTS_DISPATCH_DELAY: ${AUTH_EVENTS_DISPATCH_DELAY:-5000}
       AUTH_SWAGGER_ENABLED: ${AUTH_SWAGGER_ENABLED:-true}
@@ -63,14 +63,6 @@ services:
     image: axllent/mailpit:v1.27.0
     ports:
       - "127.0.0.1:8026:8025"
-  # Auth-only overrides of docker/compose.infra.yml; the shared file stays intact.
-  rabbitmq:
-    image: rabbitmq:4.1-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: ${AUTH_RABBIT_USERNAME:-poker}
-      RABBITMQ_DEFAULT_PASS: ${AUTH_RABBIT_PASSWORD:-poker_dev}
-    volumes:
-      - auth-rabbit:/var/lib/rabbitmq
   auth-postgres:
     image: postgres:17-alpine
     environment:
@@ -89,7 +81,6 @@ services:
 networks:
   auth-net:
 volumes:
-  auth-rabbit:
   auth-db:
     name: ${AUTH_DB_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_auth-db}
   auth-keys:
