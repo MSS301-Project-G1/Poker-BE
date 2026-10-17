@@ -88,7 +88,9 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
     `POST /api/tournaments/{id}/confirm`, bù người vắng, lịch tự động bắt đầu/hủy và
     hoàn phí, prize pool 50/30/20 (`TOURNAMENT_PRIZE`), skin cho vô địch qua
     `/internal/inventory/grant`. 34 test H2.
-  - [ ] Bracket realtime, FE giải đấu, Admin giải đấu.
+  - [ ] FE giải đấu, bracket cập nhật bằng hỏi lại định kỳ tới khi có `/ws/social`
+    (đợt B của FE GĐ2, xem `ranking-service/IMPLEMENTATION_PLAN.md`).
+  - [ ] Admin giải đấu (đợt C).
 
 ## Phụ thuộc và review trước khi merge
 

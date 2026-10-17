@@ -90,7 +90,16 @@ scope `ranking`/`competition`, không push main.
     `/internal/friends/{accountId}` của Duy (dev: top mùa là bạn của mọi người).
     39 test H2; chạy thật trên PostgreSQL: V4, 6 request hoàn thành song song chỉ
     thưởng một lần, vị trí bạn bè khớp BXH toàn server.
-  - [ ] FE Tutorial (cần component bàn chơi của Bảo), FE BXH bạn bè, FE mùa giải/admin.
+  - FE GĐ2 chia đợt (mỗi đợt dừng để review):
+    - [x] Đợt A: đồng bộ nhánh FE với `develop` (merge shop/wallet của Tùng, proxy admin
+      đặt trước `/api/admin` của shop); filter dev: `X-Dev-User` thắng `X-User-Id` mặc
+      định của `httpClient`, request dev không có role là ADMIN; tab BXH bạn bè
+      (`/ranking?view=friends`); màn `/seasons` (mùa hiện tại, thang quà theo bậc, quà
+      mùa đã kết thúc và nhận quà). Kiểm tra trên trình duyệt với PostgreSQL DB tạm:
+      tạo/đóng mùa qua API admin, nhận quà, 6 khoản xu được gửi; mobile 390 px.
+    - [ ] Đợt B: FE giải đấu (`competition-service/IMPLEMENTATION_PLAN.md`).
+    - [ ] Đợt C: Admin mùa giải (`features/admin/seasons`) và Admin giải đấu.
+    - [ ] Đợt D: FE Tutorial (cần component bàn chơi của Bảo).
 
 ## Phụ thuộc và review trước khi merge
 
