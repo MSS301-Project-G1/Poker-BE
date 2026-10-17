@@ -1,5 +1,6 @@
 package com.msspoker.gameservice.config;
 
+import com.msspoker.gameservice.constant.GameSocketConstants;
 import com.msspoker.gameservice.websocket.GameChannelInterceptor;
 import com.msspoker.gameservice.websocket.GameSocketSessions;
 import com.msspoker.gameservice.websocket.GameStompErrorHandler;
@@ -24,14 +25,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.setPreserveReceiveOrder(true);
         registry.setErrorHandler(errors);
-        registry.addEndpoint("/ws/game").setAllowedOrigins(properties.getAllowedOrigins());
+        registry.addEndpoint(GameSocketConstants.ENDPOINT).setAllowedOrigins(properties.getAllowedOrigins());
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.setApplicationDestinationPrefixes("/app");
-        registry.enableSimpleBroker("/queue");
-        registry.setUserDestinationPrefix("/user");
+        registry.setApplicationDestinationPrefixes(GameSocketConstants.APP_PREFIX);
+        registry.enableSimpleBroker(GameSocketConstants.BROKER_PREFIX);
+        registry.setUserDestinationPrefix(GameSocketConstants.USER_PREFIX);
         registry.setPreservePublishOrder(true);
     }
 
@@ -55,8 +56,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 super.afterConnectionClosed(session, status);
             }
         });
-        registration.setMessageSizeLimit(8192);
-        registration.setSendBufferSizeLimit(65536);
-        registration.setSendTimeLimit(10000);
+        registration.setMessageSizeLimit(GameSocketConstants.MESSAGE_SIZE_LIMIT_BYTES);
+        registration.setSendBufferSizeLimit(GameSocketConstants.SEND_BUFFER_SIZE_LIMIT_BYTES);
+        registration.setSendTimeLimit(GameSocketConstants.SEND_TIME_LIMIT_MILLIS);
     }
 }
