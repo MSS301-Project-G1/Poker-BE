@@ -215,6 +215,32 @@ class GatewayIntegrationTests {
     }
 
     @Test
+    void avatarPresignPreservesGetQueryAndConfirmationRequiresCsrf() {
+        String access = token("USER", "valid");
+        String presignPath = "/api/profiles/me/avatar/presign?fileName=avatar.png&contentType=image/png&fileSize=100";
+        client.get().uri(presignPath).exchange().expectStatus().isUnauthorized();
+        assertThat(LAST.get()).isNull();
+        client.get().uri(presignPath).cookie("accessToken", access)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(presignPath);
+        assertThat(LAST.get().method()).isEqualTo("GET");
+        assertThat(LAST.get().body()).isEmpty();
+        String path = "/api/profiles/me/avatar";
+        String body = "{\"key\":\"avatars/staging/example.png\"}";
+        LAST.set(null);
+        client.post().uri(path).cookie("accessToken", access).contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isForbidden();
+        assertThat(LAST.get()).isNull();
+        client.post().uri(path).cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        assertThat(LAST.get().method()).isEqualTo("POST");
+        assertThat(LAST.get().body()).isEqualTo(body);
+        client.get().uri("/api/profiles/avatars/presets/spade").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
     void invalidJwtSignatureIssuerAudienceTimesSubjectAndRoleAreRejected() {
         for (String variant : List.of("signature", "issuer", "audience", "expired", "missing-expiry", "subject",
                 "role", "future-iat", "future-nbf", "missing-iat", "missing-nbf", "missing-jti")) {

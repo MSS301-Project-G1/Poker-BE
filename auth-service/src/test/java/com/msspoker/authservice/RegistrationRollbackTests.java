@@ -4,7 +4,7 @@ import com.msspoker.authservice.dto.auth.request.RegisterRequest;
 import com.msspoker.authservice.dto.auth.request.ResendRegistrationOtpRequest;
 import com.msspoker.authservice.repository.AccountRepository;
 import com.msspoker.authservice.repository.RegistrationOtpRepository;
-import com.msspoker.authservice.service.RegistrationService;
+import com.msspoker.authservice.service.AuthService;
 import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +31,7 @@ import static org.mockito.Mockito.doThrow;
 @ActiveProfiles("test")
 @Import(PostgresTestConfiguration.class)
 class RegistrationRollbackTests {
-    @Autowired private RegistrationService service;
+    @Autowired private AuthService service;
     @Autowired private AccountRepository accounts;
     @Autowired private RegistrationOtpRepository otps;
     @Autowired private JdbcTemplate jdbc;

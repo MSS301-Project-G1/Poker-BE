@@ -6,7 +6,7 @@ import com.msspoker.authservice.entity.RegistrationOtp;
 import com.msspoker.authservice.repository.AccountRepository;
 import com.msspoker.authservice.repository.RegistrationEventRepository;
 import com.msspoker.authservice.repository.RegistrationOtpRepository;
-import com.msspoker.authservice.service.RegistrationEventService;
+import com.msspoker.authservice.integration.messaging.RegistrationEventDispatcher;
 import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.ErrorCode;
 import com.msspoker.authservice.shared.infrastructure.config.MessagingConfig;
@@ -51,7 +51,7 @@ class RegistrationInfrastructureTests {
     @Autowired private AccountRepository accounts;
     @Autowired private RegistrationOtpRepository otps;
     @Autowired private RegistrationEventRepository events;
-    @Autowired private RegistrationEventService eventService;
+    @Autowired private RegistrationEventDispatcher eventService;
     @Autowired private RegistrationMailSender mailSender;
     @Autowired private RabbitTemplate rabbit;
     @Autowired private RabbitAdmin rabbitAdmin;

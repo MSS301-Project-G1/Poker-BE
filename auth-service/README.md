@@ -4,12 +4,29 @@ Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ v�
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
-hồ sơ cá nhân; avatar upload, quên/reset mật khẩu và FE chưa triển khai.
+hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT. Quên/reset mật khẩu và FE chưa triển khai.
 Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
 API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
 [review phase 2](../docs/auth/phase-2.md), [kế hoạch](../docs/auth/implementation-plan.md),
 [chạy Docker và test Swagger](../docs/auth/local-development.md).
+
+## Avatar có sẵn và S3 upload
+
+- GET `/api/profiles/avatars`: danh sách avatar có sẵn; PUT `/api/profiles/me/avatar` với `{avatarId}` để chọn.
+- GET `/api/profiles/me/avatar/presign?fileName=avatar.png&contentType=image%2Fpng&fileSize=123456`: xin key và `uploadUrl`; cần access cookie, không cần body/CSRF.
+- FE **PUT file trực tiếp tới `uploadUrl` S3**, dùng `headers` BE trả và không gửi cookie/CSRF tới S3.
+- POST `/api/profiles/me/avatar` với `{key}` sau PUT thành công: BE validate ảnh và cập nhật hồ sơ.
+- Các request BE cần access cookie; POST/PUT cần CSRF. Response vẫn bọc `ApiResponse`.
+
+PNG/JPEG, mặc định tối đa 2 MB và mỗi cạnh tối đa 2048 px. DB lưu object key cho ảnh upload;
+`avatarUrl` trong DTO là URL GET có hạn để bucket giữ private. Avatar có sẵn dùng được khi S3 chưa bật.
+
+Điền các biến `AUTH_S3_*` trong `.env.example` sang `.env`, cấu hình CORS bucket rồi đặt
+`AUTH_S3_ENABLED=true`. Mặc định false giúp auth khởi động khi chưa có credentials.
+Không có endpoint upload multipart lên BE hoặc volume lưu ảnh local. Chỉ thêm cấu hình vào
+Compose auth; root/infra giữ nguyên. Flow FE, env, CORS/IAM và cách test ở [avatar-s3.md](../docs/auth/avatar-s3.md).
+SPEC chưa cập nhật, chờ Khanh review xong như đã yêu cầu.
 
 ## Xem/sửa hồ sơ cá nhân
 
@@ -358,3 +375,13 @@ không volume. Test verify/resend điều khiển đồng hồ để kiểm tra 
 kiểm tra đồng thời, rollback SMTP và event retry. Không cần bật Compose dev cho test.
 Luồng auth qua gateway và hướng dẫn chạy nằm trong [README gateway](../api-gateway/README.md).
 Các kiểm tra phase 2–3 trên không có nghĩa đã chạy FE/game hay build lại container dev.
+
+## Tổ chức nghiệp vụ trong auth-service
+
+- `AuthService` / `AuthServiceImpl`: đăng ký, OTP, login, refresh, logout và người dùng hiện tại.
+- `ProfileService` / `ProfileServiceImpl`: đọc/sửa hồ sơ, batch profile và avatar (preset, presign, xác nhận upload).
+- `ProfileMapper`: chỉ chuyển entity/DTO; service nhờ `S3AvatarStorage` ký URL xem ảnh.
+- `integration/messaging/RegistrationEventDispatcher`: phát lại outbox `account.registered` trong transaction riêng, được scheduler gọi sau khi dữ liệu đăng ký đã commit.
+
+Các controller tách theo nhóm API/Swagger; tất cả vẫn thuộc cùng một microservice `auth-service`.
+Storage, JWT, cookie và mail là thành phần kỹ thuật dùng bởi service nghiệp vụ.

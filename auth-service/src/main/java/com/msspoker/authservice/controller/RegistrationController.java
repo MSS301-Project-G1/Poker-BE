@@ -5,7 +5,7 @@ import com.msspoker.authservice.dto.auth.request.ResendRegistrationOtpRequest;
 import com.msspoker.authservice.dto.auth.request.VerifyRegistrationOtpRequest;
 import com.msspoker.authservice.dto.auth.response.EmailVerificationResponse;
 import com.msspoker.authservice.dto.auth.response.RegistrationResponse;
-import com.msspoker.authservice.service.RegistrationService;
+import com.msspoker.authservice.service.AuthService;
 import com.msspoker.authservice.shared.common.response.ApiResponse;
 import com.msspoker.common.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,7 +30,7 @@ import java.time.Instant;
 @RequestMapping("/api/auth")
 @Tag(name = "Đăng ký và OTP", description = "Tạo tài khoản và xác thực email trước khi đăng nhập.")
 public class RegistrationController {
-    private final RegistrationService registrationService;
+    private final AuthService authService;
 
     @PostMapping("/register")
     @Operation(summary = "1. Đăng ký tài khoản", description = "Nhận email, password, confirmPassword và displayName. "
@@ -52,7 +52,7 @@ public class RegistrationController {
                 ApiResponse.<RegistrationResponse>builder()
                         .code(ApiResponse.SUCCESS_CODE)
                         .message("Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.")
-                        .result(registrationService.register(registerRequest))
+                        .result(authService.register(registerRequest))
                         .path(request.getRequestURI())
                         .timestamp(Instant.now())
                         .build()
@@ -79,7 +79,7 @@ public class RegistrationController {
                 ApiResponse.<EmailVerificationResponse>builder()
                         .code(ApiResponse.SUCCESS_CODE)
                         .message("Xác thực email thành công. Vui lòng đăng nhập.")
-                        .result(registrationService.verifyOtp(verifyRequest))
+                        .result(authService.verifyOtp(verifyRequest))
                         .path(request.getRequestURI())
                         .timestamp(Instant.now())
                         .build()
@@ -108,7 +108,7 @@ public class RegistrationController {
                 ApiResponse.<RegistrationResponse>builder()
                         .code(ApiResponse.SUCCESS_CODE)
                         .message("Đã gửi lại mã OTP. Vui lòng kiểm tra email.")
-                        .result(registrationService.resendOtp(resendRequest))
+                        .result(authService.resendOtp(resendRequest))
                         .path(request.getRequestURI())
                         .timestamp(Instant.now())
                         .build()
