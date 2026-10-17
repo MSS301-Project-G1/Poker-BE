@@ -3,6 +3,7 @@ package com.msspoker.rankingservice.mapper;
 import com.msspoker.rankingservice.constant.RankingConstants;
 import com.msspoker.rankingservice.dto.event.PlacementEvent;
 import com.msspoker.rankingservice.dto.request.WalletCreditRequest;
+import com.msspoker.rankingservice.dto.response.FriendRankingResponse;
 import com.msspoker.rankingservice.dto.response.MyRankingResponse;
 import com.msspoker.rankingservice.dto.response.PlayerRankingResponse;
 import com.msspoker.rankingservice.dto.response.RankedPlayerResponse;
@@ -60,6 +61,10 @@ public interface RankingMapper {
     @Mapping(target = "elo", source = "player.currentElo")
     @Mapping(target = "tier", source = "tier")
     RankedPlayerResponse ranked(PlayerEloEntity player, long position, Tier tier);
+
+    @Mapping(target = "elo", source = "player.currentElo")
+    @Mapping(target = "tier", source = "tier")
+    FriendRankingResponse friend(PlayerEloEntity player, int rank, Long position, Tier tier, boolean you);
 
     @Mapping(target = "elo", source = "player.currentElo")
     @Mapping(target = "tier", source = "tier")

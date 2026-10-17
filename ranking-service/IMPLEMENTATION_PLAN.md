@@ -55,6 +55,8 @@ scope `ranking`/`competition`, không push main.
   (§5.1); `/internal/**` không mở qua gateway.
 - Root `docker-compose.yml` (Khanh) được đưa lại về dạng include ngay trên
   `hoaianh/ranking-elo`, kèm `auth-service/compose.yml`; Khanh cần xem khi merge.
+- Thưởng Tutorial 200 xu (SPEC §8 chưa có số), chỉnh bằng `ranking.tutorial-reward-coins`.
+- BXH bạn bè: bạn chưa đánh Rank trong mùa vẫn hiện, ở cuối, Elo khởi điểm.
 - Quà mùa tính theo bậc lúc đóng mùa (không theo peak). Mùa tự đóng khi qua
   `endAt` nếu admin đã tạo mùa kế tiếp; admin vẫn đóng tay được.
 
@@ -81,12 +83,21 @@ scope `ranking`/`competition`, không push main.
     chụp theo BXH (có Thần bài); giữ `resetPercent` Elo; quà dồn theo bậc, nhận một
     lần, xu qua ví và skin qua shop với idempotencyKey; `SEASON_REWARD_AVAILABLE`.
     29 test H2; chạy thật trên PostgreSQL (DB tạm) đóng mùa, nhận quà, gửi 6 khoản.
-  - [ ] Tutorial, BXH bạn bè, FE mùa giải/admin.
+  - [x] Tutorial BE: V4 `tutorial_completions`, `GET /api/tutorial/me`,
+    `POST /api/tutorial/complete`; thưởng 200 xu `TUTORIAL_REWARD` một lần (key
+    `tutorial:{accountId}`) qua `reward_grants`, kể cả khi gọi đồng thời.
+  - [x] BXH bạn bè BE: `GET /api/ranking/friends`, bạn bè lấy từ
+    `/internal/friends/{accountId}` của Duy (dev: top mùa là bạn của mọi người).
+    39 test H2; chạy thật trên PostgreSQL: V4, 6 request hoàn thành song song chỉ
+    thưởng một lần, vị trí bạn bè khớp BXH toàn server.
+  - [ ] FE Tutorial (cần component bàn chơi của Bảo), FE BXH bạn bè, FE mùa giải/admin.
 
 ## Phụ thuộc và review trước khi merge
 
 - Khanh: `account.registered` (đã có trong auth-service), gateway/route
   `/api/ranking/**`, `/api/seasons/**`, `/api/tutorial/**`.
 - Bảo: payload `match.finished` (đã có), quy tắc hòa thứ hạng khi bị loại cùng ván.
-- Tùng: `credit` (nhánh `feature/wallet-shop-service` chưa merge).
-- Duy: người gọi `/internal/ranking/{id}`; `/internal/friends` cho BXH bạn bè (GĐ2).
+- Tùng: `credit` (nhánh `feature/wallet-shop-service` chưa merge; body đã đối chiếu
+  khớp, có `TUTORIAL_REWARD`, thiếu `currencyType` thì ví mặc định `COIN`).
+- Duy: matchmaking gọi `/internal/ranking/{id}` (đã đối chiếu khớp);
+  `/internal/friends/{accountId}` trả mảng id thô cho BXH bạn bè (chưa có code).

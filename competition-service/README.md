@@ -165,7 +165,8 @@ for non-admins, ELITE registration and confirming without an invitation, and
 - PostgreSQL: `COMPETITION_DB_URL`, `COMPETITION_DB_USER`, `COMPETITION_DB_PASSWORD`.
 - RabbitMQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
 - `GAME_SERVICE_URL`, `GAME_SERVICE_KEY`, `SOCIAL_SERVICE_URL`, `WALLET_SERVICE_URL`,
-  `RANKING_SERVICE_URL`, `SHOP_SERVICE_URL`.
+  `RANKING_SERVICE_URL`, `SHOP_SERVICE_URL`. `GAME_SERVICE_KEY` must equal game-service's
+  key; `compose.yml` defaults it to `poker_game_dev` like game-service and matchmaking-service.
 - Room defaults: `competition.room.min-players`, `max-players`, `starting-chips`,
   `turn-time-seconds`, `code-length`.
 - Tournament format: `competition.tournament.slots`, `table-size`,

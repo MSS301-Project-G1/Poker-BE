@@ -2,6 +2,7 @@ package com.msspoker.rankingservice.controller;
 
 import com.msspoker.rankingservice.constant.RankingConstants;
 import com.msspoker.rankingservice.constant.RankingHeaders;
+import com.msspoker.rankingservice.dto.response.FriendRankingResponse;
 import com.msspoker.rankingservice.dto.response.MyRankingResponse;
 import com.msspoker.rankingservice.dto.response.PageResponse;
 import com.msspoker.rankingservice.dto.response.RankedPlayerResponse;
@@ -12,6 +13,7 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -24,6 +26,11 @@ public class RankingController {
     public PageResponse<RankedPlayerResponse> leaderboard(@RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(RankingConstants.MAX_PAGE_SIZE) int size) {
         return ranking.leaderboard(page, size);
+    }
+
+    @GetMapping("/friends")
+    public List<FriendRankingResponse> friends(@RequestHeader(RankingHeaders.USER_ID) UUID accountId) {
+        return ranking.friends(accountId);
     }
 
     @GetMapping("/me")

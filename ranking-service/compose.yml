@@ -13,6 +13,7 @@ services:
       RABBITMQ_HOST: rabbitmq
       WALLET_SERVICE_URL: http://wallet-service:8089
       SHOP_SERVICE_URL: http://shop-service:8088
+      SOCIAL_SERVICE_URL: http://social-service:8084
     networks:
       - default
       - ranking-net
