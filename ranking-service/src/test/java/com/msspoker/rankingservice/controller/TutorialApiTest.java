@@ -4,9 +4,9 @@ import com.msspoker.rankingservice.dto.request.WalletCreditRequest;
 import com.msspoker.rankingservice.entity.RewardGrantEntity;
 import com.msspoker.rankingservice.repository.RewardGrantRepository;
 import com.msspoker.rankingservice.repository.TutorialCompletionRepository;
-import com.msspoker.rankingservice.service.GrantDispatcher;
+import com.msspoker.rankingservice.service.job.GrantDispatcher;
 import com.msspoker.rankingservice.service.TutorialService;
-import com.msspoker.rankingservice.service.WalletClient;
+import com.msspoker.rankingservice.service.client.WalletClient;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

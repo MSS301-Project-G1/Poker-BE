@@ -15,6 +15,9 @@ import com.msspoker.rankingservice.enums.*;
 import com.msspoker.rankingservice.exception.RankingApiException;
 import com.msspoker.rankingservice.mapper.RankingMapper;
 import com.msspoker.rankingservice.repository.*;
+import com.msspoker.rankingservice.service.client.ShopClient;
+import com.msspoker.rankingservice.service.client.WalletClient;
+import com.msspoker.rankingservice.service.job.GrantDispatcher;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

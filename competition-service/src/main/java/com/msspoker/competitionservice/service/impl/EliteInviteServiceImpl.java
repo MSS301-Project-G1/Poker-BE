@@ -14,7 +14,7 @@ import com.msspoker.competitionservice.repository.TournamentEntryRepository;
 import com.msspoker.competitionservice.repository.TournamentRepository;
 import com.msspoker.competitionservice.service.EliteInviteService;
 import com.msspoker.competitionservice.service.NotificationService;
-import com.msspoker.competitionservice.service.RankingClient;
+import com.msspoker.competitionservice.service.client.RankingClient;
 import com.msspoker.competitionservice.validator.EliteInviteValidator;
 
 import lombok.RequiredArgsConstructor;

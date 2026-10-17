@@ -14,10 +14,14 @@ competitionservice/
 │   ├── request/        # Validated requests and the CreateTable body sent to game
 │   ├── response/       # JSON responses and bodies read from game/social
 │   └── event/          # Consumed match.finished and published notification payloads
-├── service/            # Application service interfaces, clients of other services included
-│   ├── event/          # Outbox publishing interface
+├── service/            # Business service interfaces (rooms, tournaments, invites, prizes)
+│   ├── client/         # Calls to game, ranking, wallet, shop and social services
+│   ├── event/          # Outbox publishing
+│   ├── job/            # Scheduled tournament schedule, table launch and grant dispatch
 │   └── impl/           # Exactly one implementation per interface, like game-service
-│       └── event/      # OutboxPublisherImpl
+│       ├── client/
+│       ├── event/
+│       └── job/
 ├── entity/             # JPA entities only
 ├── repository/         # Spring Data repositories only
 ├── validator/          # Room access and settings validation
