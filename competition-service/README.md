@@ -14,9 +14,9 @@ competitionservice/
 │   ├── request/        # Validated requests and the CreateTable body sent to game
 │   ├── response/       # JSON responses and bodies read from game/social
 │   └── event/          # Consumed match.finished and published notification payloads
-├── service/            # Application service interfaces
+├── service/            # Application service interfaces, clients of other services included
 │   ├── event/          # Outbox publishing interface
-│   └── impl/           # Spring-managed implementations
+│   └── impl/           # Exactly one implementation per interface, like game-service
 │       └── event/      # OutboxPublisherImpl
 ├── entity/             # JPA entities only
 ├── repository/         # Spring Data repositories only
@@ -54,9 +54,10 @@ docker compose -f docker-compose.yml -f competition-service/compose.dev.yml up -
 
 All `/api/rooms/**` calls trust `X-User-Id` set by the gateway; a missing header
 returns `401 COMP_UNAUTHORIZED`. Room codes are 6 characters and case-insensitive.
-In the `dev` profile only, `X-Dev-User` (sent by the FE shared http client, like
-for game-service) stands in for `X-User-Id`, and such requests act as `ADMIN`
-unless `X-User-Role` is sent.
+In the `dev` profile only, `X-Dev-User` (the FE `?devUser` identity, read like
+game-service does) wins over `X-User-Id`, because the shared FE http client also
+sends a default `X-User-Id` in dev; any dev request without `X-User-Role` acts as
+`ADMIN`.
 
 | Method | Endpoint | Behavior |
 | --- | --- | --- |
@@ -165,7 +166,8 @@ for non-admins, ELITE registration and confirming without an invitation, and
 - PostgreSQL: `COMPETITION_DB_URL`, `COMPETITION_DB_USER`, `COMPETITION_DB_PASSWORD`.
 - RabbitMQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
 - `GAME_SERVICE_URL`, `GAME_SERVICE_KEY`, `SOCIAL_SERVICE_URL`, `WALLET_SERVICE_URL`,
-  `RANKING_SERVICE_URL`, `SHOP_SERVICE_URL`.
+  `RANKING_SERVICE_URL`, `SHOP_SERVICE_URL`. `GAME_SERVICE_KEY` must equal game-service's
+  key; `compose.yml` defaults it to `poker_game_dev` like game-service and matchmaking-service.
 - Room defaults: `competition.room.min-players`, `max-players`, `starting-chips`,
   `turn-time-seconds`, `code-length`.
 - Tournament format: `competition.tournament.slots`, `table-size`,
@@ -175,9 +177,11 @@ for non-admins, ELITE registration and confirming without an invitation, and
   (50,30,20). For a quick demo, run with smaller values such as
   `--competition.tournament.invite-lead-minutes=2 --competition.tournament.confirm-deadline-minutes=1 --competition.tournament.schedule-millis=5000`.
 
-In `dev` and `test`, friends, the wallet and the shop are mocked (everyone is a
-friend, debits, credits and item grants succeed and are logged). ranking-service
-and game-service are called for real.
+The `dev` profile and the tests turn on `competition.wallet.mock`,
+`competition.shop.mock` and `competition.social.mock` (SPEC §9.4): everyone is a
+friend, and debits, credits and item grants succeed and are only logged. Set a
+flag to `false` to call the real service once it runs locally. ranking-service
+and game-service are always called for real.
 
 ## Verification
 
@@ -185,6 +189,6 @@ and game-service are called for real.
 .\mvnw.cmd -pl competition-service -am clean verify
 ```
 
-36 tests use test-only H2 and stub HTTP game/wallet/ranking servers; Docker is not
+37 tests use test-only H2 and stub HTTP game/wallet/ranking servers; Docker is not
 required. Tournament schedule tests move a tournament's timeline back instead of
 waiting.

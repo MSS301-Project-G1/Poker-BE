@@ -4,12 +4,12 @@ import com.msspoker.competitionservice.config.CompetitionProperties;
 import com.msspoker.competitionservice.service.PrizeCalculator;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
+@Service
 @RequiredArgsConstructor
 public class PrizeCalculatorImpl implements PrizeCalculator {
     private final CompetitionProperties properties;

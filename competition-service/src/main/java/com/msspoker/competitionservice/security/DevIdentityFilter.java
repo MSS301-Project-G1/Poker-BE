@@ -19,9 +19,10 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Local development without the gateway, like game-service: the shared FE http client identifies the
- * player with X-Dev-User, which stands in for the gateway's X-User-Id. Such requests also act as ADMIN
- * when no role is sent, so the admin screens work without identity-service.
+ * Local development without the gateway, like game-service, which reads only X-Dev-User in dev:
+ * X-Dev-User (the ?devUser identity) wins over X-User-Id, because the shared FE http client also adds
+ * a default X-User-Id in dev. Requests without X-User-Role act as ADMIN, so the admin screens work
+ * without identity-service.
  */
 @Component
 @Profile("dev")
@@ -30,7 +31,7 @@ public class DevIdentityFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String devUser = request.getHeader(CompetitionHeaders.DEV_USER);
-        if (devUser == null || request.getHeader(CompetitionHeaders.USER_ID) != null) {
+        if (devUser == null && request.getHeader(CompetitionHeaders.USER_ROLE) != null) {
             chain.doFilter(request, response);
             return;
         }
@@ -47,7 +48,7 @@ public class DevIdentityFilter extends OncePerRequestFilter {
 
         @Override
         public String getHeader(String name) {
-            if (CompetitionHeaders.USER_ID.equalsIgnoreCase(name)) return devUser;
+            if (devUser != null && CompetitionHeaders.USER_ID.equalsIgnoreCase(name)) return devUser;
             String value = super.getHeader(name);
             if (value == null && CompetitionHeaders.USER_ROLE.equalsIgnoreCase(name)) return CompetitionConstants.ADMIN_ROLE;
             return value;
@@ -65,7 +66,7 @@ public class DevIdentityFilter extends OncePerRequestFilter {
         @Override
         public Enumeration<String> getHeaderNames() {
             Set<String> names = new LinkedHashSet<>(Collections.list(super.getHeaderNames()));
-            names.add(CompetitionHeaders.USER_ID);
+            if (devUser != null) names.add(CompetitionHeaders.USER_ID);
             names.add(CompetitionHeaders.USER_ROLE);
             return Collections.enumeration(names);
         }

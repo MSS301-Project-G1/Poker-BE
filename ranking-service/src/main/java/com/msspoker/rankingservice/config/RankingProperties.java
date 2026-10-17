@@ -25,4 +25,6 @@ public class RankingProperties {
     private List<Integer> tierThresholds = List.of(0, 100, 200, 350, 500, 700, 950, 1250, 1600);
     /** GRAND_CHAMPION players within this leaderboard position are shown as CARD_GOD. */
     private int cardGodLimit = 50;
+    /** Coins granted once for finishing the tutorial (agreed with Hoài Anh; SPEC §8 has no value). */
+    private long tutorialRewardCoins = 200;
 }

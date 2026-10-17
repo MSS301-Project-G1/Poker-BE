@@ -14,8 +14,8 @@ rankingservice/
 │   ├── request/        # Request records, including the wallet credit body
 │   ├── response/       # JSON responses and pagination
 │   └── event/          # Consumed event payloads (envelope comes from common)
-├── service/            # Application service interfaces
-│   └── impl/           # Spring-managed implementations
+├── service/            # Application service interfaces, clients of other services included
+│   └── impl/           # Exactly one implementation per interface, like game-service
 ├── entity/             # JPA entities only
 ├── repository/         # Spring Data repositories only
 ├── validator/          # Business validation
@@ -46,8 +46,11 @@ Dev uses PostgreSQL `127.0.0.1:54331/ranking_db` (user `poker`, local password
 `http://localhost:15679`). When changing the local password, set
 `RANKING_DB_PASSWORD` for Compose and `RANKING_DEV_DB_PASSWORD` to the same value
 for the Java process. Flyway creates the schema and seeds one ACTIVE season;
-Hibernate validates it. H2 is a test-scope dependency only. In `dev`, rank rewards
-go to a logging wallet stub until wallet-service is available.
+Hibernate validates it. H2 is a test-scope dependency only. The `dev` profile and
+the tests turn on `ranking.wallet.mock`, `ranking.shop.mock` and
+`ranking.social.mock` (SPEC §9.4): wallet and shop calls are logged instead of
+sent, and the season's top 200 players are everyone's friends. Set a flag to
+`false` to call the real service once it runs locally.
 
 To run the application container with the `dev` profile:
 
@@ -67,13 +70,17 @@ Leaderboard order is Elo descending, then account id ascending.
 | GET | `/internal/ranking/top?limit=32` | Top N of the active season with `position`; limit 1–100 |
 | GET | `/api/ranking/leaderboard?page=0&size=20` | `PageResponse` of ranked players; size 1–100 |
 | GET | `/api/ranking/me` | Own standing from `X-User-Id`; `position` is `null` before the first record |
+| GET | `/api/ranking/friends` | The player and up to 199 friends: `[{ rank, position, accountId, elo, tier, winStreak, matchesPlayed, you }]` |
 | GET | `/api/seasons/current` | Active season |
+| GET | `/api/tutorial/me` | `{ completed, completedAt, rewardCoins }` |
+| POST | `/api/tutorial/complete` | Records the completion and grants `TUTORIAL_REWARD` once; repeating returns the first completion |
 
 `/api/**` trusts `X-User-Id` set by the gateway (SPEC §5.1); a missing header
 returns `401 RANK_UNAUTHORIZED`. `/internal/**` must not be exposed by the gateway.
-In the `dev` profile only, `X-Dev-User` (sent by the FE shared http client, like
-for game-service) stands in for `X-User-Id`, and such requests act as `ADMIN`
-unless `X-User-Role` is sent.
+In the `dev` profile only, `X-Dev-User` (the FE `?devUser` identity, read like
+game-service does) wins over `X-User-Id`, because the shared FE http client also
+sends a default `X-User-Id` in dev; any dev request without `X-User-Role` acts as
+`ADMIN`.
 
 Consumed events on exchange `poker.events`, each with its own durable queue:
 
@@ -92,6 +99,25 @@ same transaction as the Elo update, then sent to wallet-service
 `POST /internal/wallet/credit` with reason `RANK_REWARD`, `refId` = matchId and
 key `rank-reward:{matchId}:{accountId}`. A wallet outage leaves the reward
 pending; the dispatcher retries every 5 seconds with the same key.
+
+### Friends leaderboard
+
+`GET /api/ranking/friends` reads the friend ids from social-service
+`GET /internal/friends/{accountId}` (raw JSON array, SPEC §6.1) before touching
+the database, then reads Elo records and season positions from one snapshot.
+Ranked players come first by season `position`; friends without a ranked match
+this season follow with the starting Elo and `position: null`. `rank` numbers the
+whole list, `you` marks the caller. A social-service failure returns
+`503 RANK_DEPENDENCY_UNAVAILABLE`.
+
+### Tutorial reward
+
+The tutorial itself runs in the FE (SPEC §9.4). `POST /api/tutorial/complete`
+inserts one `tutorial_completions` row per account; only the request that inserts
+it queues a `reward_grants` row, so concurrent calls grant once. Coins
+(`ranking.tutorial-reward-coins`, 200) go to wallet-service with reason
+`TUTORIAL_REWARD`, no `refId` and key `tutorial:{accountId}`, retried until
+accepted like season rewards. The amount granted is stored with the completion.
 
 ### Seasons and season rewards
 
@@ -127,11 +153,14 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 - PostgreSQL: `RANKING_DB_URL`, `RANKING_DB_USER`, `RANKING_DB_PASSWORD`.
 - RabbitMQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
 - Wallet: `WALLET_SERVICE_URL` (default `http://localhost:8089`).
-- Shop: `SHOP_SERVICE_URL` (default `http://localhost:8088`). In `dev`/`test` the
-  wallet and shop are logging stubs.
+- Shop: `SHOP_SERVICE_URL` (default `http://localhost:8088`).
+- Social: `SOCIAL_SERVICE_URL` (default `http://localhost:8084`).
+- Mocks for services not running locally: `ranking.wallet.mock`, `ranking.shop.mock`,
+  `ranking.social.mock` (`false`; `true` in `application-dev.properties` and tests).
 - SPEC §8 parameters: `ranking.elo-by-place`, `ranking.tier-thresholds`,
   `ranking.reward-multipliers`, `ranking.win-streak-places`, `ranking.card-god-limit`,
   `ranking.min-elo`, `ranking.starting-elo` in `application.properties`.
+- Tutorial reward: `ranking.tutorial-reward-coins` (200).
 
 ## Verification
 
@@ -139,10 +168,11 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 .\mvnw.cmd -pl ranking-service -am clean verify
 ```
 
-31 tests use test-only H2 and do not require Docker: tier boundaries, Elo
+39 tests use test-only H2 and do not require Docker: tier boundaries, Elo
 floor, places beyond six, Card God cut-off, duplicate events, non-RANK modes,
 invalid results, reward queueing and wallet outage retry, listener parsing with
 unknown fields, API contracts, leaderboard ordering, season closing and carry
-over, scheduled closing and activation, cumulative claims, grant retries and
-the dev identity filter.
+over, scheduled closing and activation, cumulative claims, grant retries, the
+dev identity filter, the friends leaderboard (order, cap, social outage, HTTP
+client) and the tutorial reward (once, also under concurrent calls).
 Season tests use their own H2 database because they close the seed season.

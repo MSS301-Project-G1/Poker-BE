@@ -1,3 +1,5 @@
+name: poker-wallet
+
 services:
   wallet-service:
     build:
@@ -6,3 +8,71 @@ services:
         MODULE: wallet-service
     ports:
       - "${WALLET_SERVICE_PORT:-8089}:8089"
+    environment:
+      WALLET_DB_URL: jdbc:postgresql://wallet-postgres:5432/wallet_db
+      WALLET_DB_USER: ${WALLET_DB_USER:-postgres}
+      WALLET_DB_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
+      DB_HOST: wallet-postgres
+      DB_PORT: 5432
+      DB_NAME: wallet_db
+      DB_USERNAME: ${WALLET_DB_USER:-postgres}
+      DB_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    networks:
+      - default
+      - wallet-net
+    depends_on:
+      wallet-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  wallet-postgres:
+    image: postgres:17-alpine
+    container_name: wallet-postgres
+    environment:
+      POSTGRES_DB: wallet_db
+      POSTGRES_USER: ${WALLET_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
+    ports:
+      - "127.0.0.1:${WALLET_DB_PORT:-54335}:5432"
+    volumes:
+      - wallet-postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - wallet-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  wallet-net:
+  default:
+    name: poker-network
+volumes:
+  wallet-postgres-data:
+  rabbitmq-data:
