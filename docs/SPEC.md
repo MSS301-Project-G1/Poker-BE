@@ -289,6 +289,9 @@ Danh sách `reason`: `FIRST_LOGIN_BONUS`, `DAILY_CHECKIN`, `CHECKIN_MAKEUP`, `RA
 |---|---|---|---|
 | POST | `/internal/tables` | Duy, Hoài Anh | **CreateTable** — mở bàn mới |
 | GET | `/internal/matches?accountId=&page=` | Dự phòng cho service khác | Lịch sử trận; màn Hồ sơ của Khanh dùng `GET /api/game/matches` (xem 6.3) |
+| GET | `/internal/players/{accountId}/active-table` | Duy | Kiểm tra người chơi đang ở bàn nào trước khi vào queue |
+| GET | `/internal/matches?accountId=&page=` | Khanh | Lịch sử trận cho màn Hồ sơ |
+
 
 Body `CreateTable`:
 
@@ -500,6 +503,25 @@ của identity; hiện game kiểm tra restrictions khi tạo bàn.
 
 Giống 7.2 nhưng: không kiểm tra/trừ xu, không có popup chấp nhận *(đề xuất)*, bỏ qua Elo. Hoài Anh nhận `match.finished` với `mode = NORMAL` thì bỏ qua.
 
+API Normal: `POST /api/matchmaking/normal/join`, `DELETE /api/matchmaking/normal/leave`,
+`GET /api/matchmaking/normal/status` và `GET /api/matchmaking/normal/reconnect`. Khi tạo bàn,
+Matchmaking lưu trạng thái `IN_GAME`, `proposalId`, `tableId`, `matchId`, host, port và WebSocket
+path trong Redis theo account. Reconnect chỉ trả địa chỉ trận cũ khi Redis có `IN_GAME` và Game
+service vẫn xác nhận đúng bàn đó; record stale phải bị xóa.
+Mode được xác định bởi URL nên request join không cần body `mode`.
+
+Quy tắc gom người trước khi mở bàn:
+
+1. Có `0–1` người thì tiếp tục chờ, chưa bắt đầu đếm ngược.
+2. Khi đạt `minPlayers` (demo mặc định là 2), backend tạo `matchStartDeadline` sau **10 giây**.
+3. Trong 10 giây tiếp tục nhận thêm người vào nhóm.
+4. Nếu đạt `maxPlayers` (mặc định là 6), tạo bàn ngay, không chờ hết thời gian.
+5. Khi hết 10 giây và nhóm vẫn có từ `minPlayers` đến `maxPlayers - 1`, tạo bàn với số người hiện có.
+6. Nếu số người tụt xuống dưới `minPlayers` trước deadline, hủy/reset countdown.
+
+Countdown gom người này độc lập với thời gian 10 giây chấp nhận proposal của trận Rank. Deadline do
+backend sở hữu và trả về frontend; frontend chỉ hiển thị thời gian còn lại.
+
 ### 7.4. Custom Room 🟢
 
 1. **Hoài Anh** — người chơi tạo phòng, nhận Room ID. Mời bạn: kiểm tra quan hệ bạn bè (hỏi Duy), phát `ROOM_INVITE`.
@@ -542,6 +564,7 @@ Tất cả nằm trong config / bảng Admin, chỉnh không cần sửa code.
 | Chip khởi điểm | 1.000 | Bảo |
 | Thời gian mỗi lượt | 20 giây | Bảo |
 | Số người bàn Rank / Normal | 6 (tối thiểu để mở bàn: config, demo để 2) | Bảo, Duy |
+| Thời gian gom thêm người Normal sau khi đủ tối thiểu | 10 giây; đủ 6 thì mở bàn ngay | Duy |
 | Elo theo thứ hạng (bàn 6) | +20, +10, +5, −5, −10, −15 | Hoài Anh |
 | Elo tối thiểu | 0 (không âm) *(đề xuất)* | Hoài Anh |
 | Phí vào Rank | 100 xu *(đề xuất)* | Duy |

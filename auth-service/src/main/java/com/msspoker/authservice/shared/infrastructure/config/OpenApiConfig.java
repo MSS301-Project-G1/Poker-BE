@@ -4,14 +4,18 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration(proxyBeanMethods = false)
 public class OpenApiConfig {
     @Bean
     OpenAPI authOpenApi() {
-        return new OpenAPI().info(new Info()
+        // Relative URLs let the same Swagger UI call auth directly or through the gateway.
+        return new OpenAPI().servers(List.of(new Server().url("/"))).info(new Info()
                 .title("Poker Auth Service API")
                 .version("v1")
                 .description("Đăng ký → nhận OTP qua email → xác thực → login bằng cookie HttpOnly. "

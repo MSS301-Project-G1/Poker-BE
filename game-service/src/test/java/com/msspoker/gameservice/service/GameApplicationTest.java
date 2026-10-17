@@ -142,6 +142,16 @@ class GameApplicationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.tableId").exists());
     }
 
+    @Test
+    void internalMatchSettingsExposeCurrentAdminPlayerLimits() throws Exception {
+        mvc.perform(get("/internal/match-settings/RANK").servletPath("/internal/match-settings/RANK")
+                        .header("X-Game-Service-Key", "test-ingress-key"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode").value("RANK"))
+                .andExpect(jsonPath("$.minPlayers").value(2))
+                .andExpect(jsonPath("$.maxPlayers").value(6));
+    }
+
     private static CreateTableRequest request() {
         return new CreateTableRequest(GameMode.NORMAL, UUID.randomUUID(),
                 List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0);
