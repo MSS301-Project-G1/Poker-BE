@@ -7,6 +7,11 @@ services:
     ports:
       - "${SHOP_SERVICE_PORT:-8088}:8088"
     environment:
+      - DB_HOST=shop-db
+      - DB_PORT=5432
+      - DB_NAME=shop_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=123456
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - S3_ENDPOINT=http://minio:9000
@@ -15,11 +20,34 @@ services:
       - S3_BUCKET=poker-assets
       - S3_PUBLIC_URL=http://localhost:9000/poker-assets
       - WALLET_SERVICE_URL=http://wallet-service:8089
+      - RABBITMQ_HOST=rabbitmq
     depends_on:
+      shop-db:
+        condition: service_healthy
       redis:
         condition: service_healthy
       minio:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  shop-db:
+    image: postgres:16-alpine
+    container_name: shop-db
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: shop_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-123456}
+    volumes:
+      - shop-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d shop_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
 
   redis:
     image: redis:7-alpine
@@ -56,5 +84,6 @@ services:
       retries: 5
 
 volumes:
+  shop-db-data:
   redis-data:
   minio-data:

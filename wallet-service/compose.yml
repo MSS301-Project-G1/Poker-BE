@@ -6,3 +6,37 @@ services:
         MODULE: wallet-service
     ports:
       - "${WALLET_SERVICE_PORT:-8089}:8089"
+    environment:
+      - DB_HOST=wallet-db
+      - DB_PORT=5432
+      - DB_NAME=wallet_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=123456
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      wallet-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  wallet-db:
+    image: postgres:16-alpine
+    container_name: wallet-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: wallet_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-123456}
+    volumes:
+      - wallet-db-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d wallet_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  wallet-db-data:

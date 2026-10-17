@@ -1,9 +1,9 @@
 services:
   rabbitmq:
-    image: rabbitmq:4-management
+    image: rabbitmq:4-management-alpine
     ports:
-      - "127.0.0.1:56729:5672"
-      - "127.0.0.1:15679:15672"
+      - "${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
