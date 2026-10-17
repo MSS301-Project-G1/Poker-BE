@@ -1,0 +1,7 @@
+services:
+  wallet-service:
+    ports: !override
+      - "127.0.0.1:8089:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_ADDRESS: 0.0.0.0

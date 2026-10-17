@@ -7,36 +7,47 @@ services:
     ports:
       - "${WALLET_SERVICE_PORT:-8089}:8089"
     environment:
-      - DB_HOST=wallet-db
-      - DB_PORT=5432
-      - DB_NAME=wallet_db
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=123456
-      - RABBITMQ_HOST=rabbitmq
+      WALLET_DB_URL: jdbc:postgresql://wallet-postgres:5432/wallet_db
+      WALLET_DB_USER: ${WALLET_DB_USER:-postgres}
+      WALLET_DB_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
+      DB_HOST: wallet-postgres
+      DB_PORT: 5432
+      DB_NAME: wallet_db
+      DB_USERNAME: ${WALLET_DB_USER:-postgres}
+      DB_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    networks:
+      - default
+      - wallet-net
     depends_on:
-      wallet-db:
+      wallet-postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
-  wallet-db:
-    image: postgres:16-alpine
-    container_name: wallet-db
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
+  wallet-postgres:
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: wallet_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-123456}
+      POSTGRES_USER: ${WALLET_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
+    ports:
+      - "127.0.0.1:${WALLET_DB_PORT:-54335}:5432"
     volumes:
-      - wallet-db-data:/var/lib/postgresql/data
+      - wallet-postgres-data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - wallet-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d wallet_db"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 15
 
+networks:
+  wallet-net:
 volumes:
-  wallet-db-data:
+  wallet-postgres-data:
