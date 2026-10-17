@@ -1,5 +1,6 @@
 package com.msspoker.gameservice.websocket;
 
+import com.msspoker.gameservice.constant.GameSocketConstants;
 import com.msspoker.gameservice.mapper.SnapshotMapper;
 import com.msspoker.gameservice.model.game.ManagedTable;
 
@@ -17,11 +18,11 @@ public class SnapshotPublisher {
 
     public void allPlayers(ManagedTable table) {
         table.getEngine().getSeats().forEach(seat -> messaging.convertAndSendToUser(seat.getAccountId().toString(),
-                "/queue/tables/" + table.getEngine().getTableId(), mapper.snapshot(table, seat.getAccountId())));
+                GameSocketConstants.TABLE_QUEUE + table.getEngine().getTableId(), mapper.snapshot(table, seat.getAccountId())));
     }
 
     public void onePlayer(ManagedTable table, UUID accountId) {
-        messaging.convertAndSendToUser(accountId.toString(), "/queue/tables/" + table.getEngine().getTableId(),
+        messaging.convertAndSendToUser(accountId.toString(), GameSocketConstants.TABLE_QUEUE + table.getEngine().getTableId(),
                 mapper.snapshot(table, accountId));
     }
 }

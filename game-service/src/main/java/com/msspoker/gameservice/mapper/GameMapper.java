@@ -1,5 +1,6 @@
 package com.msspoker.gameservice.mapper;
 
+import com.msspoker.common.event.EventEnvelope;
 import com.msspoker.gameservice.config.GameProperties;
 import com.msspoker.gameservice.dto.event.MatchFinishedEvent;
 import com.msspoker.gameservice.dto.event.MatchStartedEvent;
@@ -14,6 +15,7 @@ import com.msspoker.gameservice.dto.response.TableCreatedResponse;
 import com.msspoker.gameservice.entity.MatchEntity;
 import com.msspoker.gameservice.entity.MatchPlayerEntity;
 import com.msspoker.gameservice.entity.MatchSettingsEntity;
+import com.msspoker.gameservice.entity.OutboxEntity;
 import com.msspoker.gameservice.enums.GameMode;
 import com.msspoker.gameservice.enums.MatchStatus;
 import com.msspoker.gameservice.model.game.PokerTable;
@@ -87,4 +89,11 @@ public interface GameMapper {
     MatchFinishedEvent finished(MatchEntity match, List<PlacementResponse> placements);
 
     MatchHistoryResponse view(MatchEntity match, List<PlacementResponse> placements);
+
+    @Mapping(target = "id", source = "envelope.eventId")
+    @Mapping(target = "eventType", source = "envelope.eventType")
+    @Mapping(target = "occurredAt", source = "envelope.occurredAt")
+    @Mapping(target = "body", source = "body")
+    @Mapping(target = "publishedAt", ignore = true)
+    OutboxEntity outbox(EventEnvelope<?> envelope, String body);
 }

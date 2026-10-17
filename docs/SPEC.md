@@ -289,8 +289,8 @@ Danh sách `reason`: `FIRST_LOGIN_BONUS`, `DAILY_CHECKIN`, `CHECKIN_MAKEUP`, `RA
 |---|---|---|---|
 | POST | `/internal/tables` | Duy, Hoài Anh | **CreateTable** — mở bàn mới |
 | GET | `/internal/matches?accountId=&page=` | Dự phòng cho service khác | Lịch sử trận; màn Hồ sơ của Khanh dùng `GET /api/game/matches` (xem 6.3) |
-| GET | `/internal/players/{accountId}/active-table` | Duy | Kiểm tra người chơi đang ở bàn nào trước khi vào queue |
-| GET | `/internal/matches?accountId=&page=` | Khanh | Lịch sử trận cho màn Hồ sơ |
+| GET | `/internal/players/{accountId}/active-table` | Duy | Kiểm tra người chơi đang ở bàn nào trước khi vào queue; trả `{ tableId, matchId }` hoặc JSON `null` |
+| GET | `/internal/match-settings/{mode}` | Duy | Match Settings hiện tại của một mode (`minPlayers`, `maxPlayers`, blind, chip, thời gian lượt) |
 
 
 Body `CreateTable`:
@@ -347,7 +347,7 @@ Trả về: `{ "tableId": "uuid", "matchId": "uuid" }`. `settings` bỏ trống 
 - Trả **JSON thô** đúng 3 field, không bọc trong envelope `{ code, message, result }` như API public của auth. Bên gọi bỏ qua field lạ, nên nếu bọc thì `banned` luôn đọc ra `false` và lệnh cấm bị bỏ qua mà không báo lỗi.
 - `banned`: boolean; `chatBannedUntil`, `rankBannedUntil`: thời điểm UTC dạng ISO-8601 hoặc `null`. MVP trả `false` / `null` / `null`. Account không tồn tại trả 404 *(đề xuất)*.
 - Gọi không cần cookie/JWT. Route không mở qua gateway (gateway đã chặn `/internal/**`). `SecurityConfig` của auth đang `denyAll` mọi path ngoài danh sách cho phép, nên phải mở riêng `/internal/**`.
-- Game gọi endpoint này mỗi lần CreateTable (ngoài profile dev); gọi không được thì từ chối mở bàn với 503 `GAME_DEPENDENCY_UNAVAILABLE`.
+- Game gọi endpoint này mỗi lần CreateTable khi `GAME_RESTRICTIONS_ENABLED=true` (mặc định của ứng dụng; profile dev và test tắt); gọi không được thì từ chối mở bàn với 503 `GAME_DEPENDENCY_UNAVAILABLE`. `game-service/compose.yml` tạm để `false` vì auth chưa có endpoint; Khanh làm xong thì đổi thành `true`.
 
 > **Tên hiển thị và avatar:** các service chỉ trả `accountId`. FE tự lấy tên/avatar qua `GET /api/profiles/batch?ids=...` của Khanh và cache lại. Không service nào lưu bản sao tên người chơi.
 
@@ -426,11 +426,11 @@ Các chi tiết bổ sung sau cần bên gọi/gateway review trước khi merge
   `GET /api/game/tables/{tableId}/result` trả kết quả đã lưu. Hai endpoint theo
   tableId bắt buộc membership. Lịch sử internal dùng `PageResponse`, hỗ trợ
   `page` từ 0 và `size` 1–100, mặc định 20.
-- *(Bảo bổ sung, chưa có trong code)* `GET /api/game/matches?accountId=&page=&size=`
-  qua gateway cho màn Hồ sơ của Khanh, trả cùng `PageResponse` như
-  `/internal/matches`; mỗi phần tử `{ id, tableId, mode, sourceId, entryFee,
-  status, startedAt, finishedAt, placements[] }`. FE gọi thẳng, auth không cần
-  làm proxy.
+- `GET /api/game/matches?accountId=&page=&size=` qua gateway cho màn Hồ sơ của
+  Khanh, trả cùng `PageResponse` như `/internal/matches`; mỗi phần tử `{ id,
+  tableId, mode, sourceId, entryFee, status, startedAt, finishedAt, placements[] }`.
+  `accountId` bắt buộc; mọi người dùng đã đăng nhập xem được lịch sử của bất kỳ
+  account nào. FE gọi thẳng, auth không cần làm proxy.
 - Admin: GET `/api/admin/match-settings`; PUT `/api/admin/match-settings/{mode}`
   nhận `{ settings: { smallBlind, bigBlind, startingChips, turnTimeSeconds },
   minPlayers, maxPlayers }`. Thay đổi chỉ áp dụng bàn mở sau đó.

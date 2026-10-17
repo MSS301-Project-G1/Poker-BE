@@ -1,5 +1,7 @@
 package com.msspoker.gameservice.websocket;
 
+import com.msspoker.gameservice.constant.GameHeaders;
+import com.msspoker.gameservice.constant.GameSocketConstants;
 import com.msspoker.gameservice.exception.GameApiException;
 import com.msspoker.gameservice.exception.GameExceptions;
 import com.msspoker.gameservice.security.GameIdentity;
@@ -34,13 +36,13 @@ public class GameChannelInterceptor implements ChannelInterceptor {
         StompCommand command = accessor.getCommand();
         try {
         if (command == StompCommand.CONNECT) {
-            accessor.setUser(identity.authenticate(accessor.getFirstNativeHeader("Authorization"),
-                    accessor.getFirstNativeHeader("devUser")));
+            accessor.setUser(identity.authenticate(accessor.getFirstNativeHeader(GameHeaders.AUTHORIZATION),
+                    accessor.getFirstNativeHeader(GameHeaders.STOMP_DEV_USER)));
         } else if (command == StompCommand.SEND || command == StompCommand.SUBSCRIBE) {
             Principal user = accessor.getUser();
             if (user == null) throw GameExceptions.unauthorized();
             String destination = accessor.getDestination();
-            if (command == StompCommand.SUBSCRIBE && "/user/queue/game-errors".equals(destination)) return message;
+            if (command == StompCommand.SUBSCRIBE && GameSocketConstants.USER_ERROR_QUEUE.equals(destination)) return message;
             var matcher = (command == StompCommand.SEND ? SEND : SUBSCRIBE).matcher(destination == null ? "" : destination);
             if (!matcher.matches()) throw GameExceptions.forbidden();
             membership.validate(registry.require(UUID.fromString(matcher.group(1))), UUID.fromString(user.getName()));

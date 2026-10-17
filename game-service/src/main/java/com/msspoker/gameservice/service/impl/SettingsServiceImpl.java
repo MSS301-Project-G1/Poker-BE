@@ -34,6 +34,12 @@ public class SettingsServiceImpl implements SettingsService {
 
     @Transactional
     @Override
+    public MatchSettingsResponse get(GameMode mode) {
+        return mapper.settings(defaults(mode));
+    }
+
+    @Transactional
+    @Override
     public List<MatchSettingsResponse> list() {
         return Arrays.stream(GameMode.values()).map(this::defaults).map(mapper::settings).toList();
     }
