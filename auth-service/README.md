@@ -3,13 +3,47 @@
 Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ với outbox,
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
-trong phase 4A, xem [README gateway](../api-gateway/README.md). Chỉnh sửa profile,
-quên/reset mật khẩu và FE chưa triển khai.
+trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
+hồ sơ cá nhân; avatar upload, quên/reset mật khẩu và FE chưa triển khai.
 Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
 API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
 [review phase 2](../docs/auth/phase-2.md), [kế hoạch](../docs/auth/implementation-plan.md),
 [chạy Docker và test Swagger](../docs/auth/local-development.md).
+
+## Xem/sửa hồ sơ cá nhân
+
+Login trước trên Swagger qua gateway `http://localhost:8080/swagger-ui.html`, mở nhóm **Hồ sơ**:
+
+- `GET /api/profiles/me`: lấy hồ sơ của tài khoản trong access cookie, gồm email/điện thoại và thông tin riêng của chủ tài khoản.
+- `PUT /api/profiles/me`: lưu toàn bộ form, gửi cookie và header `X-XSRF-TOKEN` đã lấy từ `/api/auth/csrf`.
+
+Ví dụ body PUT:
+
+```json
+{
+  "displayName": "Khanh",
+  "fullName": "Nguyễn Khánh",
+  "phoneNumber": "0901234567",
+  "gender": "MALE",
+  "birthDate": "2003-05-12",
+  "bio": "Thích chơi Poker",
+  "countryCode": "VN",
+  "city": "Hồ Chí Minh"
+}
+```
+
+`displayName` bắt buộc, tối đa 100 ký tự và được trùng. PUT thay toàn bộ các field được sửa:
+field tùy chọn bị bỏ khỏi body/null/chuỗi trắng sẽ xóa giá trị cũ. Service strip text,
+chuyển mã quốc gia thành chữ hoa; điện thoại nhận 7–15 chữ số với dấu `+` tùy chọn ở đầu,
+ngày sinh không được sau ngày hiện tại theo giờ Việt Nam. Điện thoại chỉ là thông tin hồ sơ,
+chưa xác thực OTP số điện thoại.
+
+Account ID lấy từ JWT, không lấy từ body/query/header của client. Email và avatar chỉ đọc
+trong đợt này; role/mật khẩu/trạng thái tài khoản không thuộc form. `/api/auth/me` tiếp tục trả
+thông tin phiên và hồ sơ tối thiểu; profiles batch tiếp tục chỉ trả ID/tên/avatar.
+Response vẫn dùng `ApiResponse`, dữ liệu trong `result`. Chi tiết và lỗi ở
+[API reference](../docs/auth/api-reference.md) và [phase-5.md](../docs/auth/phase-5.md) trong docs local.
 
 ## Lấy hồ sơ công khai theo danh sách ID
 

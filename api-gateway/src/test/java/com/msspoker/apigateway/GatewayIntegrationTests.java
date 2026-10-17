@@ -191,6 +191,30 @@ class GatewayIntegrationTests {
     }
 
     @Test
+    void ownProfileReadsAndUpdatesUseAuthAndRequireCsrfForPut() {
+        String access = token("USER", "valid");
+        client.get().uri("/api/profiles/me").exchange().expectStatus().isUnauthorized();
+        client.get().uri("/api/profiles/me").cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo("/api/profiles/me");
+        assertThat(LAST.get().headers().get("Cookie")).contains("accessToken=" + access);
+        LAST.set(null);
+        client.put().uri("/api/profiles/me").cookie("accessToken", access)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue("{\"displayName\":\"Khanh\"}")
+                .exchange().expectStatus().isForbidden().expectBody().jsonPath("$.code").isEqualTo("GATEWAY_CSRF_INVALID");
+        assertThat(LAST.get()).isNull();
+        String body = "{\"displayName\":\"Khanh\"}";
+        client.put().uri("/api/profiles/me").cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo("/api/profiles/me");
+        assertThat(LAST.get().method()).isEqualTo("PUT");
+        assertThat(LAST.get().body()).isEqualTo(body);
+        assertThat(LAST.get().headers().get("X-XSRF-TOKEN")).isEqualTo("csrf-example");
+        assertThat(LAST.get().headers().get("Cookie")).contains("accessToken=" + access, "XSRF-TOKEN=csrf-example");
+        assertThat(LAST.get().headers()).doesNotContainKey("X-Game-Service-Key");
+    }
+
+    @Test
     void invalidJwtSignatureIssuerAudienceTimesSubjectAndRoleAreRejected() {
         for (String variant : List.of("signature", "issuer", "audience", "expired", "missing-expiry", "subject",
                 "role", "future-iat", "future-nbf", "missing-iat", "missing-nbf", "missing-jti")) {

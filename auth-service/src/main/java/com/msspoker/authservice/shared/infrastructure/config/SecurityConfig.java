@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .sameSite(cookieProperties.sameSite()).path("/"));
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(allowedOrigins);
-        cors.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id"));
         cors.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -62,7 +62,8 @@ public class SecurityConfig {
                                 "/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
                                 "/api/auth/register/resend-otp", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/profiles/me").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(config -> config
                         .authenticationEntryPoint((request, response, exception) -> errors.write(request, response, ErrorCode.AUTH_UNAUTHENTICATED))
