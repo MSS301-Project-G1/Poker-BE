@@ -14,8 +14,14 @@ rankingservice/
 │   ├── request/        # Request records, including the wallet credit body
 │   ├── response/       # JSON responses and pagination
 │   └── event/          # Consumed event payloads (envelope comes from common)
-├── service/            # Application service interfaces, clients of other services included
+├── service/            # Business service interfaces (Elo, ranking, seasons, tutorial)
+│   ├── client/         # Calls to wallet, shop and social services
+│   ├── event/          # Outbox publishing
+│   ├── job/            # Scheduled reward and grant dispatchers
 │   └── impl/           # Exactly one implementation per interface, like game-service
+│       ├── client/
+│       ├── event/
+│       └── job/
 ├── entity/             # JPA entities only
 ├── repository/         # Spring Data repositories only
 ├── validator/          # Business validation

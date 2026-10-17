@@ -14,6 +14,8 @@ import com.msspoker.competitionservice.exception.CompetitionExceptions;
 import com.msspoker.competitionservice.repository.CustomRoomRepository;
 import com.msspoker.competitionservice.repository.OutboxRepository;
 import com.msspoker.competitionservice.repository.RoomMemberRepository;
+import com.msspoker.competitionservice.service.client.GameClient;
+import com.msspoker.competitionservice.service.client.SocialClient;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

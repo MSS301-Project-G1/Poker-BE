@@ -30,8 +30,8 @@ import com.msspoker.competitionservice.repository.TournamentTableRepository;
 import com.msspoker.competitionservice.repository.WalletCreditRepository;
 import com.msspoker.competitionservice.service.PrizeCalculator;
 import com.msspoker.competitionservice.service.TournamentService;
-import com.msspoker.competitionservice.service.TournamentTableLauncher;
-import com.msspoker.competitionservice.service.WalletClient;
+import com.msspoker.competitionservice.service.job.TournamentTableLauncher;
+import com.msspoker.competitionservice.service.client.WalletClient;
 import com.msspoker.competitionservice.validator.EliteInviteValidator;
 import com.msspoker.competitionservice.validator.TournamentResultValidator;
 

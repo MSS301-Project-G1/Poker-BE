@@ -4,7 +4,7 @@ import com.msspoker.competitionservice.dto.response.TableCreatedResponse;
 import com.msspoker.competitionservice.repository.CustomRoomRepository;
 import com.msspoker.competitionservice.repository.OutboxRepository;
 import com.msspoker.competitionservice.repository.RoomMemberRepository;
-import com.msspoker.competitionservice.service.GameClient;
+import com.msspoker.competitionservice.service.client.GameClient;
 import com.msspoker.competitionservice.service.RoomTestSupport;
 
 import org.junit.jupiter.api.BeforeEach;

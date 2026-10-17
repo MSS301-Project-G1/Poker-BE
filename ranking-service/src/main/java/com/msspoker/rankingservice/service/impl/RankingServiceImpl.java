@@ -14,7 +14,7 @@ import com.msspoker.rankingservice.repository.PlayerEloRepository;
 import com.msspoker.rankingservice.service.EloCalculator;
 import com.msspoker.rankingservice.service.RankingService;
 import com.msspoker.rankingservice.service.SeasonService;
-import com.msspoker.rankingservice.service.SocialClient;
+import com.msspoker.rankingservice.service.client.SocialClient;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

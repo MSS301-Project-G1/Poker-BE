@@ -2,9 +2,9 @@ package com.msspoker.competitionservice.controller;
 
 import com.msspoker.competitionservice.dto.response.TableCreatedResponse;
 import com.msspoker.competitionservice.repository.*;
-import com.msspoker.competitionservice.service.GameClient;
-import com.msspoker.competitionservice.service.RankingClient;
-import com.msspoker.competitionservice.service.TournamentScheduler;
+import com.msspoker.competitionservice.service.client.GameClient;
+import com.msspoker.competitionservice.service.client.RankingClient;
+import com.msspoker.competitionservice.service.job.TournamentScheduler;
 import com.msspoker.competitionservice.service.TournamentTestSupport;
 
 import org.junit.jupiter.api.BeforeEach;

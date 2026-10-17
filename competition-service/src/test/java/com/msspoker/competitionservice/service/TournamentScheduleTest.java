@@ -14,6 +14,13 @@ import com.msspoker.competitionservice.enums.*;
 import com.msspoker.competitionservice.exception.CompetitionApiException;
 import com.msspoker.competitionservice.exception.CompetitionExceptions;
 import com.msspoker.competitionservice.repository.*;
+import com.msspoker.competitionservice.service.client.GameClient;
+import com.msspoker.competitionservice.service.client.RankingClient;
+import com.msspoker.competitionservice.service.client.ShopClient;
+import com.msspoker.competitionservice.service.client.WalletClient;
+import com.msspoker.competitionservice.service.job.ItemGrantDispatcher;
+import com.msspoker.competitionservice.service.job.TournamentScheduler;
+import com.msspoker.competitionservice.service.job.WalletCreditDispatcher;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
