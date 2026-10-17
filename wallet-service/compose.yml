@@ -1,3 +1,5 @@
+name: poker-wallet
+
 services:
   wallet-service:
     build:
@@ -30,6 +32,7 @@ services:
 
   wallet-postgres:
     image: postgres:17-alpine
+    container_name: wallet-postgres
     environment:
       POSTGRES_DB: wallet_db
       POSTGRES_USER: ${WALLET_DB_USER:-postgres}
@@ -47,7 +50,29 @@ services:
       timeout: 3s
       retries: 15
 
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 networks:
   wallet-net:
+  default:
+    name: poker-network
 volumes:
   wallet-postgres-data:
+  rabbitmq-data:

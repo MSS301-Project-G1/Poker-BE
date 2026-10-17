@@ -1,3 +1,5 @@
+name: poker-shop
+
 services:
   shop-service:
     build:
@@ -14,10 +16,6 @@ services:
       DB_PASSWORD: ${SHOP_DB_PASSWORD:-123456}
       REDIS_HOST: shop-redis
       REDIS_PORT: 6379
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       WALLET_SERVICE_URL: ${WALLET_SERVICE_URL:-http://wallet-service:8089}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
       PAYOS_API_KEY: ${PAYOS_API_KEY:-}
@@ -37,11 +35,10 @@ services:
         condition: service_healthy
       shop-minio:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
 
   shop-postgres:
     image: postgres:17-alpine
+    container_name: shop-postgres
     environment:
       POSTGRES_DB: shop_db
       POSTGRES_USER: ${SHOP_DB_USER:-postgres}
@@ -60,6 +57,7 @@ services:
 
   shop-redis:
     image: redis:7-alpine
+    container_name: shop-redis
     ports:
       - "127.0.0.1:${SHOP_REDIS_PORT:-6379}:6379"
     volumes:
@@ -75,6 +73,7 @@ services:
 
   shop-minio:
     image: alpine/minio:latest-release
+    container_name: shop-minio
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
@@ -96,6 +95,8 @@ services:
 
 networks:
   shop-net:
+  default:
+    name: poker-network
 volumes:
   shop-postgres-data:
   shop-redis-data:
