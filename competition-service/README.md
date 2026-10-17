@@ -26,6 +26,7 @@ competitionservice/
 ├── constant/           # Shared constants and header names
 ├── exception/          # Exception factory and REST exception handler
 ├── config/             # Spring configuration and room defaults
+├── security/           # Dev-only X-Dev-User identity filter
 └── util/               # UUID v7 generation
 ```
 
@@ -53,6 +54,9 @@ docker compose -f docker-compose.yml -f competition-service/compose.dev.yml up -
 
 All `/api/rooms/**` calls trust `X-User-Id` set by the gateway; a missing header
 returns `401 COMP_UNAUTHORIZED`. Room codes are 6 characters and case-insensitive.
+In the `dev` profile only, `X-Dev-User` (sent by the FE shared http client, like
+for game-service) stands in for `X-User-Id`, and such requests act as `ADMIN`
+unless `X-User-Role` is sent.
 
 | Method | Endpoint | Behavior |
 | --- | --- | --- |
@@ -181,6 +185,6 @@ and game-service are called for real.
 .\mvnw.cmd -pl competition-service -am clean verify
 ```
 
-34 tests use test-only H2 and stub HTTP game/wallet/ranking servers; Docker is not
+36 tests use test-only H2 and stub HTTP game/wallet/ranking servers; Docker is not
 required. Tournament schedule tests move a tournament's timeline back instead of
 waiting.

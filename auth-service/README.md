@@ -2,8 +2,9 @@
 
 Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ với outbox,
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
-Port mặc định `8090`; `identity-service` giữ nguyên. Chưa triển khai gateway nghiệp vụ,
-chỉnh sửa profile, quên/reset mật khẩu hoặc FE.
+Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
+trong phase 4A, xem [README gateway](../api-gateway/README.md). Chỉnh sửa profile,
+quên/reset mật khẩu và FE chưa triển khai.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
 [review phase 2](../docs/auth/phase-2.md), [kế hoạch](../docs/auth/implementation-plan.md),
 [chạy Docker và test Swagger](../docs/auth/local-development.md).
@@ -148,6 +149,8 @@ Giá trị trong `.env.example` chỉ phục vụ local, không dùng làm secre
 ## Test API bằng Swagger UI
 
 Sau khi auth-service khởi động, mở **http://localhost:8090/swagger-ui.html**.
+Khi đã chạy gateway theo [hướng dẫn](../api-gateway/README.md), dùng
+**http://localhost:8080/swagger-ui.html** để toàn bộ request đi qua gateway.
 OpenAPI JSON: `http://localhost:8090/v3/api-docs`.
 
 1. Mở nhóm **Đăng ký và OTP**, chọn **1. Đăng ký tài khoản** → **Try it out**.
@@ -259,7 +262,8 @@ JWT có `iss`, `aud`, UUID `sub`, `role` (USER/ADMIN), `iat`, `nbf`, `exp`, `jti
 Issuer/audience mặc định `http://localhost:8090`/`poker`, cần thống nhất khi nối gateway/game ở phase 4.
 `GET /api/auth/ws-token` dùng access cookie để lấy JWT hiện tại cho STOMP
 `CONNECT` header `Authorization: Bearer <token>`. Giữ JWT trong bộ nhớ FE; không lưu localStorage.
-Endpoint chỉ chuẩn bị hợp đồng; chưa sửa game hoặc route gateway.
+Endpoint hoạt động cả trực tiếp lẫn qua gateway; chưa nối STOMP thật tới game.
+Gateway xác thực access cookie và chuyển nguyên JWT/cookie tới auth.
 
 Refresh token ngẫu nhiên 256 bit; DB chỉ lưu SHA-256 hash. Token cũ sau rotation bị từ chối,
 không có cơ chế tự thu hồi cả chuỗi hoặc logout all. Logout không chặn access JWT đã cấp:
@@ -292,4 +296,5 @@ test báo lỗi, không tự bỏ qua hoặc chuyển sang database khác.
 Test phase 2 bổ sung SMTP thật vào Mailpit và AMQP thật qua RabbitMQ, port ngẫu nhiên,
 không volume. Test verify/resend điều khiển đồng hồ để kiểm tra đúng ranh giới hạn;
 kiểm tra đồng thời, rollback SMTP và event retry. Không cần bật Compose dev cho test.
-App dev/Compose, Docker build và luồng FE/gateway chưa được kiểm tra trong đợt này.
+Luồng auth qua gateway và hướng dẫn chạy nằm trong [README gateway](../api-gateway/README.md).
+Các kiểm tra phase 2–3 trên không có nghĩa đã chạy FE/game hay build lại container dev.

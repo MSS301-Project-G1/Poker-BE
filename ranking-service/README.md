@@ -24,6 +24,7 @@ rankingservice/
 ├── constant/           # Shared constants and header names
 ├── exception/          # Exception factory and REST exception handler
 ├── config/             # Spring configuration and SPEC §8 parameters
+├── security/           # Dev-only X-Dev-User identity filter
 └── util/               # UUID v7 generation
 ```
 
@@ -70,6 +71,9 @@ Leaderboard order is Elo descending, then account id ascending.
 
 `/api/**` trusts `X-User-Id` set by the gateway (SPEC §5.1); a missing header
 returns `401 RANK_UNAUTHORIZED`. `/internal/**` must not be exposed by the gateway.
+In the `dev` profile only, `X-Dev-User` (sent by the FE shared http client, like
+for game-service) stands in for `X-User-Id`, and such requests act as `ADMIN`
+unless `X-User-Role` is sent.
 
 Consumed events on exchange `poker.events`, each with its own durable queue:
 
@@ -135,9 +139,10 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 .\mvnw.cmd -pl ranking-service -am clean verify
 ```
 
-29 tests use test-only H2 and do not require Docker: tier boundaries, Elo
+31 tests use test-only H2 and do not require Docker: tier boundaries, Elo
 floor, places beyond six, Card God cut-off, duplicate events, non-RANK modes,
 invalid results, reward queueing and wallet outage retry, listener parsing with
 unknown fields, API contracts, leaderboard ordering, season closing and carry
-over, scheduled closing and activation, cumulative claims and grant retries.
+over, scheduled closing and activation, cumulative claims, grant retries and
+the dev identity filter.
 Season tests use their own H2 database because they close the seed season.

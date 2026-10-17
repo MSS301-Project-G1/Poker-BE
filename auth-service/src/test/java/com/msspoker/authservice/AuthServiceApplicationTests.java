@@ -34,6 +34,7 @@ class AuthServiceApplicationTests {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         JsonNode document = jsonMapper.readTree(body);
         assertThat(document.get("info").get("title").asString()).isEqualTo("Poker Auth Service API");
+        assertThat(document.path("servers").get(0).path("url").asString()).isEqualTo("/");
         JsonNode paths = document.get("paths");
         assertThat(paths.size()).isEqualTo(9);
         assertThat(paths.has("/api/auth/register")).isTrue();
@@ -84,8 +85,14 @@ class AuthServiceApplicationTests {
                 .andExpect(content().string(containsString("swagger-ui-bundle.js")));
         mvc.perform(get("/swagger-ui/swagger-initializer.js")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("/v3/api-docs/swagger-config")));
-        mvc.perform(get("/v3/api-docs/swagger-config")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").value("/v3/api-docs"));
+        // Behind the gateway, API document URLs must stay on the browser's origin.
+        mvc.perform(get("/v3/api-docs/swagger-config").with(request -> {
+            request.setServerName("auth-service");
+            request.setServerPort(8090);
+            return request;
+        })).andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").value("/v3/api-docs"))
+                .andExpect(jsonPath("$.configUrl").value("/v3/api-docs/swagger-config"));
     }
 
 }
