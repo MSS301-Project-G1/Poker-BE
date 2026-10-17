@@ -152,6 +152,51 @@ class GameApplicationTest {
                 .andExpect(jsonPath("$.maxPlayers").value(6));
     }
 
+    @Test
+    void internalActiveTableReportsSeatedPlayersOnly() throws Exception {
+        var request = request();
+        var created = tables.create(request);
+        UUID seated = request.playerIds().getFirst();
+        mvc.perform(get("/internal/players/{id}/active-table", seated)
+                        .servletPath("/internal/players/" + seated + "/active-table")
+                        .header("X-Game-Service-Key", "test-ingress-key"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tableId").value(created.tableId().toString()))
+                .andExpect(jsonPath("$.matchId").value(created.matchId().toString()));
+        UUID outsider = UUID.randomUUID();
+        mvc.perform(get("/internal/players/{id}/active-table", outsider)
+                        .servletPath("/internal/players/" + outsider + "/active-table")
+                        .header("X-Game-Service-Key", "test-ingress-key"))
+                .andExpect(status().isOk()).andExpect(content().string("null"));
+    }
+
+    @Test
+    void publicMatchHistoryIsPagedAndRequiresGatewayIdentity() throws Exception {
+        var request = request();
+        var created = tables.create(request);
+        UUID player = request.playerIds().getFirst();
+        mvc.perform(get("/api/game/matches").servletPath("/api/game/matches")
+                        .param("accountId", player.toString()).param("size", "5")
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.size").value(5))
+                .andExpect(jsonPath("$.content[0].id").value(created.matchId().toString()))
+                .andExpect(jsonPath("$.content[0].status").value("RUNNING"))
+                .andExpect(jsonPath("$.content[0].placements.length()").value(2));
+        mvc.perform(get("/api/game/matches").servletPath("/api/game/matches")
+                        .param("accountId", player.toString())
+                        .header("X-Game-Service-Key", "test-ingress-key"))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("GAME_UNAUTHORIZED"));
+        mvc.perform(get("/api/game/matches").servletPath("/api/game/matches")
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", player))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("GAME_INVALID_REQUEST"));
+        mvc.perform(get("/api/game/matches").servletPath("/api/game/matches")
+                        .param("accountId", player.toString()).param("size", "101")
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", player))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("GAME_INVALID_REQUEST"));
+    }
+
     private static CreateTableRequest request() {
         return new CreateTableRequest(GameMode.NORMAL, UUID.randomUUID(),
                 List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0);

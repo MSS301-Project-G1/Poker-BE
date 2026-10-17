@@ -62,7 +62,8 @@ java -jar game-service/target/game-service-0.0.1-SNAPSHOT.jar --spring.profiles.
 
 The game owns its PostgreSQL container `game-db`, declared in
 `game-service/compose.yml` on the private `game-net` network, so other services
-cannot reach it. RabbitMQ is shared infrastructure in `docker/compose.infra.yml`.
+cannot reach it. The same file points JWT validation and restrictions at
+`auth-service:8090`. RabbitMQ is shared infrastructure in `docker/compose.infra.yml`.
 Dev uses PostgreSQL `127.0.0.1:54329/game_db` (user `poker`, local password
 `poker_dev`) and RabbitMQ `127.0.0.1:56729`; management UI is at
 `http://localhost:15679` (`guest`/`guest`). When changing the local password,
@@ -101,7 +102,10 @@ Chips are integer table chips and are distinct from wallet coins.
 | --- | --- | --- |
 | POST | `/internal/tables` | CreateTable; returns `tableId`, `matchId` |
 | GET | `/internal/matches?accountId=...&page=0&size=20` | `PageResponse<MatchView>`; size 1–100 |
+| GET | `/internal/players/{accountId}/active-table` | Table identifiers, or JSON `null` (matchmaking queue check) |
+| GET | `/internal/match-settings/{mode}` | Current Admin settings of one mode (matchmaking player limits) |
 | GET | `/api/game/me/active-table` | Table identifiers, or JSON `null` |
+| GET | `/api/game/matches?accountId=...&page=0&size=20` | Same page as `/internal/matches`, for the Profile screen via gateway |
 | GET | `/api/game/tables/{tableId}` | Personal snapshot; membership required |
 | GET | `/api/game/tables/{tableId}/result` | Durable final result; membership required |
 | GET | `/api/admin/match-settings` | All mode settings; ADMIN required |
@@ -128,7 +132,8 @@ the owned FE always sends it to reject duplicate/outdated actions. Snapshots
 include authoritative legal actions, raise limits, actor, deadline and server
 time. Hole cards are private until a non-folded showdown. A rejected business
 action reaches the private error queue; unauthorized destinations terminate
-the socket with a STOMP ERROR frame. REST errors use Vietnamese messages.
+the socket with a STOMP ERROR frame. REST errors use Vietnamese messages and the shared
+`com.msspoker.common.response.ErrorResponse`; events use the shared `EventEnvelope`.
 
 ## Production configuration and dependencies
 
@@ -141,9 +146,12 @@ the socket with a STOMP ERROR frame. REST errors use Vietnamese messages.
   private and prevent browser access to `/internal/**`.
 - STOMP independently validates RS256 JWT: `JWT_JWK_SET_URI`, `JWT_ISSUER`,
   `JWT_AUDIENCE`, UUID `sub`, expiry and signature. Set `GAME_ALLOWED_ORIGINS`.
-- `IDENTITY_SERVICE_URL` supplies account restrictions during CreateTable.
-  Production fails with a dependency error when restrictions cannot be checked;
-  dev/test bypass the unfinished identity integration explicitly.
+- `IDENTITY_SERVICE_URL` (auth-service, default `http://localhost:8090`) supplies
+  account restrictions during CreateTable. With `GAME_RESTRICTIONS_ENABLED=true`
+  (the application default) CreateTable fails with 503 `GAME_DEPENDENCY_UNAVAILABLE`
+  when restrictions cannot be checked. The dev profile and tests disable the check;
+  `game-service/compose.yml` also defaults it to `false` until auth-service ships
+  `GET /internal/accounts/{id}/restrictions`. Set it to `true` then.
 
 `poker.events` is a durable topic exchange. Each receiving service must declare
 its own durable queue and bind `match.started`/`match.finished` before consuming.
@@ -186,10 +194,12 @@ do not require running Docker or a frontend. Surefire reports are written to
 `game-service/target/surefire-reports`. To validate the full browser workflow,
 start the PostgreSQL/RabbitMQ dev stack as above first.
 
-36 game tests cover poker categories, kicker/wheel, side pots/refunds, heads-up,
+44 game tests cover poker categories, kicker/wheel, side pots/refunds, heads-up,
 minimum raises and short all-ins, stale actions, chip conservation over 3,000+
 seeded bot hands, AFK, deterministic simultaneous elimination, 32 concurrent
-tables, persistence, API access, actual STOMP sockets and signed JWT validation.
+tables, persistence, API access, public/internal history and active-table,
+account restrictions against a stub auth-service, actual STOMP sockets and
+signed JWT validation.
 Production shuffling uses `SecureRandom`; seeded randomness is used in tests.
 
 Browser checks (backend running in dev, PostgreSQL/RabbitMQ above):

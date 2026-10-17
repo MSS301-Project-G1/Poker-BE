@@ -12,6 +12,8 @@ import java.util.List;
 public interface SettingsService {
     MatchSettingsEntity defaults(GameMode mode);
 
+    MatchSettingsResponse get(GameMode mode);
+
     List<MatchSettingsResponse> list();
 
     MatchSettingsResponse update(GameMode mode, UpdateMatchSettingsRequest request);

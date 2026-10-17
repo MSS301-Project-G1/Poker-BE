@@ -11,7 +11,7 @@
 .project
 .settings/
 
-# Local configuration
+# Local configuration & Secrets
 .env
 .env.*
 **/.env
@@ -20,9 +20,15 @@
 !**/.env.example
 *.log
 .local/
+
 # OS
 .DS_Store
 Thumbs.db
-AGENTS.md
 
+# Documentation & AI
+AGENTS.md
 docs/
+
+# Test Archives & Temporary Scripts
+*.zip
+generate_test_deck.ps1

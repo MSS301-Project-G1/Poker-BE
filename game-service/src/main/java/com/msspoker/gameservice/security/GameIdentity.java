@@ -28,8 +28,10 @@ public class GameIdentity {
             if (environment.acceptsProfiles(Profiles.of(GameHeaders.DEV_PROFILE)) && devUser != null) {
                 id = UUID.fromString(devUser);
             } else {
-                if (authorization == null || !authorization.startsWith("Bearer ")) throw GameExceptions.unauthorized();
-                Jwt jwt = decoder().decode(authorization.substring("Bearer ".length()));
+                if (authorization == null || !authorization.startsWith(GameHeaders.BEARER_PREFIX)) {
+                    throw GameExceptions.unauthorized();
+                }
+                Jwt jwt = decoder().decode(authorization.substring(GameHeaders.BEARER_PREFIX.length()));
                 if (!jwt.getAudience().contains(audience)) throw GameExceptions.unauthorized();
                 id = UUID.fromString(jwt.getSubject());
             }

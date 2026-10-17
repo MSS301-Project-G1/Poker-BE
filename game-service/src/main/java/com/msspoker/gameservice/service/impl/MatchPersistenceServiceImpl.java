@@ -1,13 +1,12 @@
 package com.msspoker.gameservice.service.impl;
 
+import com.msspoker.common.event.EventEnvelope;
 import com.msspoker.gameservice.constant.GameEventConstants;
-import com.msspoker.gameservice.dto.event.EventEnvelope;
 import com.msspoker.gameservice.dto.request.CreateTableRequest;
 import com.msspoker.gameservice.dto.response.MatchHistoryResponse;
 import com.msspoker.gameservice.dto.response.PageResponse;
 import com.msspoker.gameservice.entity.MatchEntity;
 import com.msspoker.gameservice.entity.MatchPlayerEntity;
-import com.msspoker.gameservice.entity.OutboxEntity;
 import com.msspoker.gameservice.enums.MatchStatus;
 import com.msspoker.gameservice.exception.GameExceptions;
 import com.msspoker.gameservice.mapper.GameMapper;
@@ -111,11 +110,7 @@ public class MatchPersistenceServiceImpl implements MatchPersistenceService {
     }
 
     private void enqueue(String eventType, Object payload) {
-        OutboxEntity row = new OutboxEntity();
-        row.setId(GameIds.next());
-        row.setEventType(eventType);
-        row.setOccurredAt(Instant.now());
-        row.setBody(json.writeValueAsString(new EventEnvelope(row.getId(), eventType, row.getOccurredAt(), payload)));
-        outbox.save(row);
+        var envelope = new EventEnvelope<>(GameIds.next(), eventType, Instant.now(), payload);
+        outbox.save(mapper.outbox(envelope, json.writeValueAsString(envelope)));
     }
 }

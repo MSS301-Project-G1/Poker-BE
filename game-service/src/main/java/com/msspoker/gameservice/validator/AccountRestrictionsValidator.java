@@ -1,11 +1,15 @@
 package com.msspoker.gameservice.validator;
 
+import com.msspoker.gameservice.constant.GamePaths;
 import com.msspoker.gameservice.dto.request.CreateTableRequest;
+import com.msspoker.gameservice.dto.response.AccountRestrictionsResponse;
 import com.msspoker.gameservice.enums.GameMode;
 import com.msspoker.gameservice.exception.GameExceptions;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -15,12 +19,14 @@ import java.time.Duration;
 
 import java.time.Instant;
 
+/** Remote check runs after the local availability check, so a busy roster never calls auth-service. */
 @Component
-@Profile("!dev & !test")
+@Order(Ordered.LOWEST_PRECEDENCE)
+@ConditionalOnProperty(name = "game.restrictions.enabled", havingValue = "true", matchIfMissing = true)
 public class AccountRestrictionsValidator implements CreateTableValidator {
     private final RestClient identity;
 
-    public AccountRestrictionsValidator(@Value("${game.identity-url:http://localhost:8081}") String url,
+    public AccountRestrictionsValidator(@Value("${game.identity-url:http://localhost:8090}") String url,
             @Value("${game.identity-timeout-millis:3000}") long timeoutMillis) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
@@ -28,16 +34,13 @@ public class AccountRestrictionsValidator implements CreateTableValidator {
         identity = RestClient.builder().baseUrl(url).requestFactory(factory).build();
     }
 
-    public record Restrictions(boolean banned, Instant chatBannedUntil, Instant rankBannedUntil) {
-    }
-
     @Override
     public void validate(CreateTableRequest request) {
         for (var playerId : request.playerIds()) {
-            Restrictions restrictions;
+            AccountRestrictionsResponse restrictions;
             try {
-                restrictions = identity.get().uri("/internal/accounts/{id}/restrictions", playerId)
-                        .retrieve().body(Restrictions.class);
+                restrictions = identity.get().uri(GamePaths.ACCOUNT_RESTRICTIONS, playerId)
+                        .retrieve().body(AccountRestrictionsResponse.class);
             } catch (RestClientException ex) {
                 throw GameExceptions.dependencyUnavailable();
             }

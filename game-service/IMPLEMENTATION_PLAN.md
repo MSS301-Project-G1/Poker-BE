@@ -44,9 +44,10 @@ Giữ nguyên thay đổi `.gitignore` có sẵn ngoài phạm vi.
   còn dang dở, không tuyên bố có thể khôi phục bài khi chưa persist engine.
 - Gateway scaffold chưa có JWT, chưa có route §6.4/WebSocket; tích hợp thật
   cần Khanh cập nhật. Không tin header client trên service public.
-- common chưa có BaseEntity/ErrorResponse/event. Dùng DTO trong game-service
-  theo JSON contract để không sửa module người khác; chuyển sang common khi
-  Khanh cung cấp. Dùng MapStruct cho domain/entity/DTO và Lombok cho boilerplate.
+- Lỗi REST/STOMP dùng `ErrorResponse` và outbox dùng `EventEnvelope` của common
+  (JSON không đổi). Entity chưa kế thừa `BaseEntity`: matchId do engine cấp trước
+  khi lưu, còn `@UuidGenerator` của BaseEntity tự sinh id và cần thêm cột
+  created_at/updated_at. Dùng MapStruct cho domain/entity/DTO và Lombok cho boilerplate.
 - Skin/chat/useProfiles chưa có trong FE; cung cấp điểm gắn qua props/context,
   không tự xây tính năng thuộc người khác.
 
