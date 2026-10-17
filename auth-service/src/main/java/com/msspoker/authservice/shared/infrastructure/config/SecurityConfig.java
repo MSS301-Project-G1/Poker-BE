@@ -31,18 +31,24 @@ public class SecurityConfig {
     SecurityFilterChain authSecurity(HttpSecurity http, AuthCookieService cookies, JwtService jwtService,
             AuthCookieProperties cookieProperties, GlobalExceptionHandler exceptionHandler, JsonMapper mapper,
             @Value("${auth.cors.allowed-origins}") List<String> allowedOrigins) throws Exception {
+
         if (allowedOrigins.stream().anyMatch(origin -> origin.contains("*"))) {
             throw new IllegalArgumentException("Cookie CORS requires explicit origins");
         }
+
         SecurityErrorHandler errors = new SecurityErrorHandler(exceptionHandler, mapper);
+
         CookieCsrfTokenRepository csrf = new CookieCsrfTokenRepository();
+
         csrf.setCookieCustomizer(builder -> builder.httpOnly(true).secure(cookieProperties.secure())
                 .sameSite(cookieProperties.sameSite()).path("/"));
+
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(allowedOrigins);
-        cors.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id"));
         cors.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", cors);
 
@@ -55,20 +61,26 @@ public class SecurityConfig {
                 .cors(config -> config.configurationSource(source))
                 .csrf(config -> config.csrfTokenRepository(csrf)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        // Existing public registration calls have no login credentials to mutate.
                         .ignoringRequestMatchers("/api/auth/register", "/api/auth/register/verify-otp", "/api/auth/register/resend-otp"))
+
                 .authorizeHttpRequests(config -> config
                         .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/api/auth/csrf",
                                 "/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
                                 "/api/auth/register/resend-otp", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me",
+                                "/api/profiles/avatars", "/api/profiles/avatars/presets/*", "/api/profiles/me/avatar/presign").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/profiles/me", "/api/profiles/me/avatar").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/profiles/me/avatar").authenticated()
                         .anyRequest().denyAll())
+
                 .exceptionHandling(config -> config
                         .authenticationEntryPoint((request, response, exception) -> errors.write(request, response, ErrorCode.AUTH_UNAUTHENTICATED))
                         .accessDeniedHandler((request, response, exception) -> errors.write(request, response,
                                 exception instanceof CsrfException ? ErrorCode.AUTH_CSRF_INVALID : ErrorCode.AUTH_FORBIDDEN)))
+
                 .addFilterBefore(new AllowedOriginFilter(allowedOrigins, errors), CsrfFilter.class)
+
                 .addFilterBefore(new CookieAuthenticationFilter(cookies, jwtService), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

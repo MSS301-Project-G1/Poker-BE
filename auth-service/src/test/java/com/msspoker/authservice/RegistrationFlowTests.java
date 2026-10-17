@@ -8,7 +8,7 @@ import com.msspoker.authservice.repository.AccountRepository;
 import com.msspoker.authservice.repository.ProfileRepository;
 import com.msspoker.authservice.repository.RegistrationEventRepository;
 import com.msspoker.authservice.repository.RegistrationOtpRepository;
-import com.msspoker.authservice.service.RegistrationService;
+import com.msspoker.authservice.service.AuthService;
 import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +56,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class RegistrationFlowTests {
     @Autowired private RegistrationController controller;
     @Autowired private GlobalExceptionHandler exceptionHandler;
-    @Autowired private RegistrationService service;
+    @Autowired private AuthService service;
     @Autowired private AccountRepository accounts;
     @Autowired private ProfileRepository profiles;
     @Autowired private RegistrationOtpRepository otps;
@@ -110,7 +110,7 @@ class RegistrationFlowTests {
     @Test
     void duplicatePendingRegistrationDoesNotReplacePasswordOrProfileOrResendMail() throws Exception {
         String email = email();
-        register(email);
+        assertThat(register(email).getResponse().getStatus()).isEqualTo(201);
         var account = accounts.findByEmail(email).orElseThrow();
         String hash = account.getPasswordHash();
         String otpHash = otps.findById(account.getId()).orElseThrow().getCodeHash();
@@ -124,7 +124,7 @@ class RegistrationFlowTests {
     @Test
     void verifiedAndDeletedEmailsRemainReserved() throws Exception {
         String email = email();
-        register(email);
+        assertThat(register(email).getResponse().getStatus()).isEqualTo(201);
         request("/register/verify-otp", new VerifyRegistrationOtpRequest(email, readCode(email)));
         assertError(register(email), 409, "AUTH_EMAIL_IN_USE");
         var account = accounts.findByEmail(email).orElseThrow();
@@ -137,7 +137,7 @@ class RegistrationFlowTests {
     @Test
     void wrongOtpAttemptsPersistEvenThoughHttpReturnsAnErrorAndTheFifthAttemptLocksTheCode() throws Exception {
         String email = email();
-        register(email);
+        assertThat(register(email).getResponse().getStatus()).isEqualTo(201);
         String code = readCode(email);
         String wrong = code.equals("000000") ? "111111" : "000000";
         UUID id = accounts.findByEmail(email).orElseThrow().getId();
@@ -160,7 +160,7 @@ class RegistrationFlowTests {
     @Test
     void otpExpiresAtTheExactExpiryInstant() throws Exception {
         String email = email();
-        register(email);
+        assertThat(register(email).getResponse().getStatus()).isEqualTo(201);
         String code = readCode(email);
         clock.set(clock.instant().plusSeconds(300));
         assertError(request("/register/verify-otp", new VerifyRegistrationOtpRequest(email, code)),
@@ -170,7 +170,7 @@ class RegistrationFlowTests {
     @Test
     void resendRequiresSixtySecondsAndReplacesTheOldCode() throws Exception {
         String email = email();
-        register(email);
+        assertThat(register(email).getResponse().getStatus()).isEqualTo(201);
         String oldCode = readCode(email);
         clock.set(clock.instant().plusSeconds(59));
         assertError(request("/register/resend-otp", new ResendRegistrationOtpRequest(email)),
@@ -220,7 +220,7 @@ class RegistrationFlowTests {
     @Test
     void simultaneousVerificationsActivateTheAccountAndCreateItsEventOnlyOnce() throws Exception {
         String email = email();
-        register(email);
+        assertThat(register(email).getResponse().getStatus()).isEqualTo(201);
         String code = readCode(email);
         UUID accountId = accounts.findByEmail(email).orElseThrow().getId();
         CountDownLatch start = new CountDownLatch(1);
@@ -280,18 +280,23 @@ class RegistrationFlowTests {
     private String readCode(String email) throws Exception {
         String baseUrl = "http://" + mailpitContainer.getHost() + ":" + mailpitContainer.getMappedPort(8025);
         try (HttpClient client = HttpClient.newHttpClient()) {
-            String body = client.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/v1/messages")).GET().build(),
-                    HttpResponse.BodyHandlers.ofString()).body();
-            for (JsonNode message : jsonMapper.readTree(body).get("messages")) {
-                if (message.get("To").get(0).get("Address").asString().equals(email)) {
-                    String detail = client.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/v1/message/"
-                            + message.get("ID").asString())).GET().build(), HttpResponse.BodyHandlers.ofString()).body();
-                    Matcher matcher = Pattern.compile("(?<![0-9])[0-9]{6}(?![0-9])")
-                            .matcher(jsonMapper.readTree(detail).get("Text").asString());
-                    assertThat(matcher.find()).isTrue();
-                    return matcher.group();
+            // SMTP acceptance can precede Mailpit's HTTP index becoming readable.
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            do {
+                String body = client.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/v1/messages")).GET().build(),
+                        HttpResponse.BodyHandlers.ofString()).body();
+                for (JsonNode message : jsonMapper.readTree(body).get("messages")) {
+                    if (message.get("To").get(0).get("Address").asString().equals(email)) {
+                        String detail = client.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/v1/message/"
+                                + message.get("ID").asString())).GET().build(), HttpResponse.BodyHandlers.ofString()).body();
+                        Matcher matcher = Pattern.compile("(?<![0-9])[0-9]{6}(?![0-9])")
+                                .matcher(jsonMapper.readTree(detail).get("Text").asString());
+                        assertThat(matcher.find()).isTrue();
+                        return matcher.group();
+                    }
                 }
-            }
+                Thread.sleep(100);
+            } while (System.nanoTime() < deadline);
         }
         throw new AssertionError("Registration email was not received");
     }

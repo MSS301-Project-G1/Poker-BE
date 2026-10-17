@@ -170,13 +170,74 @@ class GatewayIntegrationTests {
 
     @Test
     void meAndWebsocketTokenRequireAnAccessCookieAndIgnoreBearerHeaders() {
-        for (String path : List.of("/api/auth/me", "/api/auth/ws-token", "/api/auth/not-public")) {
+        for (String path : List.of("/api/auth/me", "/api/auth/ws-token", "/api/auth/not-public", "/api/profiles/batch")) {
             client.get().uri(path).exchange().expectStatus().isUnauthorized()
                     .expectBody().jsonPath("$.code").isEqualTo("GATEWAY_UNAUTHENTICATED");
         }
         client.get().uri("/api/auth/me").header("Authorization", "Bearer " + token("USER", "valid"))
                 .exchange().expectStatus().isUnauthorized();
         assertThat(LAST.get()).isNull();
+    }
+
+    @Test
+    void profilesBatchPreservesThePathQueryAndAccessCookieForAuth() {
+        String access = token("USER", "valid");
+        String uri = "/api/profiles/batch?ids=" + ACCOUNT_ID + "," + UUID.randomUUID();
+        client.get().uri(uri).cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(uri);
+        assertThat(LAST.get().headers().get("Cookie")).contains("accessToken=" + access);
+        assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+        assertThat(LAST.get().headers()).doesNotContainKey("X-Game-Service-Key");
+    }
+
+    @Test
+    void ownProfileReadsAndUpdatesUseAuthAndRequireCsrfForPut() {
+        String access = token("USER", "valid");
+        client.get().uri("/api/profiles/me").exchange().expectStatus().isUnauthorized();
+        client.get().uri("/api/profiles/me").cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo("/api/profiles/me");
+        assertThat(LAST.get().headers().get("Cookie")).contains("accessToken=" + access);
+        LAST.set(null);
+        client.put().uri("/api/profiles/me").cookie("accessToken", access)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue("{\"displayName\":\"Khanh\"}")
+                .exchange().expectStatus().isForbidden().expectBody().jsonPath("$.code").isEqualTo("GATEWAY_CSRF_INVALID");
+        assertThat(LAST.get()).isNull();
+        String body = "{\"displayName\":\"Khanh\"}";
+        client.put().uri("/api/profiles/me").cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo("/api/profiles/me");
+        assertThat(LAST.get().method()).isEqualTo("PUT");
+        assertThat(LAST.get().body()).isEqualTo(body);
+        assertThat(LAST.get().headers().get("X-XSRF-TOKEN")).isEqualTo("csrf-example");
+        assertThat(LAST.get().headers().get("Cookie")).contains("accessToken=" + access, "XSRF-TOKEN=csrf-example");
+        assertThat(LAST.get().headers()).doesNotContainKey("X-Game-Service-Key");
+    }
+
+    @Test
+    void avatarPresignPreservesGetQueryAndConfirmationRequiresCsrf() {
+        String access = token("USER", "valid");
+        String presignPath = "/api/profiles/me/avatar/presign?fileName=avatar.png&contentType=image/png&fileSize=100";
+        client.get().uri(presignPath).exchange().expectStatus().isUnauthorized();
+        assertThat(LAST.get()).isNull();
+        client.get().uri(presignPath).cookie("accessToken", access)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(presignPath);
+        assertThat(LAST.get().method()).isEqualTo("GET");
+        assertThat(LAST.get().body()).isEmpty();
+        String path = "/api/profiles/me/avatar";
+        String body = "{\"key\":\"avatars/staging/example.png\"}";
+        LAST.set(null);
+        client.post().uri(path).cookie("accessToken", access).contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isForbidden();
+        assertThat(LAST.get()).isNull();
+        client.post().uri(path).cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        assertThat(LAST.get().method()).isEqualTo("POST");
+        assertThat(LAST.get().body()).isEqualTo(body);
+        client.get().uri("/api/profiles/avatars/presets/spade").exchange().expectStatus().isUnauthorized();
     }
 
     @Test

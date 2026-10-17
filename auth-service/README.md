@@ -3,11 +3,88 @@
 Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ với outbox,
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
-trong phase 4A, xem [README gateway](../api-gateway/README.md). Chỉnh sửa profile,
-quên/reset mật khẩu và FE chưa triển khai.
+trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
+hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT. Quên/reset mật khẩu và FE chưa triển khai.
+Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
+API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
 [review phase 2](../docs/auth/phase-2.md), [kế hoạch](../docs/auth/implementation-plan.md),
 [chạy Docker và test Swagger](../docs/auth/local-development.md).
+
+## Avatar có sẵn và S3 upload
+
+- GET `/api/profiles/avatars`: danh sách avatar có sẵn; PUT `/api/profiles/me/avatar` với `{avatarId}` để chọn.
+- GET `/api/profiles/me/avatar/presign?fileName=avatar.png&contentType=image%2Fpng&fileSize=123456`: xin key và `uploadUrl`; cần access cookie, không cần body/CSRF.
+- FE **PUT file trực tiếp tới `uploadUrl` S3**, dùng `headers` BE trả và không gửi cookie/CSRF tới S3.
+- POST `/api/profiles/me/avatar` với `{key}` sau PUT thành công: BE validate ảnh và cập nhật hồ sơ.
+- Các request BE cần access cookie; POST/PUT cần CSRF. Response vẫn bọc `ApiResponse`.
+
+PNG/JPEG, mặc định tối đa 2 MB và mỗi cạnh tối đa 2048 px. DB lưu object key cho ảnh upload;
+`avatarUrl` trong DTO là URL GET có hạn để bucket giữ private. Avatar có sẵn dùng được khi S3 chưa bật.
+
+Điền các biến `AUTH_S3_*` trong `.env.example` sang `.env`, cấu hình CORS bucket rồi đặt
+`AUTH_S3_ENABLED=true`. Mặc định false giúp auth khởi động khi chưa có credentials.
+Không có endpoint upload multipart lên BE hoặc volume lưu ảnh local. Chỉ thêm cấu hình vào
+Compose auth; root/infra giữ nguyên. Flow FE, env, CORS/IAM và cách test ở [avatar-s3.md](../docs/auth/avatar-s3.md).
+SPEC chưa cập nhật, chờ Khanh review xong như đã yêu cầu.
+
+## Xem/sửa hồ sơ cá nhân
+
+Login trước trên Swagger qua gateway `http://localhost:8080/swagger-ui.html`, mở nhóm **Hồ sơ**:
+
+- `GET /api/profiles/me`: lấy hồ sơ của tài khoản trong access cookie, gồm email/điện thoại và thông tin riêng của chủ tài khoản.
+- `PUT /api/profiles/me`: lưu toàn bộ form, gửi cookie và header `X-XSRF-TOKEN` đã lấy từ `/api/auth/csrf`.
+
+Ví dụ body PUT:
+
+```json
+{
+  "displayName": "Khanh",
+  "fullName": "Nguyễn Khánh",
+  "phoneNumber": "0901234567",
+  "gender": "MALE",
+  "birthDate": "2003-05-12",
+  "bio": "Thích chơi Poker",
+  "countryCode": "VN",
+  "city": "Hồ Chí Minh"
+}
+```
+
+`displayName` bắt buộc, tối đa 100 ký tự và được trùng. PUT thay toàn bộ các field được sửa:
+field tùy chọn bị bỏ khỏi body/null/chuỗi trắng sẽ xóa giá trị cũ. Service strip text,
+chuyển mã quốc gia thành chữ hoa; điện thoại nhận 7–15 chữ số với dấu `+` tùy chọn ở đầu,
+ngày sinh không được sau ngày hiện tại theo giờ Việt Nam. Điện thoại chỉ là thông tin hồ sơ,
+chưa xác thực OTP số điện thoại.
+
+Account ID lấy từ JWT, không lấy từ body/query/header của client. Email và avatar chỉ đọc
+trong đợt này; role/mật khẩu/trạng thái tài khoản không thuộc form. `/api/auth/me` tiếp tục trả
+thông tin phiên và hồ sơ tối thiểu; profiles batch tiếp tục chỉ trả ID/tên/avatar.
+Response vẫn dùng `ApiResponse`, dữ liệu trong `result`. Chi tiết và lỗi ở
+[API reference](../docs/auth/api-reference.md) và [phase-5.md](../docs/auth/phase-5.md) trong docs local.
+
+## Lấy hồ sơ công khai theo danh sách ID
+
+Sau khi login trên Swagger qua gateway `http://localhost:8080/swagger-ui.html`,
+mở nhóm **Hồ sơ → GET `/api/profiles/batch`** và nhập account ID lấy từ `/api/auth/me`.
+FE gọi:
+
+```javascript
+const ids = ["019a4c30-8000-7000-8000-000000000001"];
+const response = await fetch(
+  `http://localhost:8080/api/profiles/batch?${new URLSearchParams({ ids: ids.join(",") })}`,
+  { credentials: "include" },
+);
+const body = await response.json();
+if (!response.ok) throw new Error(body.message);
+const profiles = body.result;
+```
+
+- Nhận 1–100 UUID, phân cách bằng dấu phẩy hoặc lặp query `ids`; giới hạn tính trước khi bỏ trùng.
+- `result` là danh sách `{accountId, displayName, avatarUrl}`, giữ thứ tự ID xuất hiện đầu tiên.
+- ID không tồn tại, chưa có profile hoặc tài khoản đã xóa được bỏ qua; không tìm thấy trả `[]`.
+- Không trả email, số điện thoại, mật khẩu hoặc thông tin hồ sơ riêng tư. Avatar chưa có trả `null`.
+- GET không cần CSRF header; vẫn bắt buộc access cookie hợp lệ. Thiếu/sai ID trả 400, chưa login trả 401.
+- Dữ liệu công khai này không xác nhận user được phép chơi; restrictions là hợp đồng riêng ở bước tiếp theo.
 
 ## Chạy auth riêng bằng Docker
 
@@ -18,27 +95,31 @@ docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compo
 ```
 
 Lệnh này chỉ chạy `auth-service`, `auth-postgres` và `rabbitmq`.
-`docker/compose.infra.yml` được giữ nguyên; file auth chỉ ghi đè image/tài khoản
-RabbitMQ và bổ sung volume broker cho bộ auth. Các override này áp dụng trong
-project auth, không chỉnh cấu hình hay container của project khác.
-Root `docker-compose.yml` giữ nguyên bản đã commit, không được dùng làm base của bộ này.
+`rabbitmq` chỉ được định nghĩa ở `docker/compose.infra.yml`; cấu hình auth chính
+tham chiếu broker qua `depends_on`, không khai báo lại service/volume RabbitMQ.
+Root `docker-compose.yml` include infra và auth nên dùng được cấu hình này mà không trùng service.
+Các lệnh auth riêng bên dưới ghép file bằng `-f`, không dùng root làm base.
 
 Auth ở `http://localhost:8090`. Cấu hình chính không publish port PostgreSQL;
 RabbitMQ kế thừa port AMQP `127.0.0.1:56729` và UI `http://localhost:15679` từ infra.
-Auth và broker dùng `AUTH_RABBIT_USERNAME`/`AUTH_RABBIT_PASSWORD`, mặc định local
-`poker`/`poker_dev`. Auth trong Docker luôn kết nối `rabbitmq:5672`.
+Auth mặc định dùng `guest`/`guest` để khớp broker chung. Auth trong Docker luôn
+kết nối `rabbitmq:5672`. Nếu `.env` đang đặt `AUTH_RABBIT_USERNAME=poker` và
+`AUTH_RABBIT_PASSWORD=poker_dev`, khi chạy root/cấu hình chung cần đổi thành
+`guest`/`guest` hoặc bỏ/comment hai biến để dùng mặc định; `.env` luôn ghi đè fallback.
 
 ### Override khi phát triển
 
 `auth-service/compose.dev.yml` chỉ chứa các khác biệt dành cho dev:
 
-- `auth-service`: thay port binding API bằng binding localhost.
+- `auth-service`: bind API vào localhost và đổi credential RabbitMQ mặc định thành `poker`/`poker_dev`.
 - `auth-postgres`: mở PostgreSQL ở `127.0.0.1:54330` để dùng DBeaver/IDE.
 - `auth-mailpit`: mở SMTP ở `127.0.0.1:1026` khi bật profile `mailpit`.
-- `rabbitmq`: thay port publish thành `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
+- `rabbitmq`: ghi đè broker infra bằng image `4.1-management-alpine`, credential mặc định `poker`/`poker_dev`, volume `auth-rabbit`; port AMQP `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
 
-File dev không khai báo lại image, environment, dependency hay volume và không
-đổi project name. Cần Docker Compose 2.24.4+ để dùng `!override`.
+File dev chỉ override các khác biệt trên, kế thừa healthcheck của RabbitMQ từ infra
+và giữ project name. Biến `AUTH_RABBIT_USERNAME`/`AUTH_RABBIT_PASSWORD` nếu đặt
+trong `.env` sẽ ghi đè mặc định ở cả app lẫn broker dev; bỏ/comment hai biến để
+tự chọn đúng default chung/dev. Cần Docker Compose 2.24.4+ để dùng `!override`.
 Nếu đang chạy bộ dev cũ, đọc mục chuyển đổi bên dưới trước khi chạy lần đầu.
 Ghép file dev **sau** infra và cấu hình auth; không chạy file dev một mình:
 
@@ -54,10 +135,12 @@ curl http://localhost:8090/actuator/health
 
 Không cần profile `app`. Cấu hình chính và dev dùng cùng project `poker-auth-dev`
 (được khai báo trong `auth-service/compose.yml` để giữ tên project cũ), cùng volume
-DB, RabbitMQ và khóa JWT. Đây là một bộ auth với hai cách cấu hình port.
+DB và khóa JWT. Chỉ file dev gắn volume RabbitMQ `auth-rabbit` của bộ auth cũ;
+cấu hình chính dùng broker nguyên bản từ infra.
 PostgreSQL là `auth_db`, tài khoản lấy từ `AUTH_DB_USERNAME`/`AUTH_DB_PASSWORD`
-(mặc định local `poker`/`poker_dev`). Root Compose là cách chạy khác, không dùng
-chung các volume auth này và không tự ghép các file auth vào khi chạy.
+(mặc định local `poker`/`poker_dev`). Root Compose include cấu hình auth chính cùng
+các service khác; không include file dev. Giữ nguyên tên project/volume khi tiếp tục
+bộ dev đang có dữ liệu.
 
 ### Chuyển từ Compose dev cũ
 
@@ -298,3 +381,13 @@ không volume. Test verify/resend điều khiển đồng hồ để kiểm tra 
 kiểm tra đồng thời, rollback SMTP và event retry. Không cần bật Compose dev cho test.
 Luồng auth qua gateway và hướng dẫn chạy nằm trong [README gateway](../api-gateway/README.md).
 Các kiểm tra phase 2–3 trên không có nghĩa đã chạy FE/game hay build lại container dev.
+
+## Tổ chức nghiệp vụ trong auth-service
+
+- `AuthService` / `AuthServiceImpl`: đăng ký, OTP, login, refresh, logout và người dùng hiện tại.
+- `ProfileService` / `ProfileServiceImpl`: đọc/sửa hồ sơ, batch profile và avatar (preset, presign, xác nhận upload).
+- `ProfileMapper`: chỉ chuyển entity/DTO; service nhờ `S3AvatarStorage` ký URL xem ảnh.
+- `integration/messaging/RegistrationEventDispatcher`: phát lại outbox `account.registered` trong transaction riêng, được scheduler gọi sau khi dữ liệu đăng ký đã commit.
+
+Các controller tách theo nhóm API/Swagger; tất cả vẫn thuộc cùng một microservice `auth-service`.
+Storage, JWT, cookie và mail là thành phần kỹ thuật dùng bởi service nghiệp vụ.

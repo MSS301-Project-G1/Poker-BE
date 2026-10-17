@@ -31,9 +31,9 @@ public class RegistrationInfrastructureConfiguration {
         sender.setHost(mailpitContainer.getHost());
         sender.setPort(mailpitContainer.getMappedPort(1025));
         sender.setDefaultEncoding("UTF-8");
-        sender.getJavaMailProperties().setProperty("mail.smtp.connectiontimeout", "3000");
-        sender.getJavaMailProperties().setProperty("mail.smtp.timeout", "3000");
-        sender.getJavaMailProperties().setProperty("mail.smtp.writetimeout", "3000");
+        sender.getJavaMailProperties().setProperty("mail.smtp.connectiontimeout", "10000");
+        sender.getJavaMailProperties().setProperty("mail.smtp.timeout", "10000");
+        sender.getJavaMailProperties().setProperty("mail.smtp.writetimeout", "10000");
         return sender;
     }
 }

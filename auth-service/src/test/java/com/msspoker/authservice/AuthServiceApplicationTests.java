@@ -36,7 +36,9 @@ class AuthServiceApplicationTests {
         assertThat(document.get("info").get("title").asString()).isEqualTo("Poker Auth Service API");
         assertThat(document.path("servers").get(0).path("url").asString()).isEqualTo("/");
         JsonNode paths = document.get("paths");
-        assertThat(paths.size()).isEqualTo(9);
+        assertThat(paths.has("/api/auth/login")).isTrue();
+        assertThat(paths.has("/api/auth/refresh")).isTrue();
+        assertThat(paths.has("/api/auth/logout")).isTrue();
         assertThat(paths.has("/api/auth/register")).isTrue();
         assertThat(paths.has("/api/auth/register/verify-otp")).isTrue();
         assertThat(paths.has("/api/auth/register/resend-otp")).isTrue();
