@@ -1,5 +1,6 @@
 package com.msspoker.authservice.service.impl;
 
+import com.msspoker.authservice.dto.auth.request.ChangePasswordRequest;
 import com.msspoker.authservice.dto.auth.request.ForgotPasswordRequest;
 import com.msspoker.authservice.dto.auth.request.LoginRequest;
 import com.msspoker.authservice.dto.auth.request.RegisterRequest;
@@ -195,6 +196,24 @@ public class AuthServiceImpl implements AuthService {
         passwordResetOtpRepository.delete(otp);
         // Password, OTP consumption and revocation of every device commit atomically.
         refreshTokenRepository.revokeAllByAccountId(account.getId(), now);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(UUID accountId, ChangePasswordRequest request) {
+        validate(request);
+        validateNewPassword(request.newPassword(), request.confirmPassword());
+        Account account = accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_UNAUTHENTICATED));
+        requireActive(account);
+        if (request.currentPassword().getBytes(StandardCharsets.UTF_8).length > 72
+                || !passwordEncoder.matches(request.currentPassword(), account.getPasswordHash())) {
+            throw new ApiException(ErrorCode.AUTH_CURRENT_PASSWORD_INVALID);
+        }
+        account.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        // A recovery code issued before this change must not reset the new password later.
+        passwordResetOtpRepository.deleteById(account.getId());
+        refreshTokenRepository.revokeAllByAccountId(account.getId(), clock.instant());
     }
 
     @Override

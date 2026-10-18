@@ -1,5 +1,6 @@
 package com.msspoker.authservice.controller;
 
+import com.msspoker.authservice.dto.auth.request.ChangePasswordRequest;
 import com.msspoker.authservice.dto.auth.request.ForgotPasswordRequest;
 import com.msspoker.authservice.dto.auth.request.LoginRequest;
 import com.msspoker.authservice.dto.auth.request.ResetPasswordRequest;
@@ -63,6 +64,23 @@ public class AuthController {
         cookies.clear(response);
         return ResponseEntity.ok(ApiResponse.<Void>builder().code(ApiResponse.SUCCESS_CODE)
                 .message("Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.")
+                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+    }
+
+    @PostMapping("/password/change")
+    @Tag(name = "Đổi mật khẩu")
+    @SecurityRequirement(name = "csrfToken")
+    @Operation(summary = "Đổi mật khẩu khi đang đăng nhập", description = "Cần access cookie và CSRF. "
+            + "Account lấy từ JWT; kiểm tra currentPassword và newPassword/confirmPassword theo quy tắc đăng ký. "
+            + "Không cần OTP. Thành công thu hồi mọi refresh token, hủy OTP reset đang có và xóa cookie trình duyệt hiện tại; FE về login. "
+            + "Access JWT đã phát vẫn có hiệu lực tới hạn, chưa có blacklist.")
+    public ResponseEntity<ApiResponse<Void>> changePassword(HttpServletRequest request, HttpServletResponse response,
+            @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody ChangePasswordRequest body) {
+        authService.changePassword(UUID.fromString(jwt.getSubject()), body);
+        cookies.clear(response);
+        return ResponseEntity.ok(ApiResponse.<Void>builder().code(ApiResponse.SUCCESS_CODE)
+                .message("Đổi mật khẩu thành công. Vui lòng đăng nhập lại.")
                 .path(request.getRequestURI()).timestamp(Instant.now()).build());
     }
 

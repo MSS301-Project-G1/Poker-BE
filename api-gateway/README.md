@@ -95,7 +95,8 @@ Refresh cookie vẫn có Path `/api/auth`, không đổi path khi proxy.
 | GET `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | Swagger/OpenAPI auth |
 | GET `/actuator/health`, `/actuator/health/**` | Health của gateway |
 
-GET `/api/auth/me` và `/api/auth/ws-token` yêu cầu access cookie hợp lệ.
+GET `/api/auth/me`, `/api/auth/ws-token` và POST `/api/auth/password/change` yêu cầu access cookie hợp lệ.
+Đổi mật khẩu còn cần CSRF do auth kiểm tra; gateway giữ nguyên body/header và cookie xóa khi thành công.
 Access cookie hết hạn không ngăn login/refresh/logout; gateway bỏ qua xác thực
 access trên các endpoint public được liệt kê theo đúng method/path.
 Các `/api/**` khác cần đăng nhập; `/api/admin/**` cần ADMIN. `/internal/**` luôn bị

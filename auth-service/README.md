@@ -5,7 +5,7 @@ login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
 hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT; 5.3 có quên/reset mật khẩu bằng OTP.
-Đổi mật khẩu khi đang đăng nhập và FE chưa triển khai.
+5.4 có đổi mật khẩu khi đang đăng nhập; FE chưa triển khai.
 Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
 API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
@@ -355,6 +355,31 @@ Response thành công dùng `ApiResponse` không có `result`; lỗi dùng `Erro
 Có migration V5 khi start bản mới. Test dùng PostgreSQL tạm và mail mock; chưa test SMTP
 thật cho reset, chưa rebuild stack dev. Hợp đồng đầy đủ và hướng dẫn FE ở
 [password-reset.md](../docs/auth/password-reset.md). SPEC giữ nguyên chờ Khanh review.
+
+## Đổi mật khẩu khi đang đăng nhập — phase 5.4
+
+`POST /api/auth/password/change` yêu cầu access cookie + CSRF (không public, không cần OTP).
+Account lấy từ JWT, body chỉ có:
+
+```json
+{
+  "currentPassword": "OldPoker123!",
+  "newPassword": "NewPoker123!",
+  "confirmPassword": "NewPoker123!"
+}
+```
+
+Swagger: lấy CSRF vào Authorize, login, mở nhóm **Đổi mật khẩu**. BE kiểm tra mật khẩu
+hiện tại và áp dụng cùng quy tắc mật khẩu đăng ký/reset cho newPassword; FE cũng kiểm
+tra confirmPassword. Mật khẩu hiện tại sai trả 400 `AUTH_CURRENT_PASSWORD_INVALID`,
+không tự refresh/retry do lỗi này. Sai xác nhận trả 400 `AUTH_PASSWORD_MISMATCH`.
+
+Thành công trả 200 `ApiResponse` không có `result`, đổi password hash, thu hồi mọi
+refresh token của đúng account, hủy OTP khôi phục đang chờ và xóa cookie trình duyệt
+hiện tại. FE xóa cache user và về login, chưa tự đăng nhập lại. Access JWT đã phát vẫn
+sống tới hạn theo cơ chế hiện tại. Thất bại giữ nguyên dữ liệu/phiên/cookie.
+Không cần migration hoặc biến môi trường mới. Hợp đồng và hướng dẫn FE ở
+[change-password.md](../docs/auth/change-password.md). SPEC chờ Khanh review.
 
 ## Test login/refresh/logout bằng Swagger
 

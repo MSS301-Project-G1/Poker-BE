@@ -1,5 +1,6 @@
 package com.msspoker.authservice.service;
 
+import com.msspoker.authservice.dto.auth.request.ChangePasswordRequest;
 import com.msspoker.authservice.dto.auth.request.ForgotPasswordRequest;
 import com.msspoker.authservice.dto.auth.request.LoginRequest;
 import com.msspoker.authservice.dto.auth.request.RegisterRequest;
@@ -22,6 +23,7 @@ public interface AuthService {
 
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
+    void changePassword(UUID accountId, ChangePasswordRequest request);
 
     SessionTokens login(LoginRequest request, String previousRefreshToken);
     SessionTokens refresh(String refreshToken);

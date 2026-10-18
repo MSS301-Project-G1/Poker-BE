@@ -130,6 +130,32 @@ class GatewayIntegrationTests {
     }
 
     @Test
+    void passwordChangeRequiresAccessAndForwardsCsrfBodyAndClearedCookies() {
+        String path = "/api/auth/password/change";
+        String body = "{\"currentPassword\":\"OldPoker123!\",\"newPassword\":\"NewPoker123!\",\"confirmPassword\":\"NewPoker123!\"}";
+        client.post().uri(path).cookie("XSRF-TOKEN", "csrf-example").header("X-XSRF-TOKEN", "csrf-example")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isUnauthorized();
+        assertThat(LAST.get()).isNull();
+        REPLY.set(new Reply(200, "{\"code\":\"success_request\"}", List.of(
+                "accessToken=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+                "refreshToken=; Path=/api/auth; Max-Age=0; HttpOnly; SameSite=Lax")));
+        client.post().uri(path).cookie("accessToken", token("USER", "valid"))
+                .cookie("XSRF-TOKEN", "csrf-example").header("X-XSRF-TOKEN", "csrf-example")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isOk()
+                .expectCookie().maxAge("accessToken", Duration.ZERO).expectCookie().maxAge("refreshToken", Duration.ZERO);
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        assertThat(LAST.get().body()).isEqualTo(body);
+        assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+        assertThat(LAST.get().headers().get("X-XSRF-TOKEN")).isEqualTo("csrf-example");
+        // Auth owns CSRF validation on /api/auth/**; preserve its failure without clearing cookies.
+        REPLY.set(new Reply(403, "{\"code\":\"AUTH_CSRF_INVALID\"}", List.of()));
+        client.post().uri(path).cookie("accessToken", token("USER", "valid"))
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isForbidden()
+                .expectHeader().doesNotExist(HttpHeaders.SET_COOKIE);
+        assertThat(LAST.get().headers()).doesNotContainKey("X-XSRF-TOKEN");
+    }
+
+    @Test
     void cookieAndCsrfContractSurvivesLoginMeRefreshAndLogout() throws Exception {
         REPLY.set(new Reply(200, "{\"result\":{\"token\":\"csrf-example\"}}",
                 List.of("XSRF-TOKEN=csrf-example; Path=/; HttpOnly; SameSite=Lax")));

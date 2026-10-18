@@ -24,6 +24,7 @@ public enum ErrorCode {
     AUTH_AVATAR_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "Ảnh vượt quá giới hạn dung lượng upload."),
     AUTH_AVATAR_UPLOAD_NOT_FOUND(HttpStatus.NOT_FOUND, "Chưa tìm thấy ảnh đã upload. Vui lòng hoàn tất PUT lên S3 trước."),
     AUTH_AVATAR_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Chưa lưu được avatar, vui lòng thử lại sau."),
+    AUTH_CURRENT_PASSWORD_INVALID(HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại không đúng."),
     AUTH_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "Xác nhận mật khẩu không khớp."),
     AUTH_PASSWORD_INVALID(HttpStatus.BAD_REQUEST, "Mật khẩu cần ít nhất 8 ký tự và tối đa 72 byte UTF-8."),
     AUTH_EMAIL_IN_USE(HttpStatus.CONFLICT, "Email đã được sử dụng."),

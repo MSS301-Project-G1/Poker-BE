@@ -72,7 +72,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me",
                                 "/api/profiles/avatars", "/api/profiles/avatars/presets/*", "/api/profiles/me/avatar/presign").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/profiles/me", "/api/profiles/me/avatar").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/profiles/me/avatar").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/profiles/me/avatar", "/api/auth/password/change").authenticated()
                         .anyRequest().denyAll())
 
                 .exceptionHandling(config -> config
