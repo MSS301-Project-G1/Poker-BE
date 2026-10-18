@@ -61,13 +61,14 @@ public class SecurityConfig {
                 .cors(config -> config.configurationSource(source))
                 .csrf(config -> config.csrfTokenRepository(csrf)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers("/api/auth/register", "/api/auth/register/verify-otp", "/api/auth/register/resend-otp"))
+                        .ignoringRequestMatchers("/api/auth/register", "/api/auth/register/verify-otp", "/api/auth/register/resend-otp",
+                                "/api/auth/password/forgot", "/api/auth/password/reset"))
 
                 .authorizeHttpRequests(config -> config
                         .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/api/auth/csrf",
                                 "/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
-                                "/api/auth/register/resend-otp", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                                "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me",
                                 "/api/profiles/avatars", "/api/profiles/avatars/presets/*", "/api/profiles/me/avatar/presign").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/profiles/me", "/api/profiles/me/avatar").authenticated()

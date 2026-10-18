@@ -89,6 +89,7 @@ Refresh cookie vẫn có Path `/api/auth`, không đổi path khi proxy.
 |---|---|
 | GET `/api/auth/csrf` | Auth cấp cookie/token CSRF |
 | POST `/api/auth/register`, `/api/auth/register/verify-otp`, `/api/auth/register/resend-otp` | Auth xử lý đăng ký/OTP; không yêu cầu access token |
+| POST `/api/auth/password/forgot`, `/api/auth/password/reset` | Public, không yêu cầu access token/CSRF; auth kiểm tra OTP khôi phục |
 | POST `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout` | Không yêu cầu access token; auth kiểm tra CSRF và nghiệp vụ phiên |
 | GET `/.well-known/jwks.json` | Public key từ auth |
 | GET `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | Swagger/OpenAPI auth |

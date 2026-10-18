@@ -20,8 +20,12 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 
     Optional<Account> findByIdAndDeletedFalse(UUID accountId);
 
-    // Verification and resends share this lock to serialize changes to the current OTP.
+    // Login, recovery, verification and resends serialize changes through the account row.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE a.email = :email")
     Optional<Account> findByEmailForUpdate(@Param("email") String email);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Account a WHERE a.id = :id AND a.deleted = false")
+    Optional<Account> findByIdForUpdate(@Param("id") UUID accountId);
 }

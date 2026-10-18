@@ -112,6 +112,24 @@ class GatewayIntegrationTests {
     }
 
     @Test
+    void passwordRecoveryPathsArePublicAndPreserveBodiesWithoutCsrf() throws Exception {
+        for (String path : List.of("/api/auth/password/forgot", "/api/auth/password/reset")) {
+            String body = path.endsWith("forgot") ? "{\"email\":\"khanh@example.com\"}"
+                    : "{\"email\":\"khanh@example.com\",\"otp\":\"012345\",\"password\":\"NewPoker123!\",\"confirmPassword\":\"NewPoker123!\"}";
+            for (String stale : List.of("", token("USER", "expired"))) {
+                var request = client.post().uri(path).contentType(MediaType.APPLICATION_JSON);
+                if (!stale.isEmpty()) request.cookie("accessToken", stale);
+                request.bodyValue(body).exchange().expectStatus().isOk();
+                assertThat(LAST.get().uri()).isEqualTo(path);
+                assertThat(LAST.get().body()).isEqualTo(body);
+                assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-XSRF-TOKEN");
+            }
+        }
+        client.post().uri("/api/auth/password/other").contentType(MediaType.APPLICATION_JSON).bodyValue("{}")
+                .exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
     void cookieAndCsrfContractSurvivesLoginMeRefreshAndLogout() throws Exception {
         REPLY.set(new Reply(200, "{\"result\":{\"token\":\"csrf-example\"}}",
                 List.of("XSRF-TOKEN=csrf-example; Path=/; HttpOnly; SameSite=Lax")));

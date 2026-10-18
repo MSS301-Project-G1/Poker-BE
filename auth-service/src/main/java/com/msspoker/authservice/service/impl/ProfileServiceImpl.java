@@ -75,9 +75,12 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     @Transactional
     public MyProfileResponse updateMyProfile(UUID accountId, UpdateProfileRequest request) {
+        // Account first, matching password reset; a stale profile form must not restore an old password.
+        Account account = accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_UNAUTHENTICATED));
+        requireActive(account);
         // Share the avatar update lock so saving this form cannot overwrite a concurrent avatar change.
         Profile profile = profileRepository.findByAccountIdForUpdate(accountId).orElse(null);
-        Account account = activeAccount(accountId);
         if (request == null || !validator.validate(request).isEmpty()) {
             throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
         }
@@ -146,13 +149,17 @@ public class ProfileServiceImpl implements ProfileService {
         if (accountId == null) throw new ApiException(ErrorCode.AUTH_UNAUTHENTICATED);
         Account account = accountRepository.findByIdAndDeletedFalse(accountId)
                 .orElseThrow(() -> new ApiException(ErrorCode.AUTH_UNAUTHENTICATED));
+        requireActive(account);
+        return account;
+    }
+
+    private void requireActive(Account account) {
         if (!account.isEmailVerified() || account.getAccountStatus() == AccountStatus.PENDING_VERIFICATION) {
             throw new ApiException(ErrorCode.AUTH_EMAIL_VERIFICATION_PENDING);
         }
         if (account.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new ApiException(ErrorCode.AUTH_ACCOUNT_UNAVAILABLE);
         }
-        return account;
     }
 
     private String optionalText(String value) {

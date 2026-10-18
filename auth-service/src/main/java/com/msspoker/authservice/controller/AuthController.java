@@ -1,6 +1,8 @@
 package com.msspoker.authservice.controller;
 
+import com.msspoker.authservice.dto.auth.request.ForgotPasswordRequest;
 import com.msspoker.authservice.dto.auth.request.LoginRequest;
+import com.msspoker.authservice.dto.auth.request.ResetPasswordRequest;
 import com.msspoker.authservice.dto.auth.response.CsrfResponse;
 import com.msspoker.authservice.dto.auth.response.CurrentUserResponse;
 import com.msspoker.authservice.dto.auth.response.SessionResponse;
@@ -36,6 +38,33 @@ import java.util.UUID;
 public class AuthController {
     private final AuthService authService;
     private final AuthCookieService cookies;
+
+    @PostMapping("/password/forgot")
+    @Tag(name = "Khôi phục mật khẩu")
+    @Operation(summary = "1. Gửi OTP đặt lại mật khẩu", description = "Public, không cần cookie/CSRF. "
+            + "Luôn trả cùng thông báo cho email hợp lệ dù tài khoản không tồn tại/chưa xác thực hoặc đang chờ gửi lại. "
+            + "OTP dùng AUTH_OTP_*: mặc định 6 số, 5 phút, gửi lại sau 60 giây; gọi lại endpoint này để gửi lại.")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(HttpServletRequest request,
+            @Valid @RequestBody ForgotPasswordRequest body) {
+        authService.forgotPassword(body);
+        return ResponseEntity.ok(ApiResponse.<Void>builder().code(ApiResponse.SUCCESS_CODE)
+                .message("Nếu email đủ điều kiện khôi phục, mã OTP sẽ được gửi. Vui lòng kiểm tra hộp thư.")
+                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+    }
+
+    @PostMapping("/password/reset")
+    @Tag(name = "Khôi phục mật khẩu")
+    @Operation(summary = "2. Đặt lại mật khẩu bằng OTP", description = "Public, không cần cookie/CSRF; chỉ dùng OTP khôi phục. "
+            + "Mật khẩu mới theo quy tắc đăng ký. Thành công tiêu thụ OTP, thu hồi mọi refresh token và xóa cookie ở trình duyệt hiện tại; "
+            + "FE về màn login. Access JWT đã cấp vẫn có hiệu lực tới hạn; chưa có blacklist.")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(HttpServletRequest request, HttpServletResponse response,
+            @Valid @RequestBody ResetPasswordRequest body) {
+        authService.resetPassword(body);
+        cookies.clear(response);
+        return ResponseEntity.ok(ApiResponse.<Void>builder().code(ApiResponse.SUCCESS_CODE)
+                .message("Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.")
+                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+    }
 
     @GetMapping("/csrf")
     @Operation(summary = "1. Lấy CSRF token", description = "Lưu cookie XSRF-TOKEN và trả token. Swagger: copy result.token vào Authorize → csrfToken. FE gửi header X-XSRF-TOKEN và credentials: include.")

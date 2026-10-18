@@ -40,7 +40,7 @@ public class GatewaySecurityConfig {
     private static final String[] PUBLIC_GET = {"/api/auth/csrf", "/.well-known/jwks.json", "/actuator/health",
             "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"};
     private static final String[] PUBLIC_POST = {"/api/auth/register", "/api/auth/register/verify-otp",
-            "/api/auth/register/resend-otp", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"};
+            "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"};
 
     @Bean
     ReactiveJwtDecoder gatewayJwtDecoder(@Value("${gateway.jwt.jwk-set-uri}") String jwkSetUri,

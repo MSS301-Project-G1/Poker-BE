@@ -4,7 +4,8 @@ Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ v�
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
-hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT. Quên/reset mật khẩu và FE chưa triển khai.
+hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT; 5.3 có quên/reset mật khẩu bằng OTP.
+Đổi mật khẩu khi đang đăng nhập và FE chưa triển khai.
 Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
 API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
@@ -263,7 +264,8 @@ port DB; file dev chỉ bổ sung port host. Auth trong Docker luôn kết nối
 Cấu hình chính và dev dùng cùng database/volume. Không bật đồng thời app Java
 trên host và container auth trên cùng port 8090.
 
-Flyway áp dụng V1–V4 khi khởi động; V4 thêm `refresh_tokens`, không sửa migration đã dùng.
+Flyway áp dụng V1–V5 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
+`password_reset_otps` riêng với OTP đăng ký; không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
 không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,
 V2 dừng để review dữ liệu thay vì tự làm profile đó xuất hiện lại.
@@ -314,6 +316,45 @@ Job mặc định 5000 ms/batch, tối đa 20 rows; timeout confirm 5 giây/even
 ACK phải có ít nhất một queue nhận; không chứng minh tất cả consumer đã sẵn sàng.
 Consumer chống trùng bằng `eventId`: crash sau ACK/trước DB commit có thể phát lại.
 Không gọi ví/cấp quà trong phase 2.
+
+## Quên/đặt lại mật khẩu — phase 5.3
+
+Hai API public, không cần access cookie hay CSRF; gateway đã allowlist đúng hai path:
+
+1. `POST /api/auth/password/forgot` với `{ "email": "khanh@example.com" }`.
+2. Lấy OTP **đặt lại mật khẩu** trong email, gọi `POST /api/auth/password/reset`:
+
+   ```json
+   {
+     "email": "khanh@example.com",
+     "otp": "012345",
+     "password": "NewPoker123!",
+     "confirmPassword": "NewPoker123!"
+   }
+   ```
+
+3. Thành công thì về màn login, đăng nhập bằng mật khẩu mới; OTP chỉ dùng một lần.
+
+Swagger có nhóm **Khôi phục mật khẩu**. Gửi lại OTP bằng cách gọi lại `forgot` sau
+cooldown. Dùng chung `AUTH_OTP_*`: 6 số, mặc định hạn 5 phút, 5 lần thử, gửi lại sau
+60 giây; quy tắc mật khẩu giống đăng ký, BE kiểm tra cả `confirmPassword`.
+OTP khôi phục lưu ở bảng riêng, không dùng OTP đăng ký.
+
+`forgot` nhận email hợp lệ luôn trả HTTP 200/thông báo chung, kể cả email không tồn tại,
+đang cooldown hoặc SMTP lỗi. Cooldown không gửi thêm mail; SMTP lỗi giữ nguyên mã
+và bộ đếm cũ. Kiểm tra cấu hình SMTP/log chung nếu không nhận được mail. Gửi mail còn
+đồng bộ, chưa bảo đảm thời gian phản hồi đồng nhất giữa email tồn tại và không tồn tại.
+
+Reset thành công thu hồi mọi refresh token của đúng account và xóa access/refresh
+cookie trình duyệt hiện tại, chưa tự login. Access JWT đã phát vẫn hợp lệ tới hạn;
+chưa có blacklist. Không ảnh hưởng phiên của account khác.
+Lỗi reset gồm `AUTH_OTP_INVALID`/`AUTH_OTP_EXPIRED` (400),
+`AUTH_OTP_ATTEMPTS_EXCEEDED` (429), `AUTH_PASSWORD_MISMATCH`/`AUTH_PASSWORD_INVALID` (400).
+Response thành công dùng `ApiResponse` không có `result`; lỗi dùng `ErrorResponse` chung.
+
+Có migration V5 khi start bản mới. Test dùng PostgreSQL tạm và mail mock; chưa test SMTP
+thật cho reset, chưa rebuild stack dev. Hợp đồng đầy đủ và hướng dẫn FE ở
+[password-reset.md](../docs/auth/password-reset.md). SPEC giữ nguyên chờ Khanh review.
 
 ## Test login/refresh/logout bằng Swagger
 
