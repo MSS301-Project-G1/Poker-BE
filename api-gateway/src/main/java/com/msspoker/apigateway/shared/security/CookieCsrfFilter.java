@@ -25,6 +25,10 @@ public class CookieCsrfFilter implements WebFilter {
         // Auth issues and validates its own CSRF token; do not create a competing gateway cookie.
         if (SAFE_METHODS.contains(request.getMethod()) || !path.startsWith("/api/")
                 || path.equals("/api/auth") || path.startsWith("/api/auth/")) return chain.filter(exchange);
+        // PayOS calls this endpoint server-to-server; shop verifies the webhook signature.
+        if (HttpMethod.POST.equals(request.getMethod()) && path.equals("/api/payments/payos/webhook")) {
+            return chain.filter(exchange);
+        }
         var cookies = request.getCookies().get("XSRF-TOKEN");
         var headers = request.getHeaders().get("X-XSRF-TOKEN");
         if (cookies == null || cookies.size() != 1 || headers == null || headers.size() != 1

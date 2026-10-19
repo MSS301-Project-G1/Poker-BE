@@ -38,9 +38,12 @@ import java.util.UUID;
 @Configuration(proxyBeanMethods = false)
 public class GatewaySecurityConfig {
     private static final String[] PUBLIC_GET = {"/api/auth/csrf", "/.well-known/jwks.json", "/actuator/health",
-            "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"};
+            "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
+            "/api/ranking/leaderboard", "/api/seasons/current", "/api/seasons/*/rewards",
+            "/api/rooms", "/api/tournaments", "/api/tournaments/*"};
     private static final String[] PUBLIC_POST = {"/api/auth/register", "/api/auth/register/verify-otp",
-            "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"};
+            "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+            "/api/payments/payos/webhook"};
 
     @Bean
     ReactiveJwtDecoder gatewayJwtDecoder(@Value("${gateway.jwt.jwk-set-uri}") String jwkSetUri,
@@ -103,6 +106,9 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(config -> config
                         .pathMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
                         .pathMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/shop/categories").hasRole("ADMIN")
+                        .pathMatchers(HttpMethod.PUT, "/api/shop/categories/*").hasRole("ADMIN")
+                        .pathMatchers(HttpMethod.DELETE, "/api/shop/categories/*").hasRole("ADMIN")
                         .pathMatchers("/api/admin/**").hasRole("ADMIN")
                         .pathMatchers("/api/**").authenticated().anyExchange().denyAll())
                 .exceptionHandling(config -> config

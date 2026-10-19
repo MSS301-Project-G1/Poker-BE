@@ -102,12 +102,14 @@ access trên các endpoint public được liệt kê theo đúng method/path.
 POST `/api/checkin` cần access cookie + CSRF; GET `/api/checkin/calendar?month=yyyy-MM` cần access cookie.
 Gateway route về auth, giữ nguyên HTTP status và envelope, không tự cấp thưởng.
 Nhóm `/api/admin/avatars` và `/api/admin/avatars/**` route về auth; cần role ADMIN, POST/PUT cần CSRF.
-Các `/api/**` khác cần đăng nhập; `/api/admin/**` cần ADMIN. `/internal/**` luôn bị
-chặn. Không public cả prefix `/api/auth/**`.
+Các GET public bổ sung của ranking/competition nằm ở bảng bên dưới; `/api/**` còn lại cần đăng nhập,
+`/api/admin/**` cần ADMIN. `/internal/**` luôn bị chặn. Không public cả prefix `/api/auth/**`.
 
 Auth là nơi cấp/kiểm tra CSRF cho API auth. Gateway chuyển nguyên cookie và header
 `X-XSRF-TOKEN`; không tạo CSRF cookie thứ hai. Với POST/PUT/PATCH/DELETE ngoài auth,
 gateway kiểm tra header khớp cookie `XSRF-TOKEN` hiện có sau khi kiểm tra quyền.
+Ngoại lệ ngoài auth là **POST chính xác `/api/payments/payos/webhook`**: không JWT/CSRF,
+shop tự kiểm tra chữ ký; các path/method thanh toán khác vẫn áp dụng quy tắc bình thường.
 CORS preflight được xử lý ở gateway; Origin lạ hoặc `Sec-Fetch-Site: cross-site`
 không kèm Origin hợp lệ bị từ chối. Response không lặp header CORS từ auth.
 
@@ -115,6 +117,44 @@ Gateway xóa `X-User-Id`, `X-User-Role`, `X-Game-Service-Key`, `X-Dev-User`,
 `Authorization` và các header forwarded do client gửi. Danh tính/role được lấy từ
 JWT đã xác minh; game service key chỉ gắn cho route game. Mỗi request có
 `X-Request-Id` mới, chuyển xuống service và trả về FE.
+
+## Hợp đồng ranking, competition, shop và wallet — 20/10/2026
+
+| Service | Prefix giữ nguyên về upstream |
+|---|---|
+| ranking | `/api/ranking/**`, `/api/seasons/**`, `/api/tutorial/**`, `/api/admin/seasons/**` |
+| competition | `/api/rooms/**`, `/api/tournaments/**`, `/api/admin/tournaments/**` |
+| shop | `/api/shop/**`, `/api/inventory/**`, `/api/payments/**`, `/api/admin/products/**`, `/api/admin/bundles/**`, `/api/admin/payments/**`, `/api/sandbox/**` |
+| wallet | `/api/wallet/**` |
+
+Bốn route này không dùng `StripPrefix`, không gọi auth/DB để tra quyền từng thao tác nghiệp vụ.
+Gateway xác thực JWT cookie, gắn ID/role đáng tin cậy; service kiểm tra chủ phòng, sở hữu, số dư và luật nghiệp vụ của mình.
+
+Các API mới được cho qua khi chưa login, chỉ với đúng method GET:
+
+```text
+GET /api/ranking/leaderboard
+GET /api/seasons/current
+GET /api/seasons/{seasonId}/rewards
+GET /api/rooms
+GET /api/tournaments
+GET /api/tournaments/{tournamentId}
+```
+
+`GET /api/rooms/me`, chi tiết phòng, ranking cá nhân/bạn bè, tutorial và nhận quà vẫn cần login.
+POST cùng path với GET public không tự được public. GET public không gắn danh tính từ cookie hiện tại.
+
+**Shop đang chờ chốt chính sách xem anonymous với owner API; hiện giữ yêu cầu login cho mọi GET shop.**
+Do đó shop có ID đã verify để trả trạng thái sở hữu; FE không tự gửi ID.
+POST `/api/shop/categories` và PUT/DELETE `/api/shop/categories/{id}` yêu cầu ADMIN dù không nằm dưới `/api/admin/**`.
+Các mutation ADMIN vẫn cần CSRF, kể cả PATCH bundle và multipart upload skin.
+
+GET `/api/wallet/me` và `/api/wallet/me/transactions` cần login, chuyển nguyên path/query và ID xuống wallet.
+Response giữ nguyên: auth dùng `result`, shop/wallet dùng `data`, ranking/competition trả DTO trực tiếp;
+gateway không tự unwrap hoặc đổi envelope.
+
+Nguồn contract: [ranking/competition](../docs/gateway/api-ranking-competition.md),
+[shop/wallet](../docs/gateway/shop-wallet-gateway-contract.md). Các file docs đang gitignore theo cấu hình repo.
 
 ## Test bằng Swagger
 
@@ -139,18 +179,20 @@ Error/body/status/cookie từ auth được chuyển tiếp, giữ các mã `AUT
 ## Kiểm tra và phạm vi
 
 ```bash
-mvn -B -pl api-gateway,auth-service -am verify
+mvn -o -B -pl api-gateway -am -Dtest=GatewayIntegrationTests -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
 Gateway test dùng HTTP server/JWKS test trên port ngẫu nhiên và JWT RSA ký thật;
 kiểm tra route/body/query, cookie/CSRF, quyền, giả header, CORS, lỗi kết nối/timeout.
-Auth test dùng PostgreSQL/Mailpit/RabbitMQ tạm qua Testcontainers, không dùng DB dev.
+Đợt contract 20/10 đã qua 27 test gateway, gồm 5 nhóm mới cho route/quyền/CSRF/webhook của 4 service.
+Mỗi service có HTTP fixture riêng để phát hiện route nhầm upstream. Không gọi DB, ví, PayOS hoặc service thật.
+Các test auth riêng dùng PostgreSQL/Mailpit/RabbitMQ tạm qua Testcontainers, không dùng DB dev.
 
-Route auth và game giữ nguyên path controller; các route HTTP khác còn scaffold,
-chưa xác nhận hợp đồng của từng module. Các prefix hồ sơ/điểm danh/báo cáo trong
-route auth chỉ chuẩn bị định tuyến, không có nghĩa nghiệp vụ đó đã triển khai.
-WebSocket/STOMP qua gateway, profiles batch, restrictions và thưởng lần login đầu
-thuộc đợt tiếp theo. `/api/auth/ws-token` hoạt động qua gateway nhưng chưa có
+Route auth, game và 4 service đã có contract giữ nguyên path controller; identity/social/chat
+còn cấu hình scaffold chưa xác nhận. Các prefix báo cáo/admin user trong route auth chỉ chuẩn bị định tuyến,
+không có nghĩa nghiệp vụ đó đã triển khai. Profile batch, avatar và điểm danh đã có code auth.
+WebSocket/STOMP qua gateway, restrictions và thưởng lần login đầu vẫn chưa được triển khai.
+`/api/auth/ws-token` hoạt động qua gateway nhưng chưa có
 luồng game STOMP thật qua gateway.
 
 Game cần service key khớp ở cả hai phía và tự kiểm tra JWT trong STOMP như code

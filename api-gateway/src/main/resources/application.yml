@@ -47,27 +47,19 @@ spring:
             - id: ranking-service
               uri: ${RANKING_SERVICE_URL:http://localhost:8086}
               predicates:
-                - Path=/api/ranking/**
-              filters:
-                - StripPrefix=2
+                - Path=/api/ranking/**,/api/seasons/**,/api/tutorial/**,/api/admin/seasons/**
             - id: competition-service
               uri: ${COMPETITION_SERVICE_URL:http://localhost:8087}
               predicates:
-                - Path=/api/competition/**
-              filters:
-                - StripPrefix=2
+                - Path=/api/rooms/**,/api/tournaments/**,/api/admin/tournaments/**
             - id: shop-service
               uri: ${SHOP_SERVICE_URL:http://localhost:8088}
               predicates:
-                - Path=/api/shop/**
-              filters:
-                - StripPrefix=2
+                - Path=/api/shop/**,/api/inventory/**,/api/payments/**,/api/admin/products/**,/api/admin/bundles/**,/api/admin/payments/**,/api/sandbox/**
             - id: wallet-service
               uri: ${WALLET_SERVICE_URL:http://localhost:8089}
               predicates:
                 - Path=/api/wallet/**
-              filters:
-                - StripPrefix=2
 server:
   port: ${SERVER_PORT:8080}
 gateway:
