@@ -7,7 +7,7 @@ import com.msspoker.rankingservice.repository.PlayerEloRepository;
 import com.msspoker.rankingservice.repository.RewardCreditRepository;
 import com.msspoker.rankingservice.service.EloCalculator;
 import com.msspoker.rankingservice.service.SeasonService;
-import com.msspoker.rankingservice.service.SocialClient;
+import com.msspoker.rankingservice.service.client.SocialClient;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -11,6 +11,7 @@ import com.msspoker.rankingservice.enums.Tier;
 import com.msspoker.rankingservice.repository.EloHistoryRepository;
 import com.msspoker.rankingservice.repository.PlayerEloRepository;
 import com.msspoker.rankingservice.repository.RewardCreditRepository;
+import com.msspoker.rankingservice.service.job.RewardDispatcher;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.IntStream;
 
+import static com.msspoker.rankingservice.service.RatingTestSupport.accounts;
+import static com.msspoker.rankingservice.service.RatingTestSupport.rank;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
@@ -165,19 +167,6 @@ class RatingServiceTest {
         List<RewardCreditEntity> credits = rewards.findAll();
         assertEquals(3, credits.size());
         assertTrue(credits.stream().allMatch(credit -> credit.getCreditedAt() != null && credit.getAttempts() == 1));
-    }
-
-    static List<UUID> accounts(int count) {
-        return IntStream.range(0, count).mapToObj(i -> UUID.randomUUID()).toList();
-    }
-
-    /** accounts are listed by finishing place. */
-    static MatchFinishedEvent rank(List<UUID> accounts, long entryFee) {
-        List<PlacementEvent> placements = IntStream.range(0, accounts.size())
-                .mapToObj(i -> new PlacementEvent(accounts.get(i), i + 1, i == 0 ? 1000L * accounts.size() : 0)).toList();
-        Instant finished = Instant.parse("2026-10-13T08:00:00Z");
-        return new MatchFinishedEvent(UUID.randomUUID(), UUID.randomUUID(), GameMode.RANK, UUID.randomUUID(), entryFee,
-                placements, finished.minusSeconds(600), finished);
     }
 
     private PlayerEloEntity player(UUID accountId) {
