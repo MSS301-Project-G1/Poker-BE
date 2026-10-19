@@ -41,14 +41,20 @@ import java.util.UUID;
 @Tag(name = "Hồ sơ")
 public class AvatarController {
     private final ProfileService profileService;
-    private final AvatarStorage storage;
+    private final AvatarStorage avatarStorage;
 
     @GetMapping("/avatars")
     @Operation(summary = "Danh sách avatar có sẵn", description = "Cần access cookie. Dùng avatarId để chọn; avatarUrl để hiển thị ảnh.")
     public ResponseEntity<ApiResponse<List<AvatarOptionResponse>>> presets(HttpServletRequest request) {
-        return ResponseEntity.ok(ApiResponse.<List<AvatarOptionResponse>>builder().code(ApiResponse.SUCCESS_CODE)
-                .message("Lấy danh sách avatar thành công.").result(profileService.getPresets())
-                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+        return ResponseEntity.ok(
+                ApiResponse.<List<AvatarOptionResponse>>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Lấy danh sách avatar thành công.")
+                        .result(profileService.getPresets())
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
     }
 
     @PutMapping("/me/avatar")
@@ -56,11 +62,16 @@ public class AvatarController {
     @Operation(summary = "Chọn avatar có sẵn", description = "Cần access cookie và CSRF. Chỉ thay avatar của người trong JWT.")
     public ResponseEntity<ApiResponse<ProfileResponse>> select(HttpServletRequest request,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody SelectAvatarRequest body) {
-        return ResponseEntity.ok(ApiResponse.<ProfileResponse>builder().code(ApiResponse.SUCCESS_CODE)
-                .message("Cập nhật avatar thành công.")
-                .result(profileService.selectPreset(UUID.fromString(jwt.getSubject()), body))
-                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+            @Valid @RequestBody SelectAvatarRequest selectAvatarRequest) {
+        return ResponseEntity.ok(
+                ApiResponse.<ProfileResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Cập nhật avatar thành công.")
+                        .result(profileService.selectPreset(UUID.fromString(jwt.getSubject()), selectAvatarRequest))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
     }
 
     @GetMapping("/me/avatar/presign")
@@ -69,10 +80,18 @@ public class AvatarController {
     public ResponseEntity<ApiResponse<AvatarPresignResponse>> presign(HttpServletRequest request,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
             @RequestParam String fileName, @RequestParam String contentType, @RequestParam Long fileSize) {
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.<AvatarPresignResponse>builder().code(ApiResponse.SUCCESS_CODE)
-                .message("Tạo URL upload avatar thành công.")
-                .result(profileService.presign(UUID.fromString(jwt.getSubject()), new AvatarPresignRequest(fileName, contentType, fileSize)))
-                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(
+                        ApiResponse.<AvatarPresignResponse>builder()
+                                .code(ApiResponse.SUCCESS_CODE)
+                                .message("Tạo URL upload avatar thành công.")
+                                .result(profileService.presign(UUID.fromString(jwt.getSubject()),
+                                        new AvatarPresignRequest(fileName, contentType, fileSize)))
+                                .path(request.getRequestURI())
+                                .timestamp(Instant.now())
+                                .build()
+                );
     }
 
     @PostMapping(value = "/me/avatar", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -81,17 +100,24 @@ public class AvatarController {
             + "BE kiểm tra quyền sở hữu key, ảnh thật PNG/JPEG, dung lượng và kích thước rồi cập nhật hồ sơ; cần access cookie và CSRF.")
     public ResponseEntity<ApiResponse<ProfileResponse>> confirm(HttpServletRequest request,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody ConfirmAvatarRequest body) {
-        return ResponseEntity.ok(ApiResponse.<ProfileResponse>builder().code(ApiResponse.SUCCESS_CODE)
-                .message("Cập nhật avatar thành công.")
-                .result(profileService.confirmUpload(UUID.fromString(jwt.getSubject()), body))
-                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+            @Valid @RequestBody ConfirmAvatarRequest confirmAvatarRequest) {
+        return ResponseEntity.ok(
+                ApiResponse.<ProfileResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Cập nhật avatar thành công.")
+                        .result(profileService.confirmUpload(UUID.fromString(jwt.getSubject()), confirmAvatarRequest))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
     }
 
     @GetMapping(value = "/avatars/presets/{avatarId}", produces = "image/svg+xml")
     @Operation(summary = "Xem ảnh avatar có sẵn")
     public ResponseEntity<Resource> presetImage(@PathVariable String avatarId) {
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType("image/svg+xml")).body(storage.presetImage(avatarId));
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("image/svg+xml"))
+                .body(avatarStorage.presetImage(avatarId));
     }
 
 }

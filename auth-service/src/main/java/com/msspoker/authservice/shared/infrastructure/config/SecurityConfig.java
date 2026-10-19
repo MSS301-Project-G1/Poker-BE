@@ -70,9 +70,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
                                 "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me",
-                                "/api/profiles/avatars", "/api/profiles/avatars/presets/*", "/api/profiles/me/avatar/presign").authenticated()
+                                "/api/profiles/avatars", "/api/profiles/avatars/presets/*", "/api/profiles/me/avatar/presign", "/api/checkin/calendar").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/profiles/me", "/api/profiles/me/avatar").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/profiles/me/avatar", "/api/auth/password/change").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/profiles/me/avatar", "/api/auth/password/change", "/api/checkin").authenticated()
                         .anyRequest().denyAll())
 
                 .exceptionHandling(config -> config

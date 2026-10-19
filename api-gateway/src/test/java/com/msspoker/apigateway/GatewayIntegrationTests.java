@@ -130,6 +130,27 @@ class GatewayIntegrationTests {
     }
 
     @Test
+    void checkinRoutesPreservePathsAndRequireAccessAndCsrf() {
+        client.get().uri("/api/checkin/calendar?month=2026-10").exchange().expectStatus().isUnauthorized();
+        client.post().uri("/api/checkin").exchange().expectStatus().isUnauthorized();
+        assertThat(LAST.get()).isNull();
+        String access = token("USER", "valid");
+        client.post().uri("/api/checkin").cookie("accessToken", access).exchange().expectStatus().isForbidden()
+                .expectBody().jsonPath("$.code").isEqualTo("GATEWAY_CSRF_INVALID");
+        assertThat(LAST.get()).isNull();
+        client.get().uri("/api/checkin/calendar?month=2026-10").cookie("accessToken", access)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo("/api/checkin/calendar?month=2026-10");
+        REPLY.set(new Reply(202, "{\"result\":{\"rewardStatus\":\"PENDING\"}}", List.of()));
+        client.post().uri("/api/checkin").cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").header("X-User-Id", UUID.randomUUID().toString())
+                .exchange().expectStatus().isAccepted().expectBody().jsonPath("$.result.rewardStatus").isEqualTo("PENDING");
+        assertThat(LAST.get().uri()).isEqualTo("/api/checkin");
+        assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+        assertThat(LAST.get().headers().get("X-XSRF-TOKEN")).isEqualTo("csrf-example");
+    }
+
+    @Test
     void passwordChangeRequiresAccessAndForwardsCsrfBodyAndClearedCookies() {
         String path = "/api/auth/password/change";
         String body = "{\"currentPassword\":\"OldPoker123!\",\"newPassword\":\"NewPoker123!\",\"confirmPassword\":\"NewPoker123!\"}";

@@ -34,6 +34,8 @@ public enum ErrorCode {
     AUTH_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "Mã OTP đã hết hạn. Vui lòng gửi lại mã."),
     AUTH_OTP_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "Đã hết số lần thử OTP. Vui lòng gửi lại mã."),
     AUTH_OTP_RESEND_TOO_SOON(HttpStatus.TOO_MANY_REQUESTS, "Chưa đến thời gian gửi lại OTP."),
+    AUTH_CHECKIN_ALREADY_EXISTS(HttpStatus.CONFLICT, "Bạn đã điểm danh hôm nay. Xem lịch để biết trạng thái phần thưởng."),
+    AUTH_WALLET_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Ví chưa xác nhận phần thưởng, hệ thống sẽ thử lại sau."),
     AUTH_INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra, vui lòng thử lại sau.");
 
     private final HttpStatus status;

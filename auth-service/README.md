@@ -5,12 +5,41 @@ login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
 hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT; 5.3 có quên/reset mật khẩu bằng OTP.
-5.4 có đổi mật khẩu khi đang đăng nhập; FE chưa triển khai.
+5.4 có đổi mật khẩu khi đang đăng nhập; phase 6 có điểm danh 50 xu/ngày và lịch tháng.
+FE và flow điểm danh với wallet thật chưa kiểm chứng.
 Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
 API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
 [review phase 2](../docs/auth/phase-2.md), [kế hoạch](../docs/auth/implementation-plan.md),
 [chạy Docker và test Swagger](../docs/auth/local-development.md).
+
+## Điểm danh — phase 6
+
+- `POST /api/checkin`: không body, cần access cookie + CSRF. Ngày theo giờ Việt Nam,
+  mặc định 50 xu. Trả 201 khi đã ghi nhận điểm danh; đọc `rewardStatus` để biết đã nhận hay đang chờ thưởng.
+- `GET /api/checkin/calendar?month=2026-10`: cần access cookie; lịch tháng của mình,
+  gồm `month`, `timezone`, `today`, `checkedInToday`, `days`.
+- Mỗi ngày/account chỉ có một bản ghi; gọi lại POST trả 409 `AUTH_CHECKIN_ALREADY_EXISTS`,
+  kể cả đang chờ ví. Đọc lại lịch để theo dõi `rewardStatus`: `PENDING` hoặc `REWARDED`.
+
+Auth lưu điểm danh trước rồi gọi trực tiếp `POST /internal/wallet/credit` với
+`reason=DAILY_CHECKIN`, `currencyType=COIN`, key `checkin:{yyyy-MM-dd}:{accountId}`.
+Ví lỗi/timeout thì giữ PENDING và tự retry cùng key; không phát thêm phần thưởng cho cùng ngày.
+Retry quét tối đa 20 bản ghi/lượt, mặc định mỗi lượt cách 5000 ms và backoff 30 giây tính từ lần gửi lỗi.
+
+Cấu hình mới trong `.env.example`: `AUTH_CHECKIN_REWARD_COINS=50`,
+`AUTH_CHECKIN_RETRY_ENABLED=true`, `AUTH_CHECKIN_RETRY_DELAY=5000`,
+`AUTH_CHECKIN_RETRY_BACKOFF=30s`, `AUTH_WALLET_CONNECT_TIMEOUT=2s`,
+`AUTH_WALLET_REQUEST_TIMEOUT=5s`. Giữ `AUTH_WALLET_BASE_URL` unset/comment:
+Java trên máy mặc định localhost:8089, Compose mặc định `http://wallet-service:8089`.
+Không đặt localhost khi wallet chạy trong container khác. Hai service cần cùng Docker network.
+
+Auth không phụ thuộc startup wallet: chỉ chạy auth thì điểm danh có thể chờ thưởng;
+muốn nhận thưởng thật cần chạy thêm wallet đúng địa chỉ/mạng. Migration V6 tạo
+`daily_checkins`. Swagger có nhóm **Điểm danh**, login và Authorize CSRF như hiện tại.
+7 test quan trọng đã qua với PostgreSQL tạm và ví giả lập HTTP; chưa chạy ví thật/FE.
+Hợp đồng và hướng dẫn đầy đủ: [checkin.md](../docs/auth/checkin.md). Chưa có điểm danh bù;
+SPEC giữ nguyên chờ Khanh review.
 
 ## Avatar có sẵn và S3 upload
 
@@ -264,8 +293,8 @@ port DB; file dev chỉ bổ sung port host. Auth trong Docker luôn kết nối
 Cấu hình chính và dev dùng cùng database/volume. Không bật đồng thời app Java
 trên host và container auth trên cùng port 8090.
 
-Flyway áp dụng V1–V5 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
-`password_reset_otps` riêng với OTP đăng ký; không sửa migration đã dùng.
+Flyway áp dụng V1–V6 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
+`password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`; không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
 không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,
 V2 dừng để review dữ liệu thay vì tự làm profile đó xuất hiện lại.
@@ -452,6 +481,7 @@ Các kiểm tra phase 2–3 trên không có nghĩa đã chạy FE/game hay buil
 
 - `AuthService` / `AuthServiceImpl`: đăng ký, OTP, login, refresh, logout và người dùng hiện tại.
 - `ProfileService` / `ProfileServiceImpl`: đọc/sửa hồ sơ, batch profile và avatar (preset, presign, xác nhận upload).
+- `CheckinService` / `CheckinServiceImpl`: điểm danh, lịch tháng và xử lý thưởng đang chờ; `integration/wallet` chứa HTTP client/job retry.
 - `ProfileMapper`: chỉ chuyển entity/DTO; service nhờ `S3AvatarStorage` ký URL xem ảnh.
 - `integration/messaging/RegistrationEventDispatcher`: phát lại outbox `account.registered` trong transaction riêng, được scheduler gọi sau khi dữ liệu đăng ký đã commit.
 

@@ -99,6 +99,8 @@ GET `/api/auth/me`, `/api/auth/ws-token` và POST `/api/auth/password/change` y�
 Đổi mật khẩu còn cần CSRF do auth kiểm tra; gateway giữ nguyên body/header và cookie xóa khi thành công.
 Access cookie hết hạn không ngăn login/refresh/logout; gateway bỏ qua xác thực
 access trên các endpoint public được liệt kê theo đúng method/path.
+POST `/api/checkin` cần access cookie + CSRF; GET `/api/checkin/calendar?month=yyyy-MM` cần access cookie.
+Gateway route về auth, giữ nguyên HTTP status và envelope, không tự cấp thưởng.
 Các `/api/**` khác cần đăng nhập; `/api/admin/**` cần ADMIN. `/internal/**` luôn bị
 chặn. Không public cả prefix `/api/auth/**`.
 
