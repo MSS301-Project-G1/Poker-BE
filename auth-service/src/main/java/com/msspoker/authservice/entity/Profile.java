@@ -11,6 +11,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -52,6 +53,10 @@ public class Profile {
 
     @Column(name = "avatar_url", length = 2048)
     private String avatarUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "avatar_preset_id")
+    private AvatarPreset avatarPreset;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 16)

@@ -39,6 +39,14 @@ public class S3AvatarStorage {
     private final ObjectProvider<S3Presigner> presigners;
 
     public AvatarPresignResponse presign(UUID accountId, AvatarPresignRequest request) {
+        return presign(accountId, request, "staging/");
+    }
+
+    public AvatarPresignResponse presignPreset(UUID adminId, AvatarPresignRequest request) {
+        return presign(adminId, request, "preset-staging/");
+    }
+
+    private AvatarPresignResponse presign(UUID ownerId, AvatarPresignRequest request, String stagingFolder) {
         requireEnabled();
         if (request.fileSize() > properties.maxFileSize().toBytes()) throw new ApiException(ErrorCode.AUTH_AVATAR_TOO_LARGE);
         String extension = switch (request.contentType()) {
@@ -46,7 +54,7 @@ public class S3AvatarStorage {
             case "image/jpeg" -> ".jpg";
             default -> throw new ApiException(ErrorCode.AUTH_AVATAR_INVALID);
         };
-        String key = prefix() + "staging/" + accountId + "/" + UUID.randomUUID() + extension;
+        String key = prefix() + stagingFolder + ownerId + "/" + UUID.randomUUID() + extension;
         try {
             var signed = presigners.getObject().presignPutObject(PutObjectPresignRequest.builder()
                     .signatureDuration(properties.uploadTtl())
@@ -62,16 +70,25 @@ public class S3AvatarStorage {
     }
 
     public String resolveViewUrl(String value) {
-        return isStoredKey(value) ? viewUrl(value) : value;
+        return isStoredKey(value) || isPresetKey(value) ? viewUrl(value) : value;
     }
 
     public String finalKey(UUID accountId, String stagingKey) {
-        String start = prefix() + "staging/" + accountId + "/";
+        String fileName = stagingFileName(accountId, stagingKey, "staging/");
+        return prefix() + "users/" + accountId + "/" + fileName;
+    }
+
+    public String presetFinalKey(UUID adminId, String stagingKey) {
+        return prefix() + "presets/" + stagingFileName(adminId, stagingKey, "preset-staging/");
+    }
+
+    private String stagingFileName(UUID ownerId, String stagingKey, String stagingFolder) {
+        String start = prefix() + stagingFolder + ownerId + "/";
         if (stagingKey == null || !stagingKey.startsWith(start)
                 || !stagingKey.substring(start.length()).matches("[0-9a-f-]{36}\\.(png|jpg)")) {
             throw new ApiException(ErrorCode.AUTH_FORBIDDEN);
         }
-        return prefix() + "users/" + accountId + "/" + stagingKey.substring(start.length());
+        return stagingKey.substring(start.length());
     }
 
     public void validateAndCopy(String stagingKey, String finalKey) {
@@ -120,6 +137,22 @@ public class S3AvatarStorage {
     public boolean isStoredKey(String value) {
         return value != null && Pattern.matches(Pattern.quote(prefix() + "users/")
                 + "[0-9a-f-]{36}/[0-9a-f-]{36}\\.(png|jpg)", value);
+    }
+
+    private boolean isPresetKey(String value) {
+        return value != null && Pattern.matches(Pattern.quote(prefix() + "presets/")
+                + "[0-9a-f-]{36}\\.(png|jpg)", value);
+    }
+
+    public void deletePreset(String key) {
+        if (isPresetKey(key)) {
+            deleteQuietly(key);
+        }
+    }
+
+    public void deletePresetStaging(UUID adminId, String stagingKey) {
+        presetFinalKey(adminId, stagingKey);
+        deleteQuietly(stagingKey);
     }
 
     public void deleteOwned(UUID accountId, String key) {

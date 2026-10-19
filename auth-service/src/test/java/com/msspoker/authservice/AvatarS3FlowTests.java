@@ -1,6 +1,10 @@
 package com.msspoker.authservice;
 
 import com.msspoker.authservice.dto.profile.request.ConfirmAvatarRequest;
+import com.msspoker.authservice.dto.profile.request.CreateAvatarPresetRequest;
+import com.msspoker.authservice.entity.AvatarPreset;
+import com.msspoker.authservice.enums.AccountRole;
+import com.msspoker.authservice.repository.AvatarPresetRepository;
 import com.msspoker.authservice.entity.Account;
 import com.msspoker.authservice.entity.Profile;
 import com.msspoker.authservice.enums.AccountStatus;
@@ -50,11 +54,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @Import(PostgresTestConfiguration.class)
 class AvatarS3FlowTests {
+    private static final String ADMIN_PATH = "/api/admin/avatars";
     private static final String PATH = "/api/profiles/me/avatar";
     private static final S3TestServer S3 = new S3TestServer();
     @Autowired private WebApplicationContext context;
     @Autowired private AccountRepository accounts;
     @Autowired private ProfileRepository profiles;
+    @Autowired private AvatarPresetRepository avatarPresets;
     @Autowired private JwtService jwtService;
     @Autowired private JsonMapper json;
     @Autowired private ProfileService avatars;
@@ -62,6 +68,8 @@ class AvatarS3FlowTests {
     private MockMvc mvc;
     private Account caller;
     private Cookie access;
+    private Account admin;
+    private Cookie adminAccess;
     private Cookie csrfCookie;
     private String csrfToken;
 
@@ -74,7 +82,6 @@ class AvatarS3FlowTests {
         registry.add("auth.s3.secret-key", () -> "test-secret-key-not-real");
         registry.add("auth.s3.endpoint", S3::url);
         registry.add("auth.s3.max-file-size", () -> "2MB");
-        registry.add("auth.avatar.public-base-url", () -> "http://localhost:8080");
     }
 
     @BeforeEach
@@ -87,6 +94,14 @@ class AvatarS3FlowTests {
             return account;
         });
         access = new Cookie("accessToken", jwtService.issue(caller, Instant.now().plusSeconds(900)));
+        admin = accounts.saveAndFlush(Account.builder()
+                .email(UUID.randomUUID() + "@example.com")
+                .passwordHash("private-hash")
+                .accountStatus(AccountStatus.ACTIVE)
+                .emailVerified(true)
+                .role(AccountRole.ADMIN)
+                .build());
+        adminAccess = new Cookie("accessToken", jwtService.issue(admin, Instant.now().plusSeconds(900)));
         var csrf = mvc.perform(get("/api/auth/csrf")).andReturn().getResponse();
         csrfCookie = csrf.getCookie("XSRF-TOKEN");
         csrfToken = json.readTree(csrf.getContentAsString()).get("result").get("token").asString();
@@ -96,16 +111,110 @@ class AvatarS3FlowTests {
     static void closeS3() { S3.close(); }
 
     @Test
-    void listsAndSelectsBundledPresetsWithoutChangingOtherProfileFields() throws Exception {
+    void adminPublishesS3PresetAndUsersSelectByIdWithoutStoringUrls() throws Exception {
+        byte[] bytes = image("png", 24, 24);
+        JsonNode upload = presetPresign(bytes.length);
+        assertThat(upload.get("key").asString()).startsWith("avatars/preset-staging/" + admin.getId() + "/");
+        putS3(upload, bytes);
+        JsonNode created = result(mvc.perform(adminCreate(upload.get("key").asString()))
+                .andExpect(status().isCreated()).andReturn());
+        UUID avatarId = UUID.fromString(created.get("avatarId").asString());
+        AvatarPreset saved = avatarPresets.findById(avatarId).orElseThrow();
+        assertThat(saved.getObjectKey()).startsWith("avatars/presets/").doesNotContain("http", "X-Amz");
+        assertThat(saved.getCreatedBy()).isEqualTo(admin.getId());
+        assertThat(S3.bytes(saved.getObjectKey())).isEqualTo(bytes);
+        assertThat(S3.exists(upload.get("key").asString())).isFalse();
+        // A repeated confirmation remains safe after staging was deleted.
+        mvc.perform(adminCreate(upload.get("key").asString())).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.result.avatarId").value(avatarId.toString()));
         mvc.perform(get("/api/profiles/avatars")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/profiles/avatars").cookie(access)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.length()").value(3));
-        mvc.perform(get("/api/profiles/avatars/presets/spade").cookie(access)).andExpect(status().isOk())
-                .andExpect(content().contentType("image/svg+xml"));
-        mvc.perform(put(PATH).cookie(access, csrfCookie).header("X-XSRF-TOKEN", csrfToken)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"avatarId\":\"heart\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.result.displayName").value("Khanh"))
-                .andExpect(jsonPath("$.result.avatarUrl").value("http://localhost:8080/api/profiles/avatars/presets/heart"));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(avatarId.toString())));
+        mvc.perform(selectPreset(avatarId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.displayName").value("Khanh"))
+                .andExpect(jsonPath("$.result.avatarUrl").value(org.hamcrest.Matchers.containsString("X-Amz-Signature=")));
+        Profile profile = profiles.findById(caller.getId()).orElseThrow();
+        assertThat(profile.getAvatarUrl()).isNull();
+        assertThat(profile.getAvatarPreset().getId()).isEqualTo(avatarId);
+        for (String endpoint : List.of("/api/profiles/me", "/api/auth/me")) {
+            mvc.perform(get(endpoint).cookie(access)).andExpect(status().isOk())
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("X-Amz-Signature=")));
+        }
+        mvc.perform(get("/api/profiles/batch").cookie(access).param("ids", caller.getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.result[0].avatarUrl")
+                        .value(org.hamcrest.Matchers.containsString("X-Amz-Signature=")));
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(
+                            URI.create(created.get("avatarUrl").asString())).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(response.body()).isEqualTo(bytes);
+        }
+        // Reusing a PUT URL cannot alter the published shared object.
+        putS3(upload, new byte[]{1, 2, 3});
+        assertThat(S3.bytes(saved.getObjectKey())).isEqualTo(bytes);
+    }
+
+    @Test
+    void disablingPresetPreventsNewSelectionsAndKeepsExistingProfilesAndSharedImage() throws Exception {
+        UUID avatarId = createPreset();
+        mvc.perform(selectPreset(avatarId)).andExpect(status().isOk());
+        mvc.perform(put(ADMIN_PATH + "/" + avatarId).cookie(adminAccess, csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Hidden avatar\",\"active\":false}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.result.active").value(false));
+        mvc.perform(get("/api/profiles/avatars").cookie(access)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(avatarId.toString()))));
+        mvc.perform(get(ADMIN_PATH).cookie(adminAccess)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(avatarId.toString())));
+        mvc.perform(selectPreset(avatarId)).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/profiles/me").cookie(access)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.avatarUrl").value(org.hamcrest.Matchers.containsString("/avatars/presets/")));
+        byte[] bytes = image("png", 24, 16);
+        JsonNode custom = presign("image/png", bytes.length);
+        putS3(custom, bytes);
+        mvc.perform(confirm(custom.get("key").asString())).andExpect(status().isOk());
+        assertThat(profiles.findById(caller.getId()).orElseThrow().getAvatarPreset()).isNull();
+        assertThat(S3.exists(avatarPresets.findById(avatarId).orElseThrow().getObjectKey())).isTrue();
+    }
+
+    @Test
+    void adminEndpointsEnforceRolesCsrfAndUploadOwnershipIncludingStaleAdminJwt() throws Exception {
+        mvc.perform(get(ADMIN_PATH)).andExpect(status().isUnauthorized());
+        mvc.perform(get(ADMIN_PATH).cookie(access)).andExpect(status().isForbidden());
+        mvc.perform(get(ADMIN_PATH + "/presign").cookie(access).param("fileName", "x.png")
+                        .param("contentType", "image/png").param("fileSize", "100"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post(ADMIN_PATH).cookie(adminAccess).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("AUTH_CSRF_INVALID"));
+        mvc.perform(write(ADMIN_PATH, "{}")).andExpect(status().isForbidden());
+        JsonNode upload = presetPresign(100);
+        mvc.perform(adminCreate(upload.get("key").asString())).andExpect(status().isNotFound());
+        for (String key : List.of("avatars/preset-staging/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".png",
+                "https://example.com/avatar.png", presign("image/png", 100).get("key").asString())) {
+            mvc.perform(adminCreate(key)).andExpect(status().isForbidden());
+        }
+        // The admin-issued staging key cannot be confirmed as a user's custom upload either.
+        mvc.perform(confirm(upload.get("key").asString())).andExpect(status().isForbidden());
+        admin.setRole(AccountRole.USER);
+        accounts.saveAndFlush(admin);
+        mvc.perform(get(ADMIN_PATH).cookie(adminAccess)).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void presetCreateRollbackRemovesPublishedCopyAndKeepsStagingForRetry() throws Exception {
+        byte[] bytes = image("png", 16, 16);
+        JsonNode upload = presetPresign(bytes.length);
+        String key = upload.get("key").asString();
+        putS3(upload, bytes);
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            avatars.createPreset(admin.getId(), new CreateAvatarPresetRequest("Rollback avatar", key));
+            status.setRollbackOnly();
+        });
+        String objectKey = "avatars/presets/" + key.substring(key.lastIndexOf('/') + 1);
+        assertThat(S3.exists(objectKey)).isFalse();
+        assertThat(S3.exists(key)).isTrue();
+        assertThat(avatarPresets.findByObjectKey(objectKey)).isEmpty();
+        mvc.perform(adminCreate(key)).andExpect(status().isCreated());
     }
 
     @Test
@@ -152,8 +261,7 @@ class AvatarS3FlowTests {
         mvc.perform(confirm(presign.get("key").asString())).andExpect(status().isOk());
         String stored = profiles.findById(caller.getId()).orElseThrow().getAvatarUrl();
         assertThat(stored).endsWith(".jpg");
-        mvc.perform(put(PATH).cookie(access, csrfCookie).header("X-XSRF-TOKEN", csrfToken)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"avatarId\":\"spade\"}"))
+        mvc.perform(selectPreset(createPreset()))
                 .andExpect(status().isOk());
         assertThat(S3.exists(stored)).isFalse();
     }
@@ -244,6 +352,33 @@ class AvatarS3FlowTests {
             assertThat(parameter.get("in").asString()).isEqualTo("query");
             assertThat(parameter.get("required").asBoolean()).isTrue();
         }
+    }
+
+    private JsonNode presetPresign(int size) throws Exception {
+        return result(mvc.perform(get(ADMIN_PATH + "/presign").cookie(adminAccess)
+                        .param("fileName", "preset.png").param("contentType", "image/png").param("fileSize", Integer.toString(size)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                .andReturn());
+    }
+
+    private MockHttpServletRequestBuilder adminCreate(String key) throws Exception {
+        return post(ADMIN_PATH).cookie(adminAccess, csrfCookie).header("X-XSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(java.util.Map.of("name", "Preset avatar", "key", key)));
+    }
+
+    private UUID createPreset() throws Exception {
+        byte[] bytes = image("png", 16, 16);
+        JsonNode upload = presetPresign(bytes.length);
+        putS3(upload, bytes);
+        return UUID.fromString(result(mvc.perform(adminCreate(upload.get("key").asString()))
+                .andExpect(status().isCreated()).andReturn()).get("avatarId").asString());
+    }
+
+    private MockHttpServletRequestBuilder selectPreset(UUID avatarId) {
+        return put(PATH).cookie(access, csrfCookie).header("X-XSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"avatarId\":\"" + avatarId + "\"}");
     }
 
     private JsonNode presign(String contentType, int size) throws Exception {

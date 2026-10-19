@@ -283,7 +283,8 @@ public class AuthServiceImpl implements AuthService {
         return new CurrentUserResponse(account.getId(), account.getEmail(), account.getRole(),
                 profileRepository.findById(accountId).map(profile -> {
                     var response = profileMapper.toResponse(profile);
-                    response.setAvatarUrl(s3Storage.resolveViewUrl(profile.getAvatarUrl()));
+                    response.setAvatarUrl(s3Storage.resolveViewUrl(profile.getAvatarPreset() == null
+                            ? profile.getAvatarUrl() : profile.getAvatarPreset().getObjectKey()));
                     return response;
                 }).orElse(null));
     }

@@ -280,6 +280,38 @@ class GatewayIntegrationTests {
     }
 
     @Test
+    void adminAvatarRoutesRequireAdminAndCsrfAndPreserveTheAuthPath() {
+        String path = "/api/admin/avatars";
+        String access = token("ADMIN", "valid");
+        client.get().uri(path).exchange().expectStatus().isUnauthorized();
+        client.get().uri(path).cookie("accessToken", token("USER", "valid"))
+                .exchange().expectStatus().isForbidden();
+        assertThat(LAST.get()).isNull();
+        client.get().uri(path).cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        String presignPath = path + "/presign?fileName=preset.png&contentType=image/png&fileSize=100";
+        client.get().uri(presignPath).cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(presignPath);
+        LAST.set(null);
+        client.post().uri(path).cookie("accessToken", access).contentType(MediaType.APPLICATION_JSON).bodyValue("{}")
+                .exchange().expectStatus().isForbidden();
+        assertThat(LAST.get()).isNull();
+        String body = "{\"name\":\"Preset\",\"key\":\"avatars/preset-staging/example.png\"}";
+        client.post().uri(path).cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        assertThat(LAST.get().body()).isEqualTo(body);
+        String updatePath = path + "/" + UUID.randomUUID();
+        client.put().uri(updatePath).cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"name\":\"Preset\",\"active\":false}").exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(updatePath);
+        assertThat(LAST.get().method()).isEqualTo("PUT");
+        assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("ADMIN");
+    }
+
+    @Test
     void avatarPresignPreservesGetQueryAndConfirmationRequiresCsrf() {
         String access = token("USER", "valid");
         String presignPath = "/api/profiles/me/avatar/presign?fileName=avatar.png&contentType=image/png&fileSize=100";
@@ -302,7 +334,6 @@ class GatewayIntegrationTests {
         assertThat(LAST.get().uri()).isEqualTo(path);
         assertThat(LAST.get().method()).isEqualTo("POST");
         assertThat(LAST.get().body()).isEqualTo(body);
-        client.get().uri("/api/profiles/avatars/presets/spade").exchange().expectStatus().isUnauthorized();
     }
 
     @Test

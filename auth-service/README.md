@@ -50,7 +50,22 @@ SPEC giữ nguyên chờ Khanh review.
 - Các request BE cần access cookie; POST/PUT cần CSRF. Response vẫn bọc `ApiResponse`.
 
 PNG/JPEG, mặc định tối đa 2 MB và mỗi cạnh tối đa 2048 px. DB lưu object key cho ảnh upload;
-`avatarUrl` trong DTO là URL GET có hạn để bucket giữ private. Avatar có sẵn dùng được khi S3 chưa bật.
+`avatarUrl` trong DTO là URL GET S3 có hạn để bucket giữ private.
+Avatar có sẵn do admin upload lên S3 và quản lý trong bảng `avatar_presets`; user chọn bằng UUID,
+profile lưu `avatar_preset_id`, không lưu URL preset. Danh mục ban đầu rỗng.
+
+Admin dùng nhóm **Admin - Avatar** trong Swagger:
+
+1. GET `/api/admin/avatars/presign?fileName=avatar.png&contentType=image/png&fileSize=123456`.
+2. PUT file trực tiếp lên S3 bằng `uploadUrl`/`headers` được trả về.
+3. POST `/api/admin/avatars` với `{name, key}` để kiểm tra ảnh và tạo avatar đang bật.
+4. GET `/api/admin/avatars` xem cả avatar tắt; PUT `/api/admin/avatars/{avatarId}` với `{name, active}` để đổi tên/bật/tắt.
+
+Admin phải có role ADMIN và account ACTIVE; POST/PUT cần CSRF. User GET `/api/profiles/avatars`
+chỉ thấy avatar đang bật rồi PUT `/api/profiles/me/avatar` với `{avatarId}`. Tắt avatar ngăn chọn mới,
+người đã chọn vẫn giữ ảnh; đổi ảnh cá nhân không xóa object preset dùng chung.
+Migration V7 bỏ tham chiếu ba SVG cũ (spade/heart/diamond), giữ nguyên key S3 đã upload.
+Không còn route ảnh preset local hay biến `AUTH_PUBLIC_BASE_URL`.
 
 Điền các biến `AUTH_S3_*` trong `.env.example` sang `.env`, cấu hình CORS bucket rồi đặt
 `AUTH_S3_ENABLED=true`. Mặc định false giúp auth khởi động khi chưa có credentials.
@@ -294,7 +309,7 @@ Cấu hình chính và dev dùng cùng database/volume. Không bật đồng th�
 trên host và container auth trên cùng port 8090.
 
 Flyway áp dụng V1–V6 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
-`password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`; không sửa migration đã dùng.
+`password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`, V7 thêm danh mục avatar S3; không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
 không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,
 V2 dừng để review dữ liệu thay vì tự làm profile đó xuất hiện lại.

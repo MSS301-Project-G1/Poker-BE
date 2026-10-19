@@ -2,22 +2,28 @@ package com.msspoker.authservice.service.impl;
 
 import com.msspoker.authservice.dto.profile.request.AvatarPresignRequest;
 import com.msspoker.authservice.dto.profile.request.ConfirmAvatarRequest;
+import com.msspoker.authservice.dto.profile.request.CreateAvatarPresetRequest;
+import com.msspoker.authservice.dto.profile.request.UpdateAvatarPresetRequest;
 import com.msspoker.authservice.dto.profile.request.SelectAvatarRequest;
 import com.msspoker.authservice.dto.profile.request.UpdateProfileRequest;
 import com.msspoker.authservice.dto.profile.response.AvatarOptionResponse;
 import com.msspoker.authservice.dto.profile.response.AvatarPresignResponse;
+import com.msspoker.authservice.dto.profile.response.AdminAvatarPresetResponse;
 import com.msspoker.authservice.dto.profile.response.MyProfileResponse;
 import com.msspoker.authservice.dto.profile.response.ProfileResponse;
 import com.msspoker.authservice.entity.Account;
+import com.msspoker.authservice.entity.AvatarPreset;
 import com.msspoker.authservice.entity.Profile;
 import com.msspoker.authservice.enums.AccountStatus;
+import com.msspoker.authservice.enums.AccountRole;
+import com.msspoker.authservice.mapper.AvatarPresetMapper;
 import com.msspoker.authservice.mapper.ProfileMapper;
 import com.msspoker.authservice.repository.AccountRepository;
+import com.msspoker.authservice.repository.AvatarPresetRepository;
 import com.msspoker.authservice.repository.ProfileRepository;
 import com.msspoker.authservice.service.ProfileService;
 import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.ErrorCode;
-import com.msspoker.authservice.shared.infrastructure.storage.AvatarStorage;
 import com.msspoker.authservice.shared.infrastructure.storage.S3AvatarStorage;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +33,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -45,7 +52,8 @@ public class ProfileServiceImpl implements ProfileService {
     private final ProfileMapper profileMapper;
     private final Validator validator;
     private final Clock clock;
-    private final AvatarStorage storage;
+    private final AvatarPresetRepository avatarPresetRepository;
+    private final AvatarPresetMapper avatarPresetMapper;
     private final S3AvatarStorage s3Storage;
 
     @Override
@@ -104,8 +112,15 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<AvatarOptionResponse> getPresets() {
-        return storage.presets();
+        return avatarPresetRepository.findAllByActiveTrueOrderByCreatedAtAscIdAsc().stream()
+                .map(avatarPreset -> {
+                    AvatarOptionResponse response = avatarPresetMapper.toOption(avatarPreset);
+                    response.setAvatarUrl(s3Storage.viewUrl(avatarPreset.getObjectKey()));
+                    return response;
+                })
+                .toList();
     }
 
     @Override
@@ -114,10 +129,15 @@ public class ProfileServiceImpl implements ProfileService {
         if (request == null || !validator.validate(request).isEmpty()) {
             throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
         }
-        String url = storage.presetUrl(request.avatarId());
         Profile profile = ownProfile(accountId);
+        AvatarPreset avatarPreset = avatarPresetRepository.findByIdForUpdate(request.avatarId())
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_NOT_FOUND));
+        if (!avatarPreset.isActive()) {
+            throw new ApiException(ErrorCode.AUTH_AVATAR_INVALID);
+        }
         registerCleanup(accountId, profile.getAvatarUrl(), null, null);
-        profile.setAvatarUrl(url);
+        profile.setAvatarUrl(null);
+        profile.setAvatarPreset(avatarPreset);
         profileRepository.saveAndFlush(profile);
         return publicProfile(profile);
     }
@@ -140,9 +160,104 @@ public class ProfileServiceImpl implements ProfileService {
         registerCleanup(accountId, profile.getAvatarUrl(), key, request.key());
         s3Storage.validateAndCopy(request.key(), key);
         // Persist the object key; the service generates a fresh GET URL for private S3 reads.
+        profile.setAvatarPreset(null);
         profile.setAvatarUrl(key);
         profileRepository.saveAndFlush(profile);
         return publicProfile(profile);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminAvatarPresetResponse> getAdminPresets(UUID adminId) {
+        requireAdmin(activeAccount(adminId));
+        return avatarPresetRepository.findAllByOrderByCreatedAtAscIdAsc().stream()
+                .map(this::adminPreset)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AvatarPresignResponse presignPreset(UUID adminId, AvatarPresignRequest request) {
+        requireAdmin(activeAccount(adminId));
+        if (request == null || !validator.validate(request).isEmpty()) {
+            throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
+        }
+        return s3Storage.presignPreset(adminId, request);
+    }
+
+    @Override
+    @Transactional
+    public AdminAvatarPresetResponse createPreset(UUID adminId, CreateAvatarPresetRequest request) {
+        Account admin = accountRepository.findByIdForUpdate(adminId)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_UNAUTHENTICATED));
+        requireActive(admin);
+        requireAdmin(admin);
+        if (request == null || !validator.validate(request).isEmpty()) {
+            throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
+        }
+        String objectKey = s3Storage.presetFinalKey(adminId, request.getKey());
+        AvatarPreset existing = avatarPresetRepository.findByObjectKey(objectKey).orElse(null);
+        if (existing != null) {
+            return adminPreset(existing);
+        }
+
+        registerPresetCleanup(adminId, objectKey, request.getKey());
+        s3Storage.validateAndCopy(request.getKey(), objectKey);
+        Instant now = clock.instant();
+        AvatarPreset avatarPreset = AvatarPreset.builder()
+                .name(request.getName().strip())
+                .objectKey(objectKey)
+                .active(true)
+                .createdBy(adminId)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        avatarPresetRepository.saveAndFlush(avatarPreset);
+        return adminPreset(avatarPreset);
+    }
+
+    @Override
+    @Transactional
+    public AdminAvatarPresetResponse updatePreset(UUID adminId, UUID avatarId, UpdateAvatarPresetRequest request) {
+        requireAdmin(activeAccount(adminId));
+        if (request == null || !validator.validate(request).isEmpty()) {
+            throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
+        }
+        AvatarPreset avatarPreset = avatarPresetRepository.findByIdForUpdate(avatarId)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_NOT_FOUND));
+        avatarPreset.setName(request.getName().strip());
+        avatarPreset.setActive(request.getActive());
+        avatarPreset.setUpdatedAt(clock.instant());
+        avatarPresetRepository.saveAndFlush(avatarPreset);
+        return adminPreset(avatarPreset);
+    }
+
+    private void requireAdmin(Account account) {
+        if (account.getRole() != AccountRole.ADMIN) {
+            throw new ApiException(ErrorCode.AUTH_FORBIDDEN);
+        }
+    }
+
+    private AdminAvatarPresetResponse adminPreset(AvatarPreset avatarPreset) {
+        AdminAvatarPresetResponse response = avatarPresetMapper.toAdminResponse(avatarPreset);
+        response.setAvatarUrl(s3Storage.viewUrl(avatarPreset.getObjectKey()));
+        return response;
+    }
+
+    private void registerPresetCleanup(UUID adminId, String objectKey, String stagingKey) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                s3Storage.deletePresetStaging(adminId, stagingKey);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) {
+                    s3Storage.deletePreset(objectKey);
+                }
+            }
+        });
     }
 
     private Account activeAccount(UUID accountId) {
@@ -191,13 +306,15 @@ public class ProfileServiceImpl implements ProfileService {
 
     private ProfileResponse publicProfile(Profile profile) {
         ProfileResponse response = profileMapper.toResponse(profile);
-        response.setAvatarUrl(s3Storage.resolveViewUrl(profile.getAvatarUrl()));
+        response.setAvatarUrl(s3Storage.resolveViewUrl(profile.getAvatarPreset() == null
+                ? profile.getAvatarUrl() : profile.getAvatarPreset().getObjectKey()));
         return response;
     }
 
     private MyProfileResponse myProfile(Account account, Profile profile) {
         MyProfileResponse response = profileMapper.toMyProfileResponse(account, profile);
-        response.setAvatarUrl(s3Storage.resolveViewUrl(profile.getAvatarUrl()));
+        response.setAvatarUrl(s3Storage.resolveViewUrl(profile.getAvatarPreset() == null
+                ? profile.getAvatarUrl() : profile.getAvatarPreset().getObjectKey()));
         return response;
     }
 }

@@ -101,6 +101,7 @@ Access cookie hết hạn không ngăn login/refresh/logout; gateway bỏ qua x�
 access trên các endpoint public được liệt kê theo đúng method/path.
 POST `/api/checkin` cần access cookie + CSRF; GET `/api/checkin/calendar?month=yyyy-MM` cần access cookie.
 Gateway route về auth, giữ nguyên HTTP status và envelope, không tự cấp thưởng.
+Nhóm `/api/admin/avatars` và `/api/admin/avatars/**` route về auth; cần role ADMIN, POST/PUT cần CSRF.
 Các `/api/**` khác cần đăng nhập; `/api/admin/**` cần ADMIN. `/internal/**` luôn bị
 chặn. Không public cả prefix `/api/auth/**`.
 
