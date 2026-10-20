@@ -114,13 +114,13 @@ class AvatarS3FlowTests {
     void adminPublishesS3PresetAndUsersSelectByIdWithoutStoringUrls() throws Exception {
         byte[] bytes = image("png", 24, 24);
         JsonNode upload = presetPresign(bytes.length);
-        assertThat(upload.get("key").asString()).startsWith("avatars/preset-staging/" + admin.getId() + "/");
+        assertThat(upload.get("key").asString()).startsWith("poker/avatars/preset-staging/" + admin.getId() + "/");
         putS3(upload, bytes);
         JsonNode created = result(mvc.perform(adminCreate(upload.get("key").asString()))
                 .andExpect(status().isCreated()).andReturn());
         UUID avatarId = UUID.fromString(created.get("avatarId").asString());
         AvatarPreset saved = avatarPresets.findById(avatarId).orElseThrow();
-        assertThat(saved.getObjectKey()).startsWith("avatars/presets/").doesNotContain("http", "X-Amz");
+        assertThat(saved.getObjectKey()).startsWith("poker/avatars/presets/").doesNotContain("http", "X-Amz");
         assertThat(saved.getCreatedBy()).isEqualTo(admin.getId());
         assertThat(S3.bytes(saved.getObjectKey())).isEqualTo(bytes);
         assertThat(S3.exists(upload.get("key").asString())).isFalse();
@@ -168,7 +168,7 @@ class AvatarS3FlowTests {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(avatarId.toString())));
         mvc.perform(selectPreset(avatarId)).andExpect(status().isBadRequest());
         mvc.perform(get("/api/profiles/me").cookie(access)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.avatarUrl").value(org.hamcrest.Matchers.containsString("/avatars/presets/")));
+                .andExpect(jsonPath("$.result.avatarUrl").value(org.hamcrest.Matchers.containsString("/poker/avatars/presets/")));
         byte[] bytes = image("png", 24, 16);
         JsonNode custom = presign("image/png", bytes.length);
         putS3(custom, bytes);
@@ -189,7 +189,7 @@ class AvatarS3FlowTests {
         mvc.perform(write(ADMIN_PATH, "{}")).andExpect(status().isForbidden());
         JsonNode upload = presetPresign(100);
         mvc.perform(adminCreate(upload.get("key").asString())).andExpect(status().isNotFound());
-        for (String key : List.of("avatars/preset-staging/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".png",
+        for (String key : List.of("poker/avatars/preset-staging/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".png",
                 "https://example.com/avatar.png", presign("image/png", 100).get("key").asString())) {
             mvc.perform(adminCreate(key)).andExpect(status().isForbidden());
         }
@@ -210,7 +210,7 @@ class AvatarS3FlowTests {
             avatars.createPreset(admin.getId(), new CreateAvatarPresetRequest("Rollback avatar", key));
             status.setRollbackOnly();
         });
-        String objectKey = "avatars/presets/" + key.substring(key.lastIndexOf('/') + 1);
+        String objectKey = "poker/avatars/presets/" + key.substring(key.lastIndexOf('/') + 1);
         assertThat(S3.exists(objectKey)).isFalse();
         assertThat(S3.exists(key)).isTrue();
         assertThat(avatarPresets.findByObjectKey(objectKey)).isEmpty();
@@ -221,7 +221,7 @@ class AvatarS3FlowTests {
     void presignsDirectPutThenValidatesAndStoresAStableKeyWithFreshPrivateGetUrls() throws Exception {
         byte[] image = image("png", 32, 24);
         JsonNode presign = presign("image/png", image.length);
-        assertThat(presign.get("key").asString()).startsWith("avatars/staging/" + caller.getId() + "/");
+        assertThat(presign.get("key").asString()).startsWith("poker/avatars/staging/" + caller.getId() + "/");
         assertThat(presign.get("uploadUrl").asString()).contains("X-Amz-Signature=", "X-Amz-Expires=300")
                 .doesNotContain("test-secret-key-not-real");
         assertThat(presign.get("method").asString()).isEqualTo("PUT");
@@ -231,7 +231,7 @@ class AvatarS3FlowTests {
         mvc.perform(confirm(presign.get("key").asString())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.accountId").value(caller.getId().toString()));
         String stored = profiles.findById(caller.getId()).orElseThrow().getAvatarUrl();
-        assertThat(stored).startsWith("avatars/users/" + caller.getId() + "/").doesNotContain("X-Amz");
+        assertThat(stored).startsWith("poker/avatars/users/" + caller.getId() + "/").doesNotContain("X-Amz");
         assertThat(S3.bytes(stored)).isEqualTo(image);
         assertThat(S3.exists(presign.get("key").asString())).isFalse();
         var profile = result(mvc.perform(get("/api/profiles/me").cookie(access)).andExpect(status().isOk()).andReturn());
@@ -271,8 +271,8 @@ class AvatarS3FlowTests {
         JsonNode presign = presign("image/png", 100);
         mvc.perform(confirm(presign.get("key").asString())).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("AUTH_AVATAR_UPLOAD_NOT_FOUND"));
-        for (String key : List.of("avatars/staging/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".png",
-                "https://example.com/avatar.png", "avatars/staging/" + caller.getId() + "/../other.png")) {
+        for (String key : List.of("poker/avatars/staging/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".png",
+                "https://example.com/avatar.png", "poker/avatars/staging/" + caller.getId() + "/../other.png")) {
             mvc.perform(confirm(key)).andExpect(status().isForbidden());
         }
         assertThat(profiles.findById(caller.getId()).orElseThrow().getAvatarUrl()).isNull();

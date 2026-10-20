@@ -98,11 +98,11 @@ Refresh cookie vẫn có Path `/api/auth`, không đổi path khi proxy.
 GET `/api/auth/me`, `/api/auth/ws-token` và POST `/api/auth/password/change` yêu cầu access cookie hợp lệ.
 Đổi mật khẩu còn cần CSRF do auth kiểm tra; gateway giữ nguyên body/header và cookie xóa khi thành công.
 Access cookie hết hạn không ngăn login/refresh/logout; gateway bỏ qua xác thực
-access trên các endpoint public được liệt kê theo đúng method/path.
+access trên các endpoint auth public được liệt kê theo đúng method/path.
 POST `/api/checkin` cần access cookie + CSRF; GET `/api/checkin/calendar?month=yyyy-MM` cần access cookie.
 Gateway route về auth, giữ nguyên HTTP status và envelope, không tự cấp thưởng.
 Nhóm `/api/admin/avatars` và `/api/admin/avatars/**` route về auth; cần role ADMIN, POST/PUT cần CSRF.
-Các GET public bổ sung của ranking/competition nằm ở bảng bên dưới; `/api/**` còn lại cần đăng nhập,
+Các GET public bổ sung của ranking/competition/shop nằm ở phần hợp đồng bên dưới; `/api/**` còn lại cần đăng nhập,
 `/api/admin/**` cần ADMIN. `/internal/**` luôn bị chặn. Không public cả prefix `/api/auth/**`.
 
 Auth là nơi cấp/kiểm tra CSRF cho API auth. Gateway chuyển nguyên cookie và header
@@ -142,10 +142,13 @@ GET /api/tournaments/{tournamentId}
 ```
 
 `GET /api/rooms/me`, chi tiết phòng, ranking cá nhân/bạn bè, tutorial và nhận quà vẫn cần login.
-POST cùng path với GET public không tự được public. GET public không gắn danh tính từ cookie hiện tại.
+POST cùng path với GET public không tự được public. Các GET public ranking/competition không gắn danh tính từ cookie hiện tại.
 
-**Shop đang chờ chốt chính sách xem anonymous với owner API; hiện giữ yêu cầu login cho mọi GET shop.**
-Do đó shop có ID đã verify để trả trạng thái sở hữu; FE không tự gửi ID.
+**Shop public đã được Khanh xác nhận với owner:** GET `/api/shop/products`, `/api/shop/products/{id}`,
+`/api/shop/categories`, `/api/shop/bundles` cho khách xem, không yêu cầu login.
+Các GET này vẫn xác thực cookie tùy chọn: có JWT hợp lệ thì truyền ID/role đã verify để shop trả trạng thái sở hữu;
+không có cookie hoặc JWT không hợp lệ thì anonymous, không tin ID/role client tự gửi. GET public chỉ mở đúng path trên.
+Mua hàng, inventory, đơn thanh toán và sandbox vẫn cần login; FE đã login vẫn gửi `credentials: include` cả khi xem shop.
 POST `/api/shop/categories` và PUT/DELETE `/api/shop/categories/{id}` yêu cầu ADMIN dù không nằm dưới `/api/admin/**`.
 Các mutation ADMIN vẫn cần CSRF, kể cả PATCH bundle và multipart upload skin.
 
@@ -184,7 +187,7 @@ mvn -o -B -pl api-gateway -am -Dtest=GatewayIntegrationTests -Dsurefire.failIfNo
 
 Gateway test dùng HTTP server/JWKS test trên port ngẫu nhiên và JWT RSA ký thật;
 kiểm tra route/body/query, cookie/CSRF, quyền, giả header, CORS, lỗi kết nối/timeout.
-Đợt contract 20/10 đã qua 27 test gateway, gồm 5 nhóm mới cho route/quyền/CSRF/webhook của 4 service.
+Đợt contract 20/10 đã qua 28 test gateway, gồm route/quyền/CSRF/webhook của 4 service và public shop với JWT tùy chọn.
 Mỗi service có HTTP fixture riêng để phát hiện route nhầm upstream. Không gọi DB, ví, PayOS hoặc service thật.
 Các test auth riêng dùng PostgreSQL/Mailpit/RabbitMQ tạm qua Testcontainers, không dùng DB dev.
 

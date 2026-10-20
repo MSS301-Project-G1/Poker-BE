@@ -41,6 +41,9 @@ public class GatewaySecurityConfig {
             "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
             "/api/ranking/leaderboard", "/api/seasons/current", "/api/seasons/*/rewards",
             "/api/rooms", "/api/tournaments", "/api/tournaments/*"};
+    // Shop is public, but a valid cookie still supplies identity for ownership metadata.
+    private static final String[] PUBLIC_SHOP_GET = {"/api/shop/products", "/api/shop/products/*",
+            "/api/shop/categories", "/api/shop/bundles"};
     private static final String[] PUBLIC_POST = {"/api/auth/register", "/api/auth/register/verify-otp",
             "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
             "/api/payments/payos/webhook"};
@@ -105,6 +108,7 @@ public class GatewaySecurityConfig {
                 .csrf(config -> config.disable()).cors(config -> config.configurationSource(source))
                 .authorizeExchange(config -> config
                         .pathMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
+                        .pathMatchers(HttpMethod.GET, PUBLIC_SHOP_GET).permitAll()
                         .pathMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
                         .pathMatchers(HttpMethod.POST, "/api/shop/categories").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.PUT, "/api/shop/categories/*").hasRole("ADMIN")

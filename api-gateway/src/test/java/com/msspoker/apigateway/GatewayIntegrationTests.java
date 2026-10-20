@@ -141,12 +141,11 @@ class GatewayIntegrationTests {
     }
 
     @Test
-    void protectedServiceReadsKeepPathsQueriesAndVerifiedUserHeadersIncludingShopBrowsing() {
+    void protectedServiceReadsKeepPathsQueriesAndVerifiedUserHeaders() {
         Map<String, List<String>> routes = Map.of(
                 "ranking-service", List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me", "/api/tutorial/me"),
                 "competition-service", List.of("/api/rooms/me", "/api/rooms/ROOM01"),
-                "shop-service", List.of("/api/shop/products?category=CARDS&page=0&size=20", "/api/shop/products/" + UUID.randomUUID(),
-                        "/api/shop/categories", "/api/shop/bundles", "/api/inventory/me", "/api/payments/orders/me"),
+                "shop-service", List.of("/api/inventory/me", "/api/payments/orders/me"),
                 "wallet-service", List.of("/api/wallet/me", "/api/wallet/me/transactions?page=0&size=20"));
         String access = token("USER", "valid");
         for (var service : routes.entrySet()) {
@@ -166,6 +165,40 @@ class GatewayIntegrationTests {
                 assertThat(LAST.get().headers().get("X-Request-Id")).isNotBlank();
             }
         }
+    }
+
+    @Test
+    void publicShopReadsAllowGuestsAndUseOnlyVerifiedCookieIdentityForOwnership() {
+        for (String path : List.of("/api/shop/products?category=CARDS&page=0&size=20",
+                "/api/shop/products/" + UUID.randomUUID(), "/api/shop/categories", "/api/shop/bundles")) {
+            client.get().uri(path).header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
+                    .header("Authorization", "Bearer " + token("USER", "valid"))
+                    .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", "shop-service");
+            assertThat(LAST.get().uri()).isEqualTo(path);
+            assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "Authorization");
+            for (String variant : List.of("expired", "signature", "role")) {
+                client.get().uri(path).cookie("accessToken", token("USER", variant))
+                        .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
+                        .exchange().expectStatus().isOk();
+                assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role");
+            }
+            client.get().uri(path).cookie("accessToken", token("USER", "valid"))
+                    .header("X-User-Id", UUID.randomUUID().toString()).header("X-User-Role", "ADMIN")
+                    .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", "shop-service");
+            assertThat(LAST.get().uri()).isEqualTo(path);
+            assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+            assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("USER");
+        }
+        for (String path : List.of("/api/shop/products/" + UUID.randomUUID() + "/purchase",
+                "/api/shop/products/" + UUID.randomUUID() + "/private", "/api/shop/categories/" + UUID.randomUUID(),
+                "/api/shop/bundles/" + UUID.randomUUID())) {
+            LAST.set(null);
+            client.get().uri(path).exchange().expectStatus().isUnauthorized();
+            assertThat(LAST.get()).isNull();
+        }
+        client.post().uri("/api/shop/products/" + UUID.randomUUID() + "/purchase")
+                .exchange().expectStatus().isUnauthorized();
+        client.post().uri("/api/shop/categories").exchange().expectStatus().isUnauthorized();
     }
 
     @Test
