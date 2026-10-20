@@ -35,7 +35,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "eureka.client.enabled=false")
 class GatewayIntegrationTests {
     private static final String ACCOUNT_ID = UUID.randomUUID().toString();
     private static final String ISSUER = "http://localhost:8090";
@@ -83,6 +84,7 @@ class GatewayIntegrationTests {
     static void properties(DynamicPropertyRegistry registry) {
         String upstream = "http://127.0.0.1:" + UPSTREAM.port();
         registry.add("AUTH_SERVICE_URL", () -> upstream);
+        registry.add("GATEWAY_JWK_SET_URI", () -> upstream + "/.well-known/jwks.json");
         registry.add("GAME_SERVICE_URL", () -> upstream);
         registry.add("GAME_SERVICE_KEY", () -> "gateway-game-test-secret");
         registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));

@@ -15,20 +15,24 @@ import java.util.Set;
 public class CookieCsrfFilter implements WebFilter {
     private static final Set<HttpMethod> SAFE_METHODS = Set.of(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.OPTIONS);
     private final GatewayErrorWriter errors;
+    private final GatewayEndpointPolicy policy;
 
-    public CookieCsrfFilter(GatewayErrorWriter errors) { this.errors = errors; }
+    public CookieCsrfFilter(GatewayErrorWriter errors, GatewayEndpointPolicy policy) {
+        this.errors = errors;
+        this.policy = policy;
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         var request = exchange.getRequest();
         String path = request.getPath().value();
-        // Auth issues and validates its own CSRF token; do not create a competing gateway cookie.
-        if (SAFE_METHODS.contains(request.getMethod()) || !path.startsWith("/api/")
-                || path.equals("/api/auth") || path.startsWith("/api/auth/")) return chain.filter(exchange);
-        // PayOS calls this endpoint server-to-server; shop verifies the webhook signature.
-        if (HttpMethod.POST.equals(request.getMethod()) && path.equals("/api/payments/payos/webhook")) {
-            return chain.filter(exchange);
-        }
+        if (SAFE_METHODS.contains(request.getMethod()) || !path.startsWith("/api/")) return chain.filter(exchange);
+        return policy.csrfBypass().matches(exchange).flatMap(match ->
+                match.isMatch() ? chain.filter(exchange) : validate(exchange, chain));
+    }
+
+    private Mono<Void> validate(ServerWebExchange exchange, WebFilterChain chain) {
+        var request = exchange.getRequest();
         var cookies = request.getCookies().get("XSRF-TOKEN");
         var headers = request.getHeaders().get("X-XSRF-TOKEN");
         if (cookies == null || cookies.size() != 1 || headers == null || headers.size() != 1

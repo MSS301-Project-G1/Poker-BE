@@ -8,63 +8,26 @@ spring:
           httpclient:
             connect-timeout: 3000
             response-timeout: 10s
-          routes:
-            - id: auth-service
-              uri: ${AUTH_SERVICE_URL:http://localhost:8090}
-              predicates:
-                - Path=/api/auth/**,/api/profiles/**,/api/checkin/**,/api/reports/**,/api/admin/users/**,/api/admin/reports/**,/api/admin/avatars/**
-            - id: auth-documentation
-              uri: ${AUTH_SERVICE_URL:http://localhost:8090}
-              predicates:
-                - Path=/.well-known/jwks.json,/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
-                - Method=GET
-            - id: identity-service
-              uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
-              predicates:
-                - Path=/api/identity/**
-              filters:
-                - StripPrefix=2
-            - id: game-service
-              uri: ${GAME_SERVICE_URL:http://localhost:8082}
-              predicates:
-                - Path=/api/game/**,/api/admin/match-settings/**
-            - id: matchmaking-service
-              uri: ${MATCHMAKING_SERVICE_URL:http://localhost:8083}
-              predicates:
-                - Path=/api/matchmaking/**,/api/party/**
-            - id: social-service
-              uri: ${SOCIAL_SERVICE_URL:http://localhost:8084}
-              predicates:
-                - Path=/api/social/**
-              filters:
-                - StripPrefix=2
-            - id: chat-service
-              uri: ${CHAT_SERVICE_URL:http://localhost:8085}
-              predicates:
-                - Path=/api/chat/**
-              filters:
-                - StripPrefix=2
-            - id: ranking-service
-              uri: ${RANKING_SERVICE_URL:http://localhost:8086}
-              predicates:
-                - Path=/api/ranking/**,/api/seasons/**,/api/tutorial/**,/api/admin/seasons/**
-            - id: competition-service
-              uri: ${COMPETITION_SERVICE_URL:http://localhost:8087}
-              predicates:
-                - Path=/api/rooms/**,/api/tournaments/**,/api/admin/tournaments/**
-            - id: shop-service
-              uri: ${SHOP_SERVICE_URL:http://localhost:8088}
-              predicates:
-                - Path=/api/shop/**,/api/inventory/**,/api/payments/**,/api/admin/products/**,/api/admin/bundles/**,/api/admin/payments/**,/api/sandbox/**
-            - id: wallet-service
-              uri: ${WALLET_SERVICE_URL:http://localhost:8089}
-              predicates:
-                - Path=/api/wallet/**
+          discovery:
+            locator:
+              enabled: false
+  config:
+    import:
+    - classpath:services/auth-service.yml
+    - classpath:services/identity-service.yml
+    - classpath:services/game-service.yml
+    - classpath:services/matchmaking-service.yml
+    - classpath:services/social-service.yml
+    - classpath:services/chat-service.yml
+    - classpath:services/ranking-service.yml
+    - classpath:services/competition-service.yml
+    - classpath:services/shop-service.yml
+    - classpath:services/wallet-service.yml
 server:
   port: ${SERVER_PORT:8080}
 gateway:
   jwt:
-    jwk-set-uri: ${GATEWAY_JWK_SET_URI:${AUTH_SERVICE_URL:http://localhost:8090}/.well-known/jwks.json}
+    jwk-set-uri: ${GATEWAY_JWK_SET_URI:http://localhost:8090/.well-known/jwks.json}
     issuer: ${JWT_ISSUER:http://localhost:8090}
     audience: ${JWT_AUDIENCE:poker}
   cors:
@@ -75,3 +38,12 @@ management:
     web:
       exposure:
         include: health,info
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL:http://localhost:8761/eureka/}
+  instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${random.value}

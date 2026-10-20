@@ -1,0 +1,42 @@
+# Shop is public, but a valid cookie still supplies identity for ownership metadata.
+# PayOS calls its webhook server-to-server; shop verifies the webhook signature.
+gateway:
+  catalog:
+    services:
+      shop-service:
+        uri: ${SHOP_SERVICE_URL:lb://shop-service}
+        routes:
+        - id: shop-service
+          paths:
+          - /api/shop/**
+          - /api/inventory/**
+          - /api/payments/**
+          - /api/admin/products/**
+          - /api/admin/bundles/**
+          - /api/admin/payments/**
+          - /api/sandbox/**
+        public-endpoints:
+        - method: POST
+          paths:
+          - /api/payments/payos/webhook
+        - method: GET
+          paths:
+          - /api/shop/products
+          - /api/shop/products/*
+          - /api/shop/categories
+          - /api/shop/bundles
+          identity: OPTIONAL
+        admin-endpoints:
+        - method: POST
+          paths:
+          - /api/shop/categories
+        - method: PUT
+          paths:
+          - /api/shop/categories/*
+        - method: DELETE
+          paths:
+          - /api/shop/categories/*
+        csrf-exempt-endpoints:
+        - method: POST
+          paths:
+          - /api/payments/payos/webhook

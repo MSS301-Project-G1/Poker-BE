@@ -3,6 +3,7 @@ package com.msspoker.apigateway.shared.config;
 import com.msspoker.apigateway.shared.exception.GatewayErrorCode;
 import com.msspoker.apigateway.shared.exception.GatewayErrorWriter;
 import com.msspoker.apigateway.shared.security.CookieCsrfFilter;
+import com.msspoker.apigateway.shared.security.GatewayEndpointPolicy;
 import io.netty.channel.ChannelOption;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -37,16 +38,7 @@ import java.util.UUID;
 
 @Configuration(proxyBeanMethods = false)
 public class GatewaySecurityConfig {
-    private static final String[] PUBLIC_GET = {"/api/auth/csrf", "/.well-known/jwks.json", "/actuator/health",
-            "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
-            "/api/ranking/leaderboard", "/api/seasons/current", "/api/seasons/*/rewards",
-            "/api/rooms", "/api/tournaments", "/api/tournaments/*"};
-    // Shop is public, but a valid cookie still supplies identity for ownership metadata.
-    private static final String[] PUBLIC_SHOP_GET = {"/api/shop/products", "/api/shop/products/*",
-            "/api/shop/categories", "/api/shop/bundles"};
-    private static final String[] PUBLIC_POST = {"/api/auth/register", "/api/auth/register/verify-otp",
-            "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
-            "/api/payments/payos/webhook"};
+    private static final String[] PUBLIC_HEALTH = {"/actuator/health", "/actuator/health/**"};
 
     @Bean
     ReactiveJwtDecoder gatewayJwtDecoder(@Value("${gateway.jwt.jwk-set-uri}") String jwkSetUri,
@@ -73,6 +65,7 @@ public class GatewaySecurityConfig {
 
     @Bean
     SecurityWebFilterChain gatewaySecurity(ServerHttpSecurity http, ReactiveJwtDecoder decoder, GatewayErrorWriter errors,
+            GatewayEndpointPolicy policy,
             @Value("${gateway.cors.allowed-origins}") List<String> allowedOrigins) {
         if (allowedOrigins.stream().anyMatch(origin -> origin.contains("*"))) {
             throw new IllegalArgumentException("Cookie CORS requires explicit origins");
@@ -83,8 +76,7 @@ public class GatewaySecurityConfig {
         var authentication = new AuthenticationWebFilter(manager);
         authentication.setSecurityContextRepository(NoOpServerSecurityContextRepository.getInstance());
         authentication.setRequiresAuthenticationMatcher(new NegatedServerWebExchangeMatcher(ServerWebExchangeMatchers.matchers(
-                ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, PUBLIC_GET),
-                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, PUBLIC_POST))));
+                ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, PUBLIC_HEALTH), policy.ignoredAuthentication())));
         authentication.setServerAuthenticationConverter(exchange -> {
             var cookies = exchange.getRequest().getCookies().get("accessToken");
             if (cookies == null || cookies.size() != 1 || cookies.getFirst().getValue().isBlank()) return Mono.empty();
@@ -107,18 +99,15 @@ public class GatewaySecurityConfig {
                 // Auth validates auth CSRF; CookieCsrfFilter validates other API writes using that same token.
                 .csrf(config -> config.disable()).cors(config -> config.configurationSource(source))
                 .authorizeExchange(config -> config
-                        .pathMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
-                        .pathMatchers(HttpMethod.GET, PUBLIC_SHOP_GET).permitAll()
-                        .pathMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
-                        .pathMatchers(HttpMethod.POST, "/api/shop/categories").hasRole("ADMIN")
-                        .pathMatchers(HttpMethod.PUT, "/api/shop/categories/*").hasRole("ADMIN")
-                        .pathMatchers(HttpMethod.DELETE, "/api/shop/categories/*").hasRole("ADMIN")
+                        .pathMatchers(HttpMethod.GET, PUBLIC_HEALTH).permitAll()
+                        .matchers(policy.adminEndpoints()).hasRole("ADMIN")
                         .pathMatchers("/api/admin/**").hasRole("ADMIN")
+                        .matchers(policy.publicEndpoints()).permitAll()
                         .pathMatchers("/api/**").authenticated().anyExchange().denyAll())
                 .exceptionHandling(config -> config
                         .authenticationEntryPoint((exchange, exception) -> errors.write(exchange, GatewayErrorCode.GATEWAY_UNAUTHENTICATED))
                         .accessDeniedHandler((exchange, exception) -> errors.write(exchange, GatewayErrorCode.GATEWAY_FORBIDDEN)))
                 .addFilterAt(authentication, SecurityWebFiltersOrder.AUTHENTICATION)
-                .addFilterAfter(new CookieCsrfFilter(errors), SecurityWebFiltersOrder.AUTHORIZATION).build();
+                .addFilterAfter(new CookieCsrfFilter(errors, policy), SecurityWebFiltersOrder.AUTHORIZATION).build();
     }
 }

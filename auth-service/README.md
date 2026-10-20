@@ -502,3 +502,14 @@ Các kiểm tra phase 2–3 trên không có nghĩa đã chạy FE/game hay buil
 
 Các controller tách theo nhóm API/Swagger; tất cả vẫn thuộc cùng một microservice `auth-service`.
 Storage, JWT, cookie và mail là thành phần kỹ thuật dùng bởi service nghiệp vụ.
+
+## Eureka và tích hợp của các owner
+
+Auth đăng ký vào Eureka khi `EUREKA_CLIENT_ENABLED=true` (mặc định). Java host dùng
+`EUREKA_SERVICE_URL=http://localhost:8761/eureka/`; Compose auth dùng discovery-service
+và công bố hostname auth-service. Chạy auth riêng khi không dùng registry thì đặt
+`EUREKA_CLIENT_ENABLED=false`. Test profile đã tắt discovery để không đăng ký vào registry local.
+
+Gateway chuyển route qua `lb://auth-service`; bộ chạy auth + gateway nay thêm
+`-f discovery-service/compose.yml`. Lệnh đầy đủ và hướng dẫn owner tự khai báo
+route/quyền và nối FE: [README gateway](../api-gateway/README.md).

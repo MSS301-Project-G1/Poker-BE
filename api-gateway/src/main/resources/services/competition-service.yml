@@ -1,0 +1,17 @@
+gateway:
+  catalog:
+    services:
+      competition-service:
+        uri: ${COMPETITION_SERVICE_URL:lb://competition-service}
+        routes:
+        - id: competition-service
+          paths:
+          - /api/rooms/**
+          - /api/tournaments/**
+          - /api/admin/tournaments/**
+        public-endpoints:
+        - method: GET
+          paths:
+          - /api/rooms
+          - /api/tournaments
+          - /api/tournaments/*
