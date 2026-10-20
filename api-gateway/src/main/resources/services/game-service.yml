@@ -1,0 +1,10 @@
+gateway:
+  catalog:
+    services:
+      game-service:
+        uri: ${GAME_SERVICE_URL:lb://game-service}
+        routes:
+        - id: game-service
+          paths:
+          - /api/game/**
+          - /api/admin/match-settings/**

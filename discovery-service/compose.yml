@@ -1,0 +1,10 @@
+services:
+  discovery-service:
+    build:
+      context: ..
+      args:
+        MODULE: discovery-service
+    ports:
+      - "127.0.0.1:${DISCOVERY_SERVICE_PORT:-8761}:8761"
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: discovery-service

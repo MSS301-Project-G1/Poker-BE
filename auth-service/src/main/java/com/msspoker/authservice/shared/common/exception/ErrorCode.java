@@ -24,6 +24,7 @@ public enum ErrorCode {
     AUTH_AVATAR_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "Ảnh vượt quá giới hạn dung lượng upload."),
     AUTH_AVATAR_UPLOAD_NOT_FOUND(HttpStatus.NOT_FOUND, "Chưa tìm thấy ảnh đã upload. Vui lòng hoàn tất PUT lên S3 trước."),
     AUTH_AVATAR_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Chưa lưu được avatar, vui lòng thử lại sau."),
+    AUTH_CURRENT_PASSWORD_INVALID(HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại không đúng."),
     AUTH_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "Xác nhận mật khẩu không khớp."),
     AUTH_PASSWORD_INVALID(HttpStatus.BAD_REQUEST, "Mật khẩu cần ít nhất 8 ký tự và tối đa 72 byte UTF-8."),
     AUTH_EMAIL_IN_USE(HttpStatus.CONFLICT, "Email đã được sử dụng."),
@@ -33,6 +34,8 @@ public enum ErrorCode {
     AUTH_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "Mã OTP đã hết hạn. Vui lòng gửi lại mã."),
     AUTH_OTP_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "Đã hết số lần thử OTP. Vui lòng gửi lại mã."),
     AUTH_OTP_RESEND_TOO_SOON(HttpStatus.TOO_MANY_REQUESTS, "Chưa đến thời gian gửi lại OTP."),
+    AUTH_CHECKIN_ALREADY_EXISTS(HttpStatus.CONFLICT, "Bạn đã điểm danh hôm nay. Xem lịch để biết trạng thái phần thưởng."),
+    AUTH_WALLET_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Ví chưa xác nhận phần thưởng, hệ thống sẽ thử lại sau."),
     AUTH_INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra, vui lòng thử lại sau.");
 
     private final HttpStatus status;

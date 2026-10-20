@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -34,7 +35,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "eureka.client.enabled=false")
 class GatewayIntegrationTests {
     private static final String ACCOUNT_ID = UUID.randomUUID().toString();
     private static final String ISSUER = "http://localhost:8090";
@@ -72,13 +74,23 @@ class GatewayIntegrationTests {
                             : reply.body())).then();
                 });
             }).bindNow();
+    private static final Map<String, DisposableServer> CONTRACT_UPSTREAMS = Map.of(
+            "ranking-service", contractUpstream("ranking-service"),
+            "competition-service", contractUpstream("competition-service"),
+            "shop-service", contractUpstream("shop-service"),
+            "wallet-service", contractUpstream("wallet-service"));
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         String upstream = "http://127.0.0.1:" + UPSTREAM.port();
         registry.add("AUTH_SERVICE_URL", () -> upstream);
+        registry.add("GATEWAY_JWK_SET_URI", () -> upstream + "/.well-known/jwks.json");
         registry.add("GAME_SERVICE_URL", () -> upstream);
         registry.add("GAME_SERVICE_KEY", () -> "gateway-game-test-secret");
+        registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));
+        registry.add("COMPETITION_SERVICE_URL", () -> upstreamUrl("competition-service"));
+        registry.add("SHOP_SERVICE_URL", () -> upstreamUrl("shop-service"));
+        registry.add("WALLET_SERVICE_URL", () -> upstreamUrl("wallet-service"));
         registry.add("spring.cloud.gateway.server.webflux.httpclient.response-timeout", () -> "2s");
         registry.add("MATCHMAKING_SERVICE_URL", () -> "http://127.0.0.1:" + unusedPort());
     }
@@ -96,7 +108,218 @@ class GatewayIntegrationTests {
     }
 
     @AfterAll
-    static void closeUpstream() { UPSTREAM.disposeNow(); }
+    static void closeUpstream() {
+        UPSTREAM.disposeNow();
+        CONTRACT_UPSTREAMS.values().forEach(DisposableServer::disposeNow);
+    }
+
+    @Test
+    void rankingAndCompetitionPublicReadsPreservePathsAndIgnoreStaleOrSpoofedIdentity() {
+        String seasonId = UUID.randomUUID().toString();
+        Map<String, List<String>> routes = Map.of(
+                "ranking-service", List.of("/api/ranking/leaderboard?page=0&size=20", "/api/seasons/current",
+                        "/api/seasons/" + seasonId + "/rewards"),
+                "competition-service", List.of("/api/rooms?page=0&size=20", "/api/tournaments?page=0&size=20",
+                        "/api/tournaments/" + UUID.randomUUID()));
+        for (var service : routes.entrySet()) {
+            for (String path : service.getValue()) {
+                client.get().uri(path).exchange().expectStatus().isOk()
+                        .expectHeader().valueEquals("X-Test-Upstream", service.getKey());
+                client.get().uri(path).cookie("accessToken", token("USER", "expired"))
+                        .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN").header("X-Dev-User", ACCOUNT_ID)
+                        .exchange().expectStatus().isOk();
+                assertThat(LAST.get().uri()).isEqualTo(path);
+                assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-Dev-User");
+            }
+        }
+        for (String path : List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me",
+                "/api/tutorial/me", "/api/rooms/me", "/api/rooms/ROOM01")) {
+            LAST.set(null);
+            client.get().uri(path).exchange().expectStatus().isUnauthorized();
+            assertThat(LAST.get()).isNull();
+        }
+        client.post().uri("/api/rooms").exchange().expectStatus().isUnauthorized();
+        client.post().uri("/api/tournaments").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void protectedServiceReadsKeepPathsQueriesAndVerifiedUserHeaders() {
+        Map<String, List<String>> routes = Map.of(
+                "ranking-service", List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me", "/api/tutorial/me"),
+                "competition-service", List.of("/api/rooms/me", "/api/rooms/ROOM01"),
+                "shop-service", List.of("/api/inventory/me", "/api/payments/orders/me"),
+                "wallet-service", List.of("/api/wallet/me", "/api/wallet/me/transactions?page=0&size=20"));
+        String access = token("USER", "valid");
+        for (var service : routes.entrySet()) {
+            for (String path : service.getValue()) {
+                LAST.set(null);
+                client.get().uri(path).exchange().expectStatus().isUnauthorized();
+                assertThat(LAST.get()).isNull();
+                client.get().uri(path).cookie("accessToken", access)
+                        .header("X-User-Id", UUID.randomUUID().toString()).header("X-User-Role", "ADMIN")
+                        .header("X-Dev-User", "fake").header("X-Game-Service-Key", "fake")
+                        .header("Authorization", "Bearer fake")
+                        .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", service.getKey());
+                assertThat(LAST.get().uri()).isEqualTo(path);
+                assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+                assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("USER");
+                assertThat(LAST.get().headers()).doesNotContainKeys("X-Dev-User", "X-Game-Service-Key", "Authorization");
+                assertThat(LAST.get().headers().get("X-Request-Id")).isNotBlank();
+            }
+        }
+    }
+
+    @Test
+    void publicShopReadsAllowGuestsAndUseOnlyVerifiedCookieIdentityForOwnership() {
+        for (String path : List.of("/api/shop/products?category=CARDS&page=0&size=20",
+                "/api/shop/products/" + UUID.randomUUID(), "/api/shop/categories", "/api/shop/bundles")) {
+            client.get().uri(path).header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
+                    .header("Authorization", "Bearer " + token("USER", "valid"))
+                    .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", "shop-service");
+            assertThat(LAST.get().uri()).isEqualTo(path);
+            assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "Authorization");
+            for (String variant : List.of("expired", "signature", "role")) {
+                client.get().uri(path).cookie("accessToken", token("USER", variant))
+                        .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
+                        .exchange().expectStatus().isOk();
+                assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role");
+            }
+            client.get().uri(path).cookie("accessToken", token("USER", "valid"))
+                    .header("X-User-Id", UUID.randomUUID().toString()).header("X-User-Role", "ADMIN")
+                    .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", "shop-service");
+            assertThat(LAST.get().uri()).isEqualTo(path);
+            assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+            assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("USER");
+        }
+        for (String path : List.of("/api/shop/products/" + UUID.randomUUID() + "/purchase",
+                "/api/shop/products/" + UUID.randomUUID() + "/private", "/api/shop/categories/" + UUID.randomUUID(),
+                "/api/shop/bundles/" + UUID.randomUUID())) {
+            LAST.set(null);
+            client.get().uri(path).exchange().expectStatus().isUnauthorized();
+            assertThat(LAST.get()).isNull();
+        }
+        client.post().uri("/api/shop/products/" + UUID.randomUUID() + "/purchase")
+                .exchange().expectStatus().isUnauthorized();
+        client.post().uri("/api/shop/categories").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void serviceWritesRequireCsrfAndKeepTheDestinationMethodAndBody() {
+        List<ServiceWrite> writes = List.of(
+                new ServiceWrite("ranking-service", HttpMethod.POST, "/api/seasons/" + UUID.randomUUID() + "/rewards/claim"),
+                new ServiceWrite("ranking-service", HttpMethod.POST, "/api/tutorial/complete"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms"),
+                new ServiceWrite("competition-service", HttpMethod.PUT, "/api/rooms/ROOM01/ready"),
+                new ServiceWrite("competition-service", HttpMethod.DELETE, "/api/rooms/ROOM01/members/" + UUID.randomUUID()),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/tournaments/" + UUID.randomUUID() + "/register"),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/shop/products/" + UUID.randomUUID() + "/purchase"),
+                new ServiceWrite("shop-service", HttpMethod.PUT, "/api/inventory/" + UUID.randomUUID() + "/equip"),
+                new ServiceWrite("shop-service", HttpMethod.DELETE, "/api/inventory/" + UUID.randomUUID() + "/equip"),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/payments/orders"),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/payments/bundles/" + UUID.randomUUID() + "/orders"),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/sandbox/bundles/" + UUID.randomUUID() + "/purchase"));
+        String access = token("USER", "valid");
+        String body = "{\"example\":true}";
+        for (ServiceWrite write : writes) {
+            LAST.set(null);
+            client.method(write.method()).uri(write.path()).cookie("accessToken", access)
+                    .exchange().expectStatus().isForbidden().expectBody().jsonPath("$.code").isEqualTo("GATEWAY_CSRF_INVALID");
+            assertThat(LAST.get()).isNull();
+            client.method(write.method()).uri(write.path()).cookie("accessToken", access)
+                    .cookie("XSRF-TOKEN", "csrf-example").header("X-XSRF-TOKEN", "csrf-example")
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isOk()
+                    .expectHeader().valueEquals("X-Test-Upstream", write.service());
+            assertThat(LAST.get().uri()).isEqualTo(write.path());
+            assertThat(LAST.get().method()).isEqualTo(write.method().name());
+            assertThat(LAST.get().body()).isEqualTo(body);
+            assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+        }
+    }
+
+    @Test
+    void categoryAndServiceAdminWritesRequireAdminBeforeCsrfAndRouteToTheOwner() {
+        List<ServiceWrite> writes = List.of(
+                new ServiceWrite("ranking-service", HttpMethod.POST, "/api/admin/seasons"),
+                new ServiceWrite("ranking-service", HttpMethod.PUT, "/api/admin/seasons/" + UUID.randomUUID() + "/rewards"),
+                new ServiceWrite("ranking-service", HttpMethod.POST, "/api/admin/seasons/close"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments/" + UUID.randomUUID() + "/start"),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/shop/categories"),
+                new ServiceWrite("shop-service", HttpMethod.PUT, "/api/shop/categories/" + UUID.randomUUID()),
+                new ServiceWrite("shop-service", HttpMethod.DELETE, "/api/shop/categories/" + UUID.randomUUID()),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/admin/products"),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/admin/bundles"),
+                new ServiceWrite("shop-service", HttpMethod.PATCH, "/api/admin/bundles/" + UUID.randomUUID() + "/toggle"),
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/admin/payments/methods"));
+        for (ServiceWrite write : writes) {
+            LAST.set(null);
+            client.method(write.method()).uri(write.path()).cookie("accessToken", token("USER", "valid"))
+                    .cookie("XSRF-TOKEN", "csrf-example").header("X-XSRF-TOKEN", "csrf-example")
+                    .header("X-User-Role", "ADMIN").exchange().expectStatus().isForbidden()
+                    .expectBody().jsonPath("$.code").isEqualTo("GATEWAY_FORBIDDEN");
+            assertThat(LAST.get()).isNull();
+            client.method(write.method()).uri(write.path()).cookie("accessToken", token("ADMIN", "valid"))
+                    .exchange().expectStatus().isForbidden().expectBody().jsonPath("$.code").isEqualTo("GATEWAY_CSRF_INVALID");
+            client.method(write.method()).uri(write.path()).cookie("accessToken", token("ADMIN", "valid"))
+                    .cookie("XSRF-TOKEN", "csrf-example").header("X-XSRF-TOKEN", "csrf-example")
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue("{}").exchange().expectStatus().isOk()
+                    .expectHeader().valueEquals("X-Test-Upstream", write.service());
+            assertThat(LAST.get().uri()).isEqualTo(write.path());
+            assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("ADMIN");
+        }
+        for (String path : List.of("/api/admin/seasons", "/api/admin/bundles", "/api/admin/payments/methods/active")) {
+            client.get().uri(path).cookie("accessToken", token("USER", "valid")).exchange().expectStatus().isForbidden();
+            client.get().uri(path).cookie("accessToken", token("ADMIN", "valid")).exchange().expectStatus().isOk();
+            assertThat(LAST.get().uri()).isEqualTo(path);
+        }
+    }
+
+    @Test
+    void onlyExactPayosWebhookPostIsPublicAndCsrfExemptAndShopOwnsSignatureRejection() {
+        String path = "/api/payments/payos/webhook";
+        String body = "{\"data\":{\"orderCode\":123},\"signature\":\"test-signature\"}";
+        String reply = "{\"error\":0,\"message\":\"Ok\",\"data\":{}}";
+        REPLY.set(new Reply(200, reply, List.of()));
+        client.post().uri(path).cookie("accessToken", token("USER", "expired"))
+                .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isOk()
+                .expectHeader().valueEquals("X-Test-Upstream", "shop-service")
+                .expectHeader().doesNotExist(HttpHeaders.SET_COOKIE).expectBody(String.class).isEqualTo(reply);
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        assertThat(LAST.get().body()).isEqualTo(body);
+        assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-XSRF-TOKEN");
+        REPLY.set(new Reply(400, "{\"code\":\"SHOP_PAYOS_INVALID_SIGNATURE\"}", List.of()));
+        client.post().uri(path).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                .expectStatus().isBadRequest().expectBody().jsonPath("$.code").isEqualTo("SHOP_PAYOS_INVALID_SIGNATURE");
+        for (String other : List.of(path + "/", "/api/payments/payos/other", "/api/payments/orders")) {
+            LAST.set(null);
+            client.post().uri(other).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isUnauthorized();
+            assertThat(LAST.get()).isNull();
+        }
+        client.get().uri(path).exchange().expectStatus().isUnauthorized();
+        client.put().uri(path).cookie("accessToken", token("USER", "valid"))
+                .exchange().expectStatus().isForbidden().expectBody().jsonPath("$.code").isEqualTo("GATEWAY_CSRF_INVALID");
+    }
+
+    private static String upstreamUrl(String service) {
+        return "http://127.0.0.1:" + CONTRACT_UPSTREAMS.get(service).port();
+    }
+
+    private static DisposableServer contractUpstream(String service) {
+        return HttpServer.create().host("127.0.0.1").port(0).handle((request, response) ->
+                request.receive().aggregate().asString().defaultIfEmpty("").flatMap(body -> {
+                    var headers = new java.util.TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+                    request.requestHeaders().forEach(entry -> headers.put(entry.getKey(), entry.getValue()));
+                    LAST.set(new ObservedRequest(request.uri(), request.method().name(), body, headers));
+                    response.header(HttpHeaders.CONTENT_TYPE, "application/json").header("X-Test-Upstream", service);
+                    Reply reply = REPLY.get();
+                    if (reply != null) {
+                        response.status(reply.status());
+                        reply.cookies().forEach(cookie -> response.addHeader(HttpHeaders.SET_COOKIE, cookie));
+                    }
+                    return response.sendString(Mono.just(reply == null ? "{}" : reply.body())).then();
+                })).bindNow();
+    }
 
     @Test
     void publicRegistrationPathsPreserveMethodBodyQueryAndIgnoreExpiredAccessCookies() throws Exception {
@@ -109,6 +332,71 @@ class GatewayIntegrationTests {
             assertThat(LAST.get().body()).isEqualTo(body);
             assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role");
         }
+    }
+
+    @Test
+    void passwordRecoveryPathsArePublicAndPreserveBodiesWithoutCsrf() throws Exception {
+        for (String path : List.of("/api/auth/password/forgot", "/api/auth/password/reset")) {
+            String body = path.endsWith("forgot") ? "{\"email\":\"khanh@example.com\"}"
+                    : "{\"email\":\"khanh@example.com\",\"otp\":\"012345\",\"password\":\"NewPoker123!\",\"confirmPassword\":\"NewPoker123!\"}";
+            for (String stale : List.of("", token("USER", "expired"))) {
+                var request = client.post().uri(path).contentType(MediaType.APPLICATION_JSON);
+                if (!stale.isEmpty()) request.cookie("accessToken", stale);
+                request.bodyValue(body).exchange().expectStatus().isOk();
+                assertThat(LAST.get().uri()).isEqualTo(path);
+                assertThat(LAST.get().body()).isEqualTo(body);
+                assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-XSRF-TOKEN");
+            }
+        }
+        client.post().uri("/api/auth/password/other").contentType(MediaType.APPLICATION_JSON).bodyValue("{}")
+                .exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void checkinRoutesPreservePathsAndRequireAccessAndCsrf() {
+        client.get().uri("/api/checkin/calendar?month=2026-10").exchange().expectStatus().isUnauthorized();
+        client.post().uri("/api/checkin").exchange().expectStatus().isUnauthorized();
+        assertThat(LAST.get()).isNull();
+        String access = token("USER", "valid");
+        client.post().uri("/api/checkin").cookie("accessToken", access).exchange().expectStatus().isForbidden()
+                .expectBody().jsonPath("$.code").isEqualTo("GATEWAY_CSRF_INVALID");
+        assertThat(LAST.get()).isNull();
+        client.get().uri("/api/checkin/calendar?month=2026-10").cookie("accessToken", access)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo("/api/checkin/calendar?month=2026-10");
+        REPLY.set(new Reply(202, "{\"result\":{\"rewardStatus\":\"PENDING\"}}", List.of()));
+        client.post().uri("/api/checkin").cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").header("X-User-Id", UUID.randomUUID().toString())
+                .exchange().expectStatus().isAccepted().expectBody().jsonPath("$.result.rewardStatus").isEqualTo("PENDING");
+        assertThat(LAST.get().uri()).isEqualTo("/api/checkin");
+        assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+        assertThat(LAST.get().headers().get("X-XSRF-TOKEN")).isEqualTo("csrf-example");
+    }
+
+    @Test
+    void passwordChangeRequiresAccessAndForwardsCsrfBodyAndClearedCookies() {
+        String path = "/api/auth/password/change";
+        String body = "{\"currentPassword\":\"OldPoker123!\",\"newPassword\":\"NewPoker123!\",\"confirmPassword\":\"NewPoker123!\"}";
+        client.post().uri(path).cookie("XSRF-TOKEN", "csrf-example").header("X-XSRF-TOKEN", "csrf-example")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isUnauthorized();
+        assertThat(LAST.get()).isNull();
+        REPLY.set(new Reply(200, "{\"code\":\"success_request\"}", List.of(
+                "accessToken=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+                "refreshToken=; Path=/api/auth; Max-Age=0; HttpOnly; SameSite=Lax")));
+        client.post().uri(path).cookie("accessToken", token("USER", "valid"))
+                .cookie("XSRF-TOKEN", "csrf-example").header("X-XSRF-TOKEN", "csrf-example")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isOk()
+                .expectCookie().maxAge("accessToken", Duration.ZERO).expectCookie().maxAge("refreshToken", Duration.ZERO);
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        assertThat(LAST.get().body()).isEqualTo(body);
+        assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+        assertThat(LAST.get().headers().get("X-XSRF-TOKEN")).isEqualTo("csrf-example");
+        // Auth owns CSRF validation on /api/auth/**; preserve its failure without clearing cookies.
+        REPLY.set(new Reply(403, "{\"code\":\"AUTH_CSRF_INVALID\"}", List.of()));
+        client.post().uri(path).cookie("accessToken", token("USER", "valid"))
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange().expectStatus().isForbidden()
+                .expectHeader().doesNotExist(HttpHeaders.SET_COOKIE);
+        assertThat(LAST.get().headers()).doesNotContainKey("X-XSRF-TOKEN");
     }
 
     @Test
@@ -215,6 +503,38 @@ class GatewayIntegrationTests {
     }
 
     @Test
+    void adminAvatarRoutesRequireAdminAndCsrfAndPreserveTheAuthPath() {
+        String path = "/api/admin/avatars";
+        String access = token("ADMIN", "valid");
+        client.get().uri(path).exchange().expectStatus().isUnauthorized();
+        client.get().uri(path).cookie("accessToken", token("USER", "valid"))
+                .exchange().expectStatus().isForbidden();
+        assertThat(LAST.get()).isNull();
+        client.get().uri(path).cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        String presignPath = path + "/presign?fileName=preset.png&contentType=image/png&fileSize=100";
+        client.get().uri(presignPath).cookie("accessToken", access).exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(presignPath);
+        LAST.set(null);
+        client.post().uri(path).cookie("accessToken", access).contentType(MediaType.APPLICATION_JSON).bodyValue("{}")
+                .exchange().expectStatus().isForbidden();
+        assertThat(LAST.get()).isNull();
+        String body = "{\"name\":\"Preset\",\"key\":\"avatars/preset-staging/example.png\"}";
+        client.post().uri(path).cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON).bodyValue(body)
+                .exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(path);
+        assertThat(LAST.get().body()).isEqualTo(body);
+        String updatePath = path + "/" + UUID.randomUUID();
+        client.put().uri(updatePath).cookie("accessToken", access).cookie("XSRF-TOKEN", "csrf-example")
+                .header("X-XSRF-TOKEN", "csrf-example").contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"name\":\"Preset\",\"active\":false}").exchange().expectStatus().isOk();
+        assertThat(LAST.get().uri()).isEqualTo(updatePath);
+        assertThat(LAST.get().method()).isEqualTo("PUT");
+        assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("ADMIN");
+    }
+
+    @Test
     void avatarPresignPreservesGetQueryAndConfirmationRequiresCsrf() {
         String access = token("USER", "valid");
         String presignPath = "/api/profiles/me/avatar/presign?fileName=avatar.png&contentType=image/png&fileSize=100";
@@ -237,7 +557,6 @@ class GatewayIntegrationTests {
         assertThat(LAST.get().uri()).isEqualTo(path);
         assertThat(LAST.get().method()).isEqualTo("POST");
         assertThat(LAST.get().body()).isEqualTo(body);
-        client.get().uri("/api/profiles/avatars/presets/spade").exchange().expectStatus().isUnauthorized();
     }
 
     @Test
@@ -390,4 +709,5 @@ class GatewayIntegrationTests {
 
     record ObservedRequest(String uri, String method, String body, Map<String, String> headers) { }
     record Reply(int status, String body, List<String> cookies) { }
+    record ServiceWrite(String service, HttpMethod method, String path) { }
 }

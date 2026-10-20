@@ -10,7 +10,7 @@ import com.msspoker.authservice.integration.messaging.RegistrationEventDispatche
 import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.ErrorCode;
 import com.msspoker.authservice.shared.infrastructure.config.MessagingConfig;
-import com.msspoker.authservice.shared.infrastructure.mail.RegistrationMailSender;
+import com.msspoker.authservice.shared.infrastructure.mail.AuthMailSender;
 import com.msspoker.common.event.AccountRegisteredEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.BindingBuilder;
@@ -52,7 +52,7 @@ class RegistrationInfrastructureTests {
     @Autowired private RegistrationOtpRepository otps;
     @Autowired private RegistrationEventRepository events;
     @Autowired private RegistrationEventDispatcher eventService;
-    @Autowired private RegistrationMailSender mailSender;
+    @Autowired private AuthMailSender mailSender;
     @Autowired private RabbitTemplate rabbit;
     @Autowired private RabbitAdmin rabbitAdmin;
     @Autowired private TopicExchange pokerEventsExchange;
@@ -78,7 +78,7 @@ class RegistrationInfrastructureTests {
     @Test
     void smtpMailArrivesInDisposableMailpit() throws Exception {
         String email = UUID.randomUUID() + "@example.com";
-        mailSender.sendOtp(email, "012345", Duration.ofMinutes(5));
+        mailSender.sendRegistrationOtp(email, "012345", Duration.ofMinutes(5));
         try (HttpClient client = HttpClient.newHttpClient()) {
             URI messagesUri = URI.create("http://" + mailpitContainer.getHost() + ":"
                     + mailpitContainer.getMappedPort(8025) + "/api/v1/messages");
@@ -106,9 +106,9 @@ class RegistrationInfrastructureTests {
         JavaMailSender brokenSender = mock(JavaMailSender.class);
         doThrow(new MailSendException("raw OTP must not be exposed"))
                 .when(brokenSender).send(any(org.springframework.mail.SimpleMailMessage.class));
-        RegistrationMailSender sender = new RegistrationMailSender(brokenSender,
+        AuthMailSender sender = new AuthMailSender(brokenSender,
                 new com.msspoker.authservice.shared.infrastructure.config.AuthMailProperties("test@poker.local"));
-        assertThatThrownBy(() -> sender.sendOtp("test@example.com", "012345", Duration.ofMinutes(5)))
+        assertThatThrownBy(() -> sender.sendRegistrationOtp("test@example.com", "012345", Duration.ofMinutes(5)))
                 .isInstanceOfSatisfying(ApiException.class, exception -> {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_MAIL_UNAVAILABLE);
                     assertThat(exception.getMessage()).doesNotContain("012345", "raw OTP");

@@ -13,16 +13,24 @@ import java.time.Duration;
 
 @Component
 @RequiredArgsConstructor
-public class RegistrationMailSender {
+public class AuthMailSender {
     private final JavaMailSender mailSender;
     private final AuthMailProperties properties;
 
-    public void sendOtp(String email, String code, Duration ttl) {
+    public void sendRegistrationOtp(String email, String code, Duration ttl) {
+        sendOtp(email, code, ttl, "Poker - Xác thực đăng ký", "Mã OTP đăng ký Poker của bạn: ");
+    }
+
+    public void sendPasswordResetOtp(String email, String code, Duration ttl) {
+        sendOtp(email, code, ttl, "Poker - Đặt lại mật khẩu", "Mã OTP đặt lại mật khẩu Poker của bạn: ");
+    }
+
+    private void sendOtp(String email, String code, Duration ttl, String subject, String purpose) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(properties.from());
         message.setTo(email);
-        message.setSubject("Poker - Xác thực đăng ký");
-        message.setText("Mã OTP đăng ký Poker của bạn: " + code
+        message.setSubject(subject);
+        message.setText(purpose + code
                 + "\nMã có hiệu lực trong " + ttl.toSeconds() + " giây. Không chia sẻ mã này với người khác.");
         try {
             mailSender.send(message);

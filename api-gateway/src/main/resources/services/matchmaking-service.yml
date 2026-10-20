@@ -1,0 +1,10 @@
+gateway:
+  catalog:
+    services:
+      matchmaking-service:
+        uri: ${MATCHMAKING_SERVICE_URL:lb://matchmaking-service}
+        routes:
+        - id: matchmaking-service
+          paths:
+          - /api/matchmaking/**
+          - /api/party/**

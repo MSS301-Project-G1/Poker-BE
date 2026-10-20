@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import java.time.Duration;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({S3Properties.class, AuthAvatarProperties.class})
+@EnableConfigurationProperties(S3Properties.class)
 public class S3Config {
     @Bean
     @ConditionalOnProperty(name = "auth.s3.enabled", havingValue = "true")

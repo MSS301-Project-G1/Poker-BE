@@ -17,7 +17,7 @@ import org.mapstruct.ReportingPolicy;
 public interface ProfileMapper {
     @Mapping(target = "accountId", source = "accountId")
     @Mapping(target = "displayName", source = "displayName")
-    @Mapping(target = "avatarUrl", source = "avatarUrl")
+    @Mapping(target = "avatarUrl", ignore = true)
     ProfileResponse toResponse(Profile profile);
 
     @Mapping(target = "accountId", source = "account.id")
@@ -25,7 +25,7 @@ public interface ProfileMapper {
     @Mapping(target = "phoneNumber", source = "account.phoneNumber")
     @Mapping(target = "displayName", source = "profile.displayName")
     @Mapping(target = "fullName", source = "profile.fullName")
-    @Mapping(target = "avatarUrl", source = "profile.avatarUrl")
+    @Mapping(target = "avatarUrl", ignore = true)
     @Mapping(target = "gender", source = "profile.gender")
     @Mapping(target = "birthDate", source = "profile.birthDate")
     @Mapping(target = "bio", source = "profile.bio")

@@ -38,10 +38,15 @@ public class ProfileController {
             + "không nhận ID từ client. Trả cả thông tin riêng của chủ tài khoản; không trả mật khẩu/token.")
     public ResponseEntity<ApiResponse<MyProfileResponse>> getMyProfile(HttpServletRequest request,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(ApiResponse.<MyProfileResponse>builder().code(ApiResponse.SUCCESS_CODE)
-                .message("Lấy hồ sơ cá nhân thành công.")
-                .result(profileService.getMyProfile(UUID.fromString(jwt.getSubject())))
-                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+        return ResponseEntity.ok(
+                ApiResponse.<MyProfileResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Lấy hồ sơ cá nhân thành công.")
+                        .result(profileService.getMyProfile(UUID.fromString(jwt.getSubject())))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
     }
 
     @PutMapping("/me")
@@ -52,10 +57,15 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<MyProfileResponse>> updateMyProfile(HttpServletRequest request,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody UpdateProfileRequest updateRequest) {
-        return ResponseEntity.ok(ApiResponse.<MyProfileResponse>builder().code(ApiResponse.SUCCESS_CODE)
-                .message("Cập nhật hồ sơ cá nhân thành công.")
-                .result(profileService.updateMyProfile(UUID.fromString(jwt.getSubject()), updateRequest))
-                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+        return ResponseEntity.ok(
+                ApiResponse.<MyProfileResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Cập nhật hồ sơ cá nhân thành công.")
+                        .result(profileService.updateMyProfile(UUID.fromString(jwt.getSubject()), updateRequest))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
     }
 
     @GetMapping("/batch")
@@ -66,8 +76,14 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<List<ProfileResponse>>> getProfilesBatch(HttpServletRequest request,
             @Parameter(description = "Account ID cần lấy hồ sơ; tối đa 100 phần tử trước khi bỏ trùng.")
             @RequestParam("ids") List<UUID> ids) {
-        return ResponseEntity.ok(ApiResponse.<List<ProfileResponse>>builder().code(ApiResponse.SUCCESS_CODE)
-                .message("Lấy danh sách hồ sơ thành công.").result(profileService.getProfilesBatch(ids))
-                .path(request.getRequestURI()).timestamp(Instant.now()).build());
+        return ResponseEntity.ok(
+                ApiResponse.<List<ProfileResponse>>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Lấy danh sách hồ sơ thành công.")
+                        .result(profileService.getProfilesBatch(ids))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
     }
 }
