@@ -1,5 +1,6 @@
 include:
   - docker/compose.infra.yml
+  - discovery-service/compose.yml
   - api-gateway/compose.yml
   - auth-service/compose.yml
   - identity-service/compose.yml

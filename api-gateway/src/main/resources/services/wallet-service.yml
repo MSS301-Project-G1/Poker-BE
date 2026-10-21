@@ -1,0 +1,9 @@
+gateway:
+  catalog:
+    services:
+      wallet-service:
+        uri: ${WALLET_SERVICE_URL:lb://wallet-service}
+        routes:
+        - id: wallet-service
+          paths:
+          - /api/wallet/**

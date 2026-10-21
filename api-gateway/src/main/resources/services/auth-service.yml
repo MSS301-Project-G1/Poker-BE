@@ -1,0 +1,49 @@
+# Auth issues and validates its own CSRF token; do not create a competing gateway cookie.
+gateway:
+  catalog:
+    services:
+      auth-service:
+        uri: ${AUTH_SERVICE_URL:lb://auth-service}
+        routes:
+        - id: auth-service
+          paths:
+          - /api/auth/**
+          - /api/profiles/**
+          - /api/checkin/**
+          - /api/reports/**
+          - /api/admin/users/**
+          - /api/admin/reports/**
+          - /api/admin/avatars/**
+        - id: auth-documentation
+          paths:
+          - /.well-known/jwks.json
+          - /swagger-ui.html
+          - /swagger-ui/**
+          - /v3/api-docs
+          - /v3/api-docs/**
+          methods:
+          - GET
+        public-endpoints:
+        - method: GET
+          paths:
+          - /api/auth/csrf
+        - method: POST
+          paths:
+          - /api/auth/register
+          - /api/auth/register/verify-otp
+          - /api/auth/register/resend-otp
+          - /api/auth/password/forgot
+          - /api/auth/password/reset
+          - /api/auth/login
+          - /api/auth/refresh
+          - /api/auth/logout
+        - method: GET
+          paths:
+          - /.well-known/jwks.json
+          - /swagger-ui.html
+          - /swagger-ui/**
+          - /v3/api-docs
+          - /v3/api-docs/**
+        csrf-delegated-paths:
+        - /api/auth
+        - /api/auth/**

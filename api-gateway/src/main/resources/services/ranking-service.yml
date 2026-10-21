@@ -1,0 +1,18 @@
+gateway:
+  catalog:
+    services:
+      ranking-service:
+        uri: ${RANKING_SERVICE_URL:lb://ranking-service}
+        routes:
+        - id: ranking-service
+          paths:
+          - /api/ranking/**
+          - /api/seasons/**
+          - /api/tutorial/**
+          - /api/admin/seasons/**
+        public-endpoints:
+        - method: GET
+          paths:
+          - /api/ranking/leaderboard
+          - /api/seasons/current
+          - /api/seasons/*/rewards

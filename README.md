@@ -1,6 +1,6 @@
 # Poker-BE
 
-Backend dạng Maven multi-module cho dự án Poker. Trạng thái từng phần xem README của module: [game-service](game-service/README.md), [auth-service](auth-service/README.md). Auth đã có đăng ký/OTP qua email và login/refresh/logout bằng cookie HttpOnly, JWT RS256/JWKS; gateway nghiệp vụ chưa triển khai.
+Backend dạng Maven multi-module cho dự án Poker. Trạng thái từng phần xem README của module: [game-service](game-service/README.md), [auth-service](auth-service/README.md). Auth đã có đăng ký/OTP qua email và login/refresh/logout bằng cookie HttpOnly, JWT RS256/JWKS. Gateway đã có route/quyền cấu hình theo service và Eureka discovery; xem [hướng dẫn tự tích hợp BE/FE](api-gateway/README.md).
 
 ## Yêu cầu
 
@@ -12,8 +12,9 @@ Backend dạng Maven multi-module cho dự án Poker. Trạng thái từng phầ
 
 ```text
 poker-be/
-├── pom.xml                 # parent POM, quản lý 12 module
+├── pom.xml                 # parent POM, quản lý các module
 ├── common/                 # thư viện dùng chung, giữ thật mỏng
+├── discovery-service/      # Eureka registry, port 8761
 ├── api-gateway/            # định tuyến HTTP
 ├── auth-service/           # phần tài khoản, hồ sơ, điểm danh của Khanh
 ├── identity-service/       # giữ nguyên scaffold, không nhận nghiệp vụ mới
@@ -31,7 +32,8 @@ poker-be/
 
 | Module | Người phụ trách | Port | Chức năng dự kiến |
 | --- | --- | ---: | --- |
-| api-gateway | Khanh | 8080 | Định tuyến request; JWT sẽ triển khai sau |
+| discovery-service | Khanh | 8761 | Danh bạ Eureka cho các service |
+| api-gateway | Khanh | 8080 | Route theo service, JWT cookie, quyền và CSRF |
 | auth-service | Khanh | 8090 | Tài khoản, xác thực, hồ sơ, điểm danh, báo cáo và xử phạt |
 | identity-service | Khanh | 8081 | Scaffold giữ nguyên, không nhận nghiệp vụ mới |
 | game-service | Bảo | 8082 | Engine poker, bàn chơi, lịch sử trận |

@@ -17,6 +17,7 @@
     <description>Multi-module backend for Poker</description>
     <modules>
         <module>common</module>
+        <module>discovery-service</module>
         <module>api-gateway</module>
         <module>identity-service</module>
         <module>auth-service</module>

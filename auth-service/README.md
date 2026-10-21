@@ -4,12 +4,42 @@ Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ v�
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
-hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT. Quên/reset mật khẩu và FE chưa triển khai.
+hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT; 5.3 có quên/reset mật khẩu bằng OTP.
+5.4 có đổi mật khẩu khi đang đăng nhập; phase 6 có điểm danh 50 xu/ngày và lịch tháng.
+FE và flow điểm danh với wallet thật chưa kiểm chứng.
 Phase 4B.1 bổ sung `GET /api/profiles/batch?ids=...` để FE lấy tên/avatar người chơi;
 API cần access cookie, chưa phải chức năng chỉnh sửa hồ sơ.
 Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/api-reference.md),
 [review phase 2](../docs/auth/phase-2.md), [kế hoạch](../docs/auth/implementation-plan.md),
 [chạy Docker và test Swagger](../docs/auth/local-development.md).
+
+## Điểm danh — phase 6
+
+- `POST /api/checkin`: không body, cần access cookie + CSRF. Ngày theo giờ Việt Nam,
+  mặc định 50 xu. Trả 201 khi đã ghi nhận điểm danh; đọc `rewardStatus` để biết đã nhận hay đang chờ thưởng.
+- `GET /api/checkin/calendar?month=2026-10`: cần access cookie; lịch tháng của mình,
+  gồm `month`, `timezone`, `today`, `checkedInToday`, `days`.
+- Mỗi ngày/account chỉ có một bản ghi; gọi lại POST trả 409 `AUTH_CHECKIN_ALREADY_EXISTS`,
+  kể cả đang chờ ví. Đọc lại lịch để theo dõi `rewardStatus`: `PENDING` hoặc `REWARDED`.
+
+Auth lưu điểm danh trước rồi gọi trực tiếp `POST /internal/wallet/credit` với
+`reason=DAILY_CHECKIN`, `currencyType=COIN`, key `checkin:{yyyy-MM-dd}:{accountId}`.
+Ví lỗi/timeout thì giữ PENDING và tự retry cùng key; không phát thêm phần thưởng cho cùng ngày.
+Retry quét tối đa 20 bản ghi/lượt, mặc định mỗi lượt cách 5000 ms và backoff 30 giây tính từ lần gửi lỗi.
+
+Cấu hình mới trong `.env.example`: `AUTH_CHECKIN_REWARD_COINS=50`,
+`AUTH_CHECKIN_RETRY_ENABLED=true`, `AUTH_CHECKIN_RETRY_DELAY=5000`,
+`AUTH_CHECKIN_RETRY_BACKOFF=30s`, `AUTH_WALLET_CONNECT_TIMEOUT=2s`,
+`AUTH_WALLET_REQUEST_TIMEOUT=5s`. Giữ `AUTH_WALLET_BASE_URL` unset/comment:
+Java trên máy mặc định localhost:8089, Compose mặc định `http://wallet-service:8089`.
+Không đặt localhost khi wallet chạy trong container khác. Hai service cần cùng Docker network.
+
+Auth không phụ thuộc startup wallet: chỉ chạy auth thì điểm danh có thể chờ thưởng;
+muốn nhận thưởng thật cần chạy thêm wallet đúng địa chỉ/mạng. Migration V6 tạo
+`daily_checkins`. Swagger có nhóm **Điểm danh**, login và Authorize CSRF như hiện tại.
+7 test quan trọng đã qua với PostgreSQL tạm và ví giả lập HTTP; chưa chạy ví thật/FE.
+Hợp đồng và hướng dẫn đầy đủ: [checkin.md](../docs/auth/checkin.md). Chưa có điểm danh bù;
+SPEC giữ nguyên chờ Khanh review.
 
 ## Avatar có sẵn và S3 upload
 
@@ -20,7 +50,22 @@ Tài liệu local trong `docs/` đang gitignore: [API reference](../docs/auth/ap
 - Các request BE cần access cookie; POST/PUT cần CSRF. Response vẫn bọc `ApiResponse`.
 
 PNG/JPEG, mặc định tối đa 2 MB và mỗi cạnh tối đa 2048 px. DB lưu object key cho ảnh upload;
-`avatarUrl` trong DTO là URL GET có hạn để bucket giữ private. Avatar có sẵn dùng được khi S3 chưa bật.
+`avatarUrl` trong DTO là URL GET S3 có hạn để bucket giữ private.
+Avatar có sẵn do admin upload lên S3 và quản lý trong bảng `avatar_presets`; user chọn bằng UUID,
+profile lưu `avatar_preset_id`, không lưu URL preset. Danh mục ban đầu rỗng.
+
+Admin dùng nhóm **Admin - Avatar** trong Swagger:
+
+1. GET `/api/admin/avatars/presign?fileName=avatar.png&contentType=image/png&fileSize=123456`.
+2. PUT file trực tiếp lên S3 bằng `uploadUrl`/`headers` được trả về.
+3. POST `/api/admin/avatars` với `{name, key}` để kiểm tra ảnh và tạo avatar đang bật.
+4. GET `/api/admin/avatars` xem cả avatar tắt; PUT `/api/admin/avatars/{avatarId}` với `{name, active}` để đổi tên/bật/tắt.
+
+Admin phải có role ADMIN và account ACTIVE; POST/PUT cần CSRF. User GET `/api/profiles/avatars`
+chỉ thấy avatar đang bật rồi PUT `/api/profiles/me/avatar` với `{avatarId}`. Tắt avatar ngăn chọn mới,
+người đã chọn vẫn giữ ảnh; đổi ảnh cá nhân không xóa object preset dùng chung.
+Migration V7 bỏ tham chiếu ba SVG cũ (spade/heart/diamond), giữ nguyên key S3 đã upload.
+Không còn route ảnh preset local hay biến `AUTH_PUBLIC_BASE_URL`.
 
 Điền các biến `AUTH_S3_*` trong `.env.example` sang `.env`, cấu hình CORS bucket rồi đặt
 `AUTH_S3_ENABLED=true`. Mặc định false giúp auth khởi động khi chưa có credentials.
@@ -263,7 +308,8 @@ port DB; file dev chỉ bổ sung port host. Auth trong Docker luôn kết nối
 Cấu hình chính và dev dùng cùng database/volume. Không bật đồng thời app Java
 trên host và container auth trên cùng port 8090.
 
-Flyway áp dụng V1–V4 khi khởi động; V4 thêm `refresh_tokens`, không sửa migration đã dùng.
+Flyway áp dụng V1–V6 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
+`password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`, V7 thêm danh mục avatar S3; không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
 không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,
 V2 dừng để review dữ liệu thay vì tự làm profile đó xuất hiện lại.
@@ -314,6 +360,70 @@ Job mặc định 5000 ms/batch, tối đa 20 rows; timeout confirm 5 giây/even
 ACK phải có ít nhất một queue nhận; không chứng minh tất cả consumer đã sẵn sàng.
 Consumer chống trùng bằng `eventId`: crash sau ACK/trước DB commit có thể phát lại.
 Không gọi ví/cấp quà trong phase 2.
+
+## Quên/đặt lại mật khẩu — phase 5.3
+
+Hai API public, không cần access cookie hay CSRF; gateway đã allowlist đúng hai path:
+
+1. `POST /api/auth/password/forgot` với `{ "email": "khanh@example.com" }`.
+2. Lấy OTP **đặt lại mật khẩu** trong email, gọi `POST /api/auth/password/reset`:
+
+   ```json
+   {
+     "email": "khanh@example.com",
+     "otp": "012345",
+     "password": "NewPoker123!",
+     "confirmPassword": "NewPoker123!"
+   }
+   ```
+
+3. Thành công thì về màn login, đăng nhập bằng mật khẩu mới; OTP chỉ dùng một lần.
+
+Swagger có nhóm **Khôi phục mật khẩu**. Gửi lại OTP bằng cách gọi lại `forgot` sau
+cooldown. Dùng chung `AUTH_OTP_*`: 6 số, mặc định hạn 5 phút, 5 lần thử, gửi lại sau
+60 giây; quy tắc mật khẩu giống đăng ký, BE kiểm tra cả `confirmPassword`.
+OTP khôi phục lưu ở bảng riêng, không dùng OTP đăng ký.
+
+`forgot` nhận email hợp lệ luôn trả HTTP 200/thông báo chung, kể cả email không tồn tại,
+đang cooldown hoặc SMTP lỗi. Cooldown không gửi thêm mail; SMTP lỗi giữ nguyên mã
+và bộ đếm cũ. Kiểm tra cấu hình SMTP/log chung nếu không nhận được mail. Gửi mail còn
+đồng bộ, chưa bảo đảm thời gian phản hồi đồng nhất giữa email tồn tại và không tồn tại.
+
+Reset thành công thu hồi mọi refresh token của đúng account và xóa access/refresh
+cookie trình duyệt hiện tại, chưa tự login. Access JWT đã phát vẫn hợp lệ tới hạn;
+chưa có blacklist. Không ảnh hưởng phiên của account khác.
+Lỗi reset gồm `AUTH_OTP_INVALID`/`AUTH_OTP_EXPIRED` (400),
+`AUTH_OTP_ATTEMPTS_EXCEEDED` (429), `AUTH_PASSWORD_MISMATCH`/`AUTH_PASSWORD_INVALID` (400).
+Response thành công dùng `ApiResponse` không có `result`; lỗi dùng `ErrorResponse` chung.
+
+Có migration V5 khi start bản mới. Test dùng PostgreSQL tạm và mail mock; chưa test SMTP
+thật cho reset, chưa rebuild stack dev. Hợp đồng đầy đủ và hướng dẫn FE ở
+[password-reset.md](../docs/auth/password-reset.md). SPEC giữ nguyên chờ Khanh review.
+
+## Đổi mật khẩu khi đang đăng nhập — phase 5.4
+
+`POST /api/auth/password/change` yêu cầu access cookie + CSRF (không public, không cần OTP).
+Account lấy từ JWT, body chỉ có:
+
+```json
+{
+  "currentPassword": "OldPoker123!",
+  "newPassword": "NewPoker123!",
+  "confirmPassword": "NewPoker123!"
+}
+```
+
+Swagger: lấy CSRF vào Authorize, login, mở nhóm **Đổi mật khẩu**. BE kiểm tra mật khẩu
+hiện tại và áp dụng cùng quy tắc mật khẩu đăng ký/reset cho newPassword; FE cũng kiểm
+tra confirmPassword. Mật khẩu hiện tại sai trả 400 `AUTH_CURRENT_PASSWORD_INVALID`,
+không tự refresh/retry do lỗi này. Sai xác nhận trả 400 `AUTH_PASSWORD_MISMATCH`.
+
+Thành công trả 200 `ApiResponse` không có `result`, đổi password hash, thu hồi mọi
+refresh token của đúng account, hủy OTP khôi phục đang chờ và xóa cookie trình duyệt
+hiện tại. FE xóa cache user và về login, chưa tự đăng nhập lại. Access JWT đã phát vẫn
+sống tới hạn theo cơ chế hiện tại. Thất bại giữ nguyên dữ liệu/phiên/cookie.
+Không cần migration hoặc biến môi trường mới. Hợp đồng và hướng dẫn FE ở
+[change-password.md](../docs/auth/change-password.md). SPEC chờ Khanh review.
 
 ## Test login/refresh/logout bằng Swagger
 
@@ -386,8 +496,20 @@ Các kiểm tra phase 2–3 trên không có nghĩa đã chạy FE/game hay buil
 
 - `AuthService` / `AuthServiceImpl`: đăng ký, OTP, login, refresh, logout và người dùng hiện tại.
 - `ProfileService` / `ProfileServiceImpl`: đọc/sửa hồ sơ, batch profile và avatar (preset, presign, xác nhận upload).
+- `CheckinService` / `CheckinServiceImpl`: điểm danh, lịch tháng và xử lý thưởng đang chờ; `integration/wallet` chứa HTTP client/job retry.
 - `ProfileMapper`: chỉ chuyển entity/DTO; service nhờ `S3AvatarStorage` ký URL xem ảnh.
 - `integration/messaging/RegistrationEventDispatcher`: phát lại outbox `account.registered` trong transaction riêng, được scheduler gọi sau khi dữ liệu đăng ký đã commit.
 
 Các controller tách theo nhóm API/Swagger; tất cả vẫn thuộc cùng một microservice `auth-service`.
 Storage, JWT, cookie và mail là thành phần kỹ thuật dùng bởi service nghiệp vụ.
+
+## Eureka và tích hợp của các owner
+
+Auth đăng ký vào Eureka khi `EUREKA_CLIENT_ENABLED=true` (mặc định). Java host dùng
+`EUREKA_SERVICE_URL=http://localhost:8761/eureka/`; Compose auth dùng discovery-service
+và công bố hostname auth-service. Chạy auth riêng khi không dùng registry thì đặt
+`EUREKA_CLIENT_ENABLED=false`. Test profile đã tắt discovery để không đăng ký vào registry local.
+
+Gateway chuyển route qua `lb://auth-service`; bộ chạy auth + gateway nay thêm
+`-f discovery-service/compose.yml`. Lệnh đầy đủ và hướng dẫn owner tự khai báo
+route/quyền và nối FE: [README gateway](../api-gateway/README.md).

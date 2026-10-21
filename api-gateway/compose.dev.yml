@@ -1,8 +1,10 @@
-# Auth-first development: reuse the auth Compose files, without starting the team stack.
+# Auth-first development: reuse auth and Eureka, without starting the team stack.
 services:
   api-gateway:
     ports: !override
       - "127.0.0.1:${API_GATEWAY_PORT:-8080}:8080"
     depends_on: !override
       auth-service:
+        condition: service_started
+      discovery-service:
         condition: service_started

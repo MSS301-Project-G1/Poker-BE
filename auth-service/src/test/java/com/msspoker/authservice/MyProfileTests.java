@@ -245,15 +245,17 @@ class MyProfileTests {
     }
 
     @Test
-    void missingS3ConfigurationDoesNotBlockProfilesOrPresetAvatars() throws Exception {
+    void missingS3ConfigurationKeepsProfilesAvailableAndCatalogEmpty() throws Exception {
         mvc.perform(get(PATH).cookie(access)).andExpect(status().isOk());
         mvc.perform(get(PATH + "/avatar/presign").cookie(access).param("fileName", "avatar.png")
                         .param("contentType", "image/png").param("fileSize", "100"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("AUTH_AVATAR_STORAGE_UNAVAILABLE"));
+        mvc.perform(get("/api/profiles/avatars").cookie(access)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.length()").value(0));
         mvc.perform(put(PATH + "/avatar").cookie(access, csrfCookie).header("X-XSRF-TOKEN", csrfToken)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"avatarId\":\"spade\"}"))
-                .andExpect(status().isOk());
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"avatarId\":\"" + UUID.randomUUID() + "\"}"))
+                .andExpect(status().isNotFound());
     }
 
     private MockHttpServletRequestBuilder update(String body) {
