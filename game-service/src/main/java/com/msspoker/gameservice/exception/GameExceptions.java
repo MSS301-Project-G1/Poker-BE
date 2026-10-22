@@ -93,6 +93,10 @@ public final class GameExceptions {
         return new GameApiException(GameError.GAME_FORBIDDEN, HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập bàn hoặc chức năng này.");
     }
 
+    public static GameApiException leaveNotAllowed() {
+        return new GameApiException(GameError.GAME_FORBIDDEN, HttpStatus.FORBIDDEN, "Chỉ có thể rời ván ở chế độ Chơi thường.");
+    }
+
     public static GameApiException playerBusy() {
         return new GameApiException(GameError.GAME_PLAYER_BUSY, HttpStatus.CONFLICT, "Một người chơi đang ở bàn khác.");
     }

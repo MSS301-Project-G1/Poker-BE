@@ -12,6 +12,7 @@ import com.msspoker.gameservice.service.TableService;
 
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
@@ -33,6 +34,13 @@ public class GameController {
     @GetMapping("/tables/{tableId}")
     public GameSnapshotResponse snapshot(@PathVariable UUID tableId, @RequestAttribute(GameHeaders.USER_ID) UUID accountId) {
         return gameplay.snapshot(tableId, accountId);
+    }
+
+    /** Normal mode only: forfeits the rest of the match and frees the player to queue again. */
+    @PostMapping("/tables/{tableId}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leave(@PathVariable UUID tableId, @RequestAttribute(GameHeaders.USER_ID) UUID accountId) {
+        gameplay.leave(tableId, accountId);
     }
 
     @GetMapping("/tables/{tableId}/result")

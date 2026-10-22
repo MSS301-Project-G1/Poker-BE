@@ -4,7 +4,9 @@ import com.msspoker.gameservice.config.GameProperties;
 import com.msspoker.gameservice.dto.request.ActionRequest;
 import com.msspoker.gameservice.dto.response.GameSnapshotResponse;
 import com.msspoker.gameservice.enums.ActionType;
+import com.msspoker.gameservice.enums.GameMode;
 import com.msspoker.gameservice.enums.Street;
+import com.msspoker.gameservice.exception.GameExceptions;
 import com.msspoker.gameservice.mapper.SnapshotMapper;
 import com.msspoker.gameservice.model.game.ManagedTable;
 import com.msspoker.gameservice.model.game.PokerTable;
@@ -71,6 +73,26 @@ public class GameplayServiceImpl implements GameplayService {
             if (request.type() == ActionType.RAISE) engine.raise(accountId, request.amount(), sequence);
             else engine.act(accountId, request.type(), sequence);
             afterTransition(table);
+            publisher.allPlayers(table);
+        } finally {
+            table.getLock().unlock();
+        }
+    }
+
+    @Override
+    public void leave(UUID tableId, UUID accountId) {
+        ManagedTable table = registry.require(tableId);
+        membership.validate(table, accountId);
+        if (table.getMatch().getMode() != GameMode.NORMAL) throw GameExceptions.leaveNotAllowed();
+        table.getLock().lock();
+        try {
+            PokerTable engine = table.getEngine();
+            Street street = engine.getStreet();
+            long sequence = engine.getSequence();
+            engine.leave(accountId);
+            registry.releasePlayer(accountId, tableId);
+            // An out-of-turn fold keeps the actor and street, so their running timer must not restart.
+            if (engine.getStreet() != street || engine.getSequence() != sequence) afterTransition(table);
             publisher.allPlayers(table);
         } finally {
             table.getLock().unlock();

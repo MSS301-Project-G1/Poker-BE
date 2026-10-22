@@ -15,6 +15,8 @@ public interface TableRegistry {
 
     void releasePlayers(ManagedTable table);
 
+    void releasePlayer(UUID accountId, UUID tableId);
+
     Collection<ManagedTable> all();
 
     void remove(UUID tableId);
