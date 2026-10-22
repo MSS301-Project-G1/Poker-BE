@@ -125,6 +125,7 @@ class NormalMatchWorkerTest {
         when(partyStore.findByAccountId(partyOne.accountId())).thenReturn(Optional.of(new PartySnapshot(
                 partyId,
                 "AB12CD34",
+                "123456",
                 partyOne.accountId(),
                 List.of(partyOne.accountId(), partyTwo.accountId(), partyThree.accountId()),
                 NOW
@@ -157,6 +158,7 @@ class NormalMatchWorkerTest {
         when(partyStore.findByAccountId(partyOne.accountId())).thenReturn(Optional.of(new PartySnapshot(
                 partyId,
                 "EF56GH78",
+                "123456",
                 partyOne.accountId(),
                 List.of(partyOne.accountId(), partyTwo.accountId(), partyThree.accountId(), partyFour.accountId()),
                 NOW

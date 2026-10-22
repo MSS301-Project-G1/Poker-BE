@@ -8,4 +8,5 @@ if targetPartyId ~= partyId then return -3 end
 if ARGV[1] == ARGV[2] then return -4 end
 redis.call('ZREM', ARGV[4] .. partyId, ARGV[2])
 redis.call('DEL', KEYS[2])
+redis.call('HSET', ARGV[3] .. partyId, 'password', ARGV[6])
 return 1

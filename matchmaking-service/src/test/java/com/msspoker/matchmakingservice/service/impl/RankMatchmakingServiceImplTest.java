@@ -91,7 +91,7 @@ class RankMatchmakingServiceImplTest {
     void partyMemberCannotJoinRank() {
         UUID accountId = UUID.randomUUID();
         when(parties.findByAccountId(accountId)).thenReturn(Optional.of(new PartySnapshot(
-                UUID.randomUUID(), "AB12CD34", accountId, List.of(accountId), NOW
+                UUID.randomUUID(), "AB12CD34", "123456", accountId, List.of(accountId), NOW
         )));
 
         assertThatThrownBy(() -> service.join(accountId))

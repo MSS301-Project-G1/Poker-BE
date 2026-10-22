@@ -809,7 +809,7 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 🔵 GĐ2
 - [ ] Sticker và sound trong chat (kiểm tra sở hữu qua `/internal/inventory/.../owns/...`), cooldown chống spam.
 - [ ] Kiểm tra cấm chat (`restrictions` / `account.penalized`).
-- [ ] Party: tạo, mời, kick, rời, chủ party bấm tìm trận Normal, ghép party với người lạ.
+- [ ] Party: tạo (sinh mã + mật khẩu), vào bằng mã + mật khẩu, kick (đổi mật khẩu), rời, chủ party bấm tìm trận Normal, ghép party với người lạ.
 - [ ] Presence: online / trong trận / offline.
 - [ ] Chuông thông báo: lưu lịch sử, đánh dấu đã đọc.
 

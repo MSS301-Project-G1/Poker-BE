@@ -32,6 +32,7 @@ class RedisQueueStoreConcurrencyTest {
     private static LettuceConnectionFactory connectionFactory;
     private static RedisQueueStore store;
     private static RedisPartyStore partyStore;
+    private static final String PASSWORD = "123456";
 
     @BeforeAll
     static void startRedis() {
@@ -218,21 +219,23 @@ class RedisQueueStoreConcurrencyTest {
         UUID partyId = UUID.randomUUID();
         String partyCode = "AB12CD34";
 
-        assertThat(partyStore.create(partyId, partyCode, leader, Instant.EPOCH))
+        assertThat(partyStore.create(partyId, partyCode, PASSWORD, leader, Instant.EPOCH))
                 .isEqualTo(PartyStore.CreateResult.CREATED);
-        assertThat(partyStore.invite(leader, firstMember, java.time.Duration.ofMinutes(15)))
-                .isEqualTo(PartyStore.InviteResult.INVITED);
-        assertThat(partyStore.join(firstMember, partyCode, 6, Instant.EPOCH.plusSeconds(1)))
+        assertThat(partyStore.join(firstMember, partyCode, "000000", 6, Instant.EPOCH.plusSeconds(1)))
+                .isEqualTo(PartyStore.JoinResult.WRONG_PASSWORD);
+        assertThat(partyStore.findByAccountId(firstMember)).isEmpty();
+        assertThat(partyStore.join(firstMember, partyCode, PASSWORD, 6, Instant.EPOCH.plusSeconds(1)))
                 .isEqualTo(PartyStore.JoinResult.JOINED);
-        assertThat(partyStore.invite(leader, secondMember, java.time.Duration.ofMinutes(15)))
-                .isEqualTo(PartyStore.InviteResult.INVITED);
-        assertThat(partyStore.join(secondMember, partyCode, 6, Instant.EPOCH.plusSeconds(2)))
+        assertThat(partyStore.join(secondMember, partyCode, PASSWORD, 6, Instant.EPOCH.plusSeconds(2)))
                 .isEqualTo(PartyStore.JoinResult.JOINED);
 
         assertThat(partyStore.leave(leader)).isEqualTo(PartyStore.LeaveResult.LEFT);
         assertThat(partyStore.findByAccountId(firstMember).orElseThrow().leaderId()).isEqualTo(firstMember);
-        assertThat(partyStore.kick(firstMember, secondMember)).isEqualTo(PartyStore.KickResult.KICKED);
+        assertThat(partyStore.kick(firstMember, secondMember, "654321")).isEqualTo(PartyStore.KickResult.KICKED);
         assertThat(partyStore.findByAccountId(secondMember)).isEmpty();
+        assertThat(partyStore.join(secondMember, partyCode, PASSWORD, 6, Instant.EPOCH.plusSeconds(3)))
+                .isEqualTo(PartyStore.JoinResult.WRONG_PASSWORD);
+        assertThat(partyStore.findByCode(partyCode).orElseThrow().password()).isEqualTo("654321");
         assertThat(partyStore.leave(firstMember)).isEqualTo(PartyStore.LeaveResult.DISBANDED);
         assertThat(partyStore.findByAccountId(firstMember)).isEmpty();
     }
@@ -248,21 +251,17 @@ class RedisQueueStoreConcurrencyTest {
                 new QueueEntry(firstMember, MatchMode.NORMAL, Instant.EPOCH.plusSeconds(21), partyId),
                 new QueueEntry(secondMember, MatchMode.NORMAL, Instant.EPOCH.plusSeconds(21), partyId)
         );
-        assertThat(partyStore.create(partyId, "PQ12RS34", leader, Instant.EPOCH))
+        assertThat(partyStore.create(partyId, "PQ12RS34", PASSWORD, leader, Instant.EPOCH))
                 .isEqualTo(PartyStore.CreateResult.CREATED);
-        assertThat(partyStore.invite(leader, firstMember, java.time.Duration.ofMinutes(15)))
-                .isEqualTo(PartyStore.InviteResult.INVITED);
-        assertThat(partyStore.join(firstMember, "PQ12RS34", 6, Instant.EPOCH.plusSeconds(1)))
+        assertThat(partyStore.join(firstMember, "PQ12RS34", PASSWORD, 6, Instant.EPOCH.plusSeconds(1)))
                 .isEqualTo(PartyStore.JoinResult.JOINED);
-        assertThat(partyStore.invite(leader, secondMember, java.time.Duration.ofMinutes(15)))
-                .isEqualTo(PartyStore.InviteResult.INVITED);
-        assertThat(partyStore.join(secondMember, "PQ12RS34", 6, Instant.EPOCH.plusSeconds(2)))
+        assertThat(partyStore.join(secondMember, "PQ12RS34", PASSWORD, 6, Instant.EPOCH.plusSeconds(2)))
                 .isEqualTo(PartyStore.JoinResult.JOINED);
 
         assertThat(store.enqueueParty(entries)).isTrue();
         assertThat(store.oldest(MatchMode.NORMAL, 3)).containsExactlyInAnyOrderElementsOf(entries);
         entries.forEach(entry -> assertThat(store.find(entry.accountId())).contains(entry));
-        assertThat(partyStore.kick(leader, secondMember)).isEqualTo(PartyStore.KickResult.PARTY_QUEUED);
+        assertThat(partyStore.kick(leader, secondMember, "654321")).isEqualTo(PartyStore.KickResult.PARTY_QUEUED);
         assertThat(partyStore.leave(firstMember)).isEqualTo(PartyStore.LeaveResult.PARTY_QUEUED);
 
         assertThat(store.cancelParty(entries)).isEqualTo(QueueStore.CancelResult.CANCELLED);
@@ -281,11 +280,9 @@ class RedisQueueStoreConcurrencyTest {
                 new QueueEntry(leader, MatchMode.NORMAL, Instant.EPOCH.plusSeconds(31), partyId),
                 new QueueEntry(member, MatchMode.NORMAL, Instant.EPOCH.plusSeconds(31), partyId)
         );
-        assertThat(partyStore.create(partyId, "TU56VW78", leader, Instant.EPOCH))
+        assertThat(partyStore.create(partyId, "TU56VW78", PASSWORD, leader, Instant.EPOCH))
                 .isEqualTo(PartyStore.CreateResult.CREATED);
-        assertThat(partyStore.invite(leader, member, java.time.Duration.ofMinutes(15)))
-                .isEqualTo(PartyStore.InviteResult.INVITED);
-        assertThat(partyStore.join(member, "TU56VW78", 6, Instant.EPOCH.plusSeconds(1)))
+        assertThat(partyStore.join(member, "TU56VW78", PASSWORD, 6, Instant.EPOCH.plusSeconds(1)))
                 .isEqualTo(PartyStore.JoinResult.JOINED);
         assertThat(store.enqueueParty(entries)).isTrue();
         assertThat(store.reserve(MatchMode.NORMAL, entries, UUID.randomUUID())).isTrue();

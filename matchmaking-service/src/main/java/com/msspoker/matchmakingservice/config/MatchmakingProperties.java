@@ -127,11 +127,8 @@ public class MatchmakingProperties {
 
     public static class Party {
         @Min(2) @Max(6) private int maxMembers = 6;
-        @NotNull private Duration inviteTtl = Duration.ofMinutes(15);
         public int getMaxMembers() { return maxMembers; }
         public void setMaxMembers(int maxMembers) { this.maxMembers = maxMembers; }
-        public Duration getInviteTtl() { return inviteTtl; }
-        public void setInviteTtl(Duration inviteTtl) { this.inviteTtl = inviteTtl; }
     }
 
     public static class Ranking {
