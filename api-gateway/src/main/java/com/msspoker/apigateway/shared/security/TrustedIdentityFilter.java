@@ -22,6 +22,8 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.G
 public class TrustedIdentityFilter implements GlobalFilter, Ordered {
     private final GatewayErrorWriter errors;
     private final String gameServiceKey;
+    @Value("${gateway.social-gateway-key:}") private String socialKey;
+    @Value("${gateway.chat-gateway-key:}") private String chatKey;
 
     public TrustedIdentityFilter(GatewayErrorWriter errors, @Value("${gateway.game-service-key:}") String gameServiceKey) {
         this.errors = errors;
@@ -32,6 +34,10 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         return exchange.<Principal>getPrincipal().map(Optional::of).defaultIfEmpty(Optional.empty()).flatMap(principal -> {
             Route route = exchange.getAttribute(GATEWAY_ROUTE_ATTR);
+            String routeId = route == null ? "" : route.getId();
+            boolean social = routeId.equals("social-service");
+            boolean chat = routeId.equals("chat-service");
+            if ((social && socialKey.isBlank()) || (chat && chatKey.isBlank())) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
             boolean game = route != null && route.getId().equals("game-service");
             if (game && gameServiceKey.isBlank()) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
             var request = exchange.getRequest().mutate().headers(headers -> {
@@ -39,6 +45,8 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
                     headers.set("X-User-Id", authentication.getToken().getSubject());
                     headers.set("X-User-Role", authentication.getToken().getClaimAsString("role"));
                 }
+                if (social) headers.set("X-Social-Gateway-Key", socialKey);
+                if (chat) headers.set("X-Chat-Gateway-Key", chatKey);
                 if (game) headers.set("X-Game-Service-Key", gameServiceKey);
             }).build();
             // CORS is owned by the gateway; upstream headers must not produce duplicate values.

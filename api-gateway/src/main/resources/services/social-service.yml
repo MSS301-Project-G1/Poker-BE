@@ -6,5 +6,6 @@ gateway:
         routes:
         - id: social-service
           paths:
-          - /api/social/**
-          strip-prefix: 2
+          - /api/friends/**
+          - /api/blocks/**
+          - /api/notifications/**

@@ -16,6 +16,21 @@ class ApiGatewayApplicationTests {
     }
 
     @Test
+    void socialChatRoutesKeepApiPathsAndProvideWebsocketEndpoints() {
+        var definitions = routes.getRouteDefinitions().collectList().block();
+        for (String id : java.util.List.of("social-service", "chat-service")) {
+            var route = definitions.stream().filter(value -> value.getId().equals(id)).findFirst().orElseThrow();
+            assertThat(route.getFilters()).isEmpty();
+        }
+        for (String name : java.util.List.of("social", "chat")) {
+            var route = definitions.stream().filter(value -> value.getId().equals(name + "-websocket"))
+                    .findFirst().orElseThrow();
+            assertThat(route.getUri().getScheme()).isIn("ws", "wss");
+            assertThat(route.getPredicates().toString()).contains("/ws/" + name);
+        }
+    }
+
+    @Test
     void matchmakingRoutePreservesControllerPathAndIncludesParty() {
         var route = routes.getRouteDefinitions()
                 .filter(definition -> definition.getId().equals("matchmaking-service"))

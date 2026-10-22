@@ -101,6 +101,7 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(config -> config
                         .pathMatchers(HttpMethod.GET, PUBLIC_HEALTH).permitAll()
                         .matchers(policy.adminEndpoints()).hasRole("ADMIN")
+                        .pathMatchers("/ws/social", "/ws/chat").permitAll()
                         .pathMatchers("/api/admin/**").hasRole("ADMIN")
                         .matchers(policy.publicEndpoints()).permitAll()
                         .pathMatchers("/api/**").authenticated().anyExchange().denyAll())

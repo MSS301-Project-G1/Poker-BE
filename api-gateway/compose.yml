@@ -25,6 +25,10 @@ services:
       COMPETITION_SERVICE_URL: ${COMPETITION_SERVICE_URL:-lb://competition-service}
       SHOP_SERVICE_URL: ${SHOP_SERVICE_URL:-lb://shop-service}
       WALLET_SERVICE_URL: ${WALLET_SERVICE_URL:-lb://wallet-service}
+      SOCIAL_WS_URL: ws://social-service:8084
+      CHAT_WS_URL: ws://chat-service:8085
+      SOCIAL_GATEWAY_KEY: ${SOCIAL_GATEWAY_KEY:-}
+      CHAT_GATEWAY_KEY: ${CHAT_GATEWAY_KEY:-}
     depends_on:
       - auth-service
       - discovery-service
