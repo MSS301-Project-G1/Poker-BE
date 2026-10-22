@@ -170,7 +170,7 @@ social-service/
     │   │   ├── repository/
     │   │   ├── service/
     │   │   ├── service/impl/
-    │   │   ├── messaging/
+    │   │   ├── service/impl/event/
     │   │   ├── security/
     │   │   └── websocket/
     │   └── resources/db/migration/
@@ -180,8 +180,8 @@ social-service/
 - Chỉ tạo package khi có class thật; không dựng package rỗng.
 - Controller chỉ xác thực transport và gọi service; không chứa transaction/business.
 - Entity không trả trực tiếp ra API; dùng DTO và MapStruct.
-- Interface chỉ tạo tại boundary cần thay implementation/test double; không tạo
-  interface một implementation nếu không đem lại giá trị.
+- Service nghiệp vụ khai báo interface trong `service/` và implementation trong `service/impl/`.
+- Repository kế thừa Spring Data JPA; SQL đặc thù nằm trong custom fragment.
 - Thời gian dùng `Instant`, enum UPPER_SNAKE_CASE, ID theo chuẩn UUID của `common`.
 - Lỗi API theo `ErrorResponse` chung, code bắt đầu `SOCIAL_`.
 
@@ -207,8 +207,8 @@ List API phải phân trang/cursor, không trả danh sách vô hạn.
 
 ## 8. Docker, cấu hình và test
 
-- `social-service/compose.yml` sở hữu `social-service`, `social-db`, `social-redis`
-  và private network `social-net`.
+- `social-service/compose.yml` sở hữu `social-service`, `social-db` và private network
+  `social-net`; bổ sung `social-redis` khi triển khai presence GĐ2.
 - RabbitMQ dùng `docker/compose.infra.yml`; container gọi `rabbitmq:5672`, Java
   chạy trên host gọi port publish của host.
 - Không hard-code secret/localhost trong cấu hình container.
@@ -226,3 +226,17 @@ List API phải phân trang/cursor, không trả danh sách vô hạn.
   nghiệp vụ tài khoản nằm ở `auth-service`. Chỉ cấu hình URL sau khi Khanh chốt.
 - Cơ chế refresh/thu hồi token WebSocket và giới hạn kích thước notification chưa
   được chốt; phải để config và review cùng Gateway/Auth.
+
+
+## Cấu trúc triển khai theo Competition Service
+
+- `controller/`: REST transport; request và response khai báo riêng trong `dto/request/`, `dto/response/`.
+- `service/`: interface nghiệp vụ; `service/impl/`: implementation và transaction.
+- `service/client/`, `service/impl/client/`: hợp đồng và implementation gọi service ngoài, chỉ tạo khi có client thật.
+- `service/event/`, `service/impl/event/`: publisher interface và implementation event, consumer, delivery adapter.
+- `repository/`: Spring Data JPA cùng custom fragment cho SQL đặc thù.
+- `mapper/`: MapStruct mapping entity sang response.
+- `constant/`: header constants; `validator/`: kiểm tra quyền/đầu vào nghiệp vụ được tách khỏi service.
+- `config/`, `security/`, `websocket/`: cấu hình và adapter đặc thù transport.
+- DTO dùng hậu tố Request/Response; tách từng record thành file, không gom trong lớp Dtos.
+- Refactor package và tên Java không đổi JSON field, endpoint, schema, quy tắc khóa hoặc transaction.

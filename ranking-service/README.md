@@ -77,6 +77,7 @@ Leaderboard order is Elo descending, then account id ascending.
 | GET | `/api/ranking/leaderboard?page=0&size=20` | `PageResponse` of ranked players; size 1–100 |
 | GET | `/api/ranking/me` | Own standing from `X-User-Id`; `position` is `null` before the first record |
 | GET | `/api/ranking/friends` | The player and up to 199 friends: `[{ rank, position, accountId, elo, tier, winStreak, matchesPlayed, you }]` |
+| GET | `/api/ranking/me/matches/{matchId}` | Own result of one RANK match: `{ matchId, place, eloDelta, eloAfter, rewardCoins }`; `eloDelta` is the applied change, `rewardCoins` is 0 below top 3; `404` until `match.finished` is processed |
 | GET | `/api/seasons/current` | Active season |
 | GET | `/api/tutorial/me` | `{ completed, completedAt, rewardCoins }` |
 | POST | `/api/tutorial/complete` | Records the completion and grants `TUTORIAL_REWARD` once; repeating returns the first completion |

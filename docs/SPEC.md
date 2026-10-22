@@ -715,18 +715,18 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 **Việc cần làm**
 
 🟢 MVP
-- [ ] **Tuần 1:** lá bài, bộ bài (xáo theo seed để tái hiện bug), bộ so bài 7 lá, tính pot và Side pot.
-- [ ] **Tuần 1–2:** máy trạng thái bàn: bắt đầu ván, blind, các vòng cược, `FOLD/CHECK/CALL/RAISE/ALL_IN`, showdown, chia pot, loại người hết chip, xếp hạng cuối trận.
-- [ ] **Tuần 2:** bài mô phỏng: bot tự chơi hàng nghìn ván, kiểm tra tổng chip không đổi và không có exception.
-- [ ] `POST /internal/tables` (CreateTable), đọc Match Settings mặc định theo `mode`.
-- [ ] WebSocket `/ws/game`: nhận hành động, gửi snapshot riêng từng người, mỗi bàn một khóa riêng.
-- [ ] Timer lượt: hết giờ thì tự Check nếu được, không thì Fold. Timer phải kiểm tra số thứ tự hành động để không xử lý nhầm lượt cũ.
-- [ ] Reconnect: `GET /api/game/me/active-table` để FE biết người chơi đang ở bàn nào sau khi tải lại trang. AFK quá N lượt thì coi như rời bàn.
-- [ ] Phát `match.started` và `match.finished` (payload ở mục 6.2).
-- [ ] `GET /internal/matches` cho màn Hồ sơ.
-- [ ] Dev tool (chỉ bật ở profile `dev`): `POST /dev/tables?humans=...&bots=...` và đăng nhập giả `?devUser=` để tự test không cần người khác.
-- [ ] Màn: Bàn chơi (ghế, bài tẩy, bài chung, pot, nút Dealer/SB/BB, timer, thanh raise, popup bảng thứ hạng tay bài), Kết thúc trận (thứ hạng, Elo thay đổi, xu thưởng).
-- [ ] Admin: cấu hình Match Settings.
+- [x] **Tuần 1:** lá bài, bộ bài (xáo theo seed để tái hiện bug), bộ so bài 7 lá, tính pot và Side pot.
+- [x] **Tuần 1–2:** máy trạng thái bàn: bắt đầu ván, blind, các vòng cược, `FOLD/CHECK/CALL/RAISE/ALL_IN`, showdown, chia pot, loại người hết chip, xếp hạng cuối trận.
+- [x] **Tuần 2:** bài mô phỏng: bot tự chơi hàng nghìn ván, kiểm tra tổng chip không đổi và không có exception.
+- [x] `POST /internal/tables` (CreateTable), đọc Match Settings mặc định theo `mode`.
+- [x] WebSocket `/ws/game`: nhận hành động, gửi snapshot riêng từng người, mỗi bàn một khóa riêng.
+- [x] Timer lượt: hết giờ thì tự Check nếu được, không thì Fold. Timer phải kiểm tra số thứ tự hành động để không xử lý nhầm lượt cũ.
+- [x] Reconnect: `GET /api/game/me/active-table` để FE biết người chơi đang ở bàn nào sau khi tải lại trang. AFK quá N lượt thì coi như rời bàn.
+- [x] Phát `match.started` và `match.finished` (payload ở mục 6.2).
+- [x] `GET /internal/matches` cho màn Hồ sơ.
+- [x] Dev tool (chỉ bật ở profile `dev`): `POST /dev/tables?humans=...&bots=...` và đăng nhập giả `?devUser=` để tự test không cần người khác.
+- [x] Màn: Bàn chơi (ghế, bài tẩy, bài chung, pot, nút Dealer/SB/BB, timer, thanh raise, popup bảng thứ hạng tay bài), Kết thúc trận (thứ hạng, Elo thay đổi, xu thưởng). *Elo thay đổi và xu thưởng lấy từ `GET /api/ranking/me/matches/{matchId}`.*
+- [x] Admin: cấu hình Match Settings.
 
 🔵 GĐ2
 - [ ] Hỗ trợ tích hợp giải đấu: chạy ổn định nhiều bàn song song, test tải.
@@ -926,7 +926,7 @@ Ca biên cần xử lý: gửi lời mời cho chính mình, cho người đã l
 - [ ] Tutorial: kịch bản ván bài dựng sẵn ở FE, hướng dẫn từng nút, hoàn thành thì FE gọi `POST /api/tutorial/complete`, ranking-service gọi `credit` `TUTORIAL_REWARD` 200 xu (mục 8) với key `tutorial:{accountId}` (chỉ thưởng một lần). `GET /api/tutorial/me` trả `{ completed, completedAt, rewardCoins }` để FE biết người chơi đã hoàn thành chưa.
 - [ ] Admin: quản lý mùa giải, quà theo bậc, lịch và cấu hình giải.
 
-**Cung cấp cho người khác:** `/internal/ranking/**` (Duy cần), dữ liệu Elo/bậc cho màn Hồ sơ và Sảnh chờ (Khanh cần).
+**Cung cấp cho người khác:** `/internal/ranking/**` (Duy cần), dữ liệu Elo/bậc cho màn Hồ sơ và Sảnh chờ (Khanh cần), `GET /api/ranking/me/matches/{matchId}` trả `{ place, eloDelta, eloAfter, rewardCoins }` cho màn Kết thúc trận (Bảo cần; `404` khi `match.finished` chưa được xử lý).
 
 **Phụ thuộc và cách mock**
 

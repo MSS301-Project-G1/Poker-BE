@@ -6,6 +6,7 @@ import com.msspoker.rankingservice.repository.EloHistoryRepository;
 import com.msspoker.rankingservice.repository.PlayerEloRepository;
 import com.msspoker.rankingservice.repository.RewardCreditRepository;
 import com.msspoker.rankingservice.service.EloCalculator;
+import com.msspoker.rankingservice.service.RatingService;
 import com.msspoker.rankingservice.service.SeasonService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -17,8 +18,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.List;
 import java.util.UUID;
 
+import static com.msspoker.rankingservice.service.RatingTestSupport.accounts;
+import static com.msspoker.rankingservice.service.RatingTestSupport.rank;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,6 +43,7 @@ class RankingApiTest {
     @Autowired EloHistoryRepository history;
     @Autowired RewardCreditRepository rewards;
     @Autowired SeasonService seasons;
+    @Autowired RatingService rating;
     @Autowired RankingMapper mapper;
     @Autowired EloCalculator calculator;
     MockMvc mvc;
@@ -120,6 +125,37 @@ class RankingApiTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("RANK_UNAUTHORIZED"))
                 .andExpect(jsonPath("$.requestId").value("req-me"));
+    }
+
+    @Test
+    void matchRatingReturnsTheCallersAppliedDeltaAndReward() throws Exception {
+        List<UUID> placed = accounts(6);
+        var event = rank(placed, 100);
+        rating.matchFinished(event);
+
+        mvc.perform(get("/api/ranking/me/matches/{matchId}", event.matchId()).header("X-User-Id", placed.getFirst().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matchId").value(event.matchId().toString()))
+                .andExpect(jsonPath("$.place").value(1))
+                .andExpect(jsonPath("$.eloDelta").value(20))
+                .andExpect(jsonPath("$.eloAfter").value(20))
+                .andExpect(jsonPath("$.rewardCoins").value(300));
+        // Below top 3 there is no reward row, and the Elo floor makes the applied delta 0.
+        mvc.perform(get("/api/ranking/me/matches/{matchId}", event.matchId()).header("X-User-Id", placed.get(3).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.place").value(4))
+                .andExpect(jsonPath("$.eloDelta").value(0))
+                .andExpect(jsonPath("$.rewardCoins").value(0));
+        // Not in the match, or the match is not processed yet.
+        mvc.perform(get("/api/ranking/me/matches/{matchId}", event.matchId()).header("X-User-Id", GOD.toString()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RANK_NOT_FOUND"));
+        mvc.perform(get("/api/ranking/me/matches/{matchId}", UUID.randomUUID()).header("X-User-Id", placed.getFirst().toString()))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/ranking/me/matches/not-a-uuid").header("X-User-Id", placed.getFirst().toString()))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/ranking/me/matches/{matchId}", event.matchId()))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

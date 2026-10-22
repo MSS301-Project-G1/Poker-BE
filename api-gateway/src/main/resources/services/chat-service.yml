@@ -7,4 +7,3 @@ gateway:
         - id: chat-service
           paths:
           - /api/chat/**
-          strip-prefix: 2

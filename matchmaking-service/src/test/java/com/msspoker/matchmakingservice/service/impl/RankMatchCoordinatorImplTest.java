@@ -83,7 +83,7 @@ class RankMatchCoordinatorImplTest {
         verify(queueStore).startRankCooldown(insufficient.accountId(), NOW.plusSeconds(120));
         verify(state).redisReconciled(proposalId);
         verify(wallet).refund(new WalletTransferRequest(
-                first.accountId(), 100, "RANK_REFUND", proposalId.toString(),
+                first.accountId(), 100, "RANK_ENTRY_REFUND", proposalId.toString(),
                 "rank-refund:" + proposalId + ":" + first.accountId()
         ));
         verify(game, never()).createTable(any());
@@ -103,7 +103,7 @@ class RankMatchCoordinatorImplTest {
 
     private WalletTransferRequest fee(UUID proposalId, UUID accountId) {
         return new WalletTransferRequest(
-                accountId, 100, "RANK_ENTRY", proposalId.toString(),
+                accountId, 100, "RANK_ENTRY_FEE", proposalId.toString(),
                 "rank-fee:" + proposalId + ":" + accountId
         );
     }

@@ -32,6 +32,7 @@ public class GatewayRequestFilter implements WebFilter {
         var request = exchange.getRequest().mutate().headers(headers -> {
             // Identity and forwarding headers must be derived by this gateway, never by clients.
             List.of("X-User-Id", "X-User-Role", "X-Game-Service-Key", "X-Dev-User", "Authorization",
+                    "X-Social-Gateway-Key", "X-Chat-Gateway-Key", "X-Social-Internal-Key", "X-Chat-Internal-Key",
                     "Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto",
                     "X-Forwarded-Port", "X-Forwarded-Prefix").forEach(headers::remove);
             headers.set("X-Request-Id", requestId);

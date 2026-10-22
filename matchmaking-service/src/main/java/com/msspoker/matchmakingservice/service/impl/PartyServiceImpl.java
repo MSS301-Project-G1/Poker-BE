@@ -38,6 +38,11 @@ public class PartyServiceImpl implements PartyService {
     }
 
     @Override
+    public java.util.Optional<PartyResponse> current(UUID accountId) {
+        return store.findByAccountId(accountId).map(PartyResponse::from);
+    }
+
+    @Override
     public PartyResponse create(UUID accountId) {
         ensureNotQueued(accountId);
         for (int attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {

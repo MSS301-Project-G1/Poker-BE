@@ -4,6 +4,7 @@ import com.msspoker.rankingservice.constant.RankingConstants;
 import com.msspoker.rankingservice.dto.event.PlacementEvent;
 import com.msspoker.rankingservice.dto.request.WalletCreditRequest;
 import com.msspoker.rankingservice.dto.response.FriendRankingResponse;
+import com.msspoker.rankingservice.dto.response.MatchRatingResponse;
 import com.msspoker.rankingservice.dto.response.MyRankingResponse;
 import com.msspoker.rankingservice.dto.response.PlayerRankingResponse;
 import com.msspoker.rankingservice.dto.response.RankedPlayerResponse;
@@ -69,4 +70,7 @@ public interface RankingMapper {
     @Mapping(target = "elo", source = "player.currentElo")
     @Mapping(target = "tier", source = "tier")
     MyRankingResponse me(PlayerEloEntity player, Long position, Tier tier);
+
+    @Mapping(target = "eloDelta", source = "history.delta")
+    MatchRatingResponse matchRating(EloHistoryEntity history, long rewardCoins);
 }

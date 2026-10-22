@@ -42,7 +42,6 @@ services:
       - "127.0.0.1:${WALLET_DB_PORT:-54335}:5432"
     volumes:
       - wallet-postgres-data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - wallet-net
     healthcheck:
