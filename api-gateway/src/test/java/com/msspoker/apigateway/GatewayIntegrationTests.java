@@ -87,6 +87,10 @@ class GatewayIntegrationTests {
         registry.add("GATEWAY_JWK_SET_URI", () -> upstream + "/.well-known/jwks.json");
         registry.add("GAME_SERVICE_URL", () -> upstream);
         registry.add("GAME_SERVICE_KEY", () -> "gateway-game-test-secret");
+        registry.add("SOCIAL_SERVICE_URL", () -> upstream);
+        registry.add("CHAT_SERVICE_URL", () -> upstream);
+        registry.add("SOCIAL_GATEWAY_KEY", () -> "gateway-social-test-secret");
+        registry.add("CHAT_GATEWAY_KEY", () -> "gateway-chat-test-secret");
         registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));
         registry.add("COMPETITION_SERVICE_URL", () -> upstreamUrl("competition-service"));
         registry.add("SHOP_SERVICE_URL", () -> upstreamUrl("shop-service"));
@@ -583,6 +587,23 @@ class GatewayIntegrationTests {
         assertThat(request.headers().get("X-Game-Service-Key")).isEqualTo("gateway-game-test-secret");
         assertThat(request.headers()).doesNotContainKey("X-Dev-User");
         assertThat(UUID.fromString(request.headers().get("X-Request-Id"))).isNotNull();
+    }
+
+    @Test
+    void socialAndChatPreservePathsAndReplaceIngressCredentials() {
+        for (String path : List.of("/api/friends?page=0&size=20", "/api/blocks", "/api/chat/conversations")) {
+            boolean social = !path.startsWith("/api/chat/");
+            client.get().uri(path).cookie("accessToken", token("USER", "valid"))
+                    .header("X-Social-Gateway-Key", "spoofed").header("X-Chat-Gateway-Key", "spoofed")
+                    .header("X-Social-Internal-Key", "spoofed").header("X-Chat-Internal-Key", "spoofed")
+                    .exchange().expectStatus().isOk();
+            assertThat(LAST.get().uri()).isEqualTo(path);
+            assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+            assertThat(LAST.get().headers().get(social ? "X-Social-Gateway-Key" : "X-Chat-Gateway-Key"))
+                    .isEqualTo(social ? "gateway-social-test-secret" : "gateway-chat-test-secret");
+            assertThat(LAST.get().headers()).doesNotContainKeys(
+                    social ? "X-Chat-Gateway-Key" : "X-Social-Gateway-Key", "X-Social-Internal-Key", "X-Chat-Internal-Key");
+        }
     }
 
     @Test
