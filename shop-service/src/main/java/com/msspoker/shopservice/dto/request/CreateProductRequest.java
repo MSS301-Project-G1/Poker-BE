@@ -26,6 +26,8 @@ public record CreateProductRequest(
         @Min(value = 0, message = "Giá sản phẩm không được âm")
         long priceVnd,
 
+        Long priceVipCoin,
+
         @NotBlank(message = "URL tài nguyên không được để trống")
         @Size(max = 500, message = "URL tài nguyên không được vượt quá 500 ký tự")
         String assetUrl,
