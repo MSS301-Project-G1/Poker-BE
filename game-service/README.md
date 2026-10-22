@@ -85,7 +85,9 @@ Use either the Java process or the application container on port 8082. Dev is
 local only: HTTP identity uses `X-Dev-User`, STOMP CONNECT uses `devUser` (UUID),
 and Admin role enforcement is bypassed to test the owned screen. These shortcuts
 are unavailable outside the `dev` profile. The Compose app binds inside its
-container and publishes only on host loopback.
+container and publishes only on host loopback. Signed-in players reach the game
+through the gateway, which requires the default profile: dev reads `X-Dev-User`,
+not the gateway's `X-User-Id`, and does not register with Eureka.
 
 FE: in `D:\STUDY\MSS\Poker-FE\Poker-FE`, run `npm ci`, then `npm run dev:game`.
 Open `http://localhost:5173/table`; use its local launcher to create a table with
@@ -143,9 +145,14 @@ the socket with a STOMP ERROR frame. REST errors use Vietnamese messages and the
   send `X-Game-Service-Key`. The gateway must strip client identity headers,
   validate JWT and set `X-User-Id`/`X-User-Role`. The secret stays on servers.
   Missing/incorrect service keys fail closed outside dev. Keep internal ports
-  private and prevent browser access to `/internal/**`.
+  private and prevent browser access to `/internal/**`. The gateway and game must
+  share the same `GAME_SERVICE_KEY` value.
+- Gateway routing: the service registers with Eureka (`EUREKA_SERVICE_URL`,
+  `EUREKA_INSTANCE_HOSTNAME`) so the gateway's `lb://game-service` resolves.
+  `EUREKA_CLIENT_ENABLED=false` disables registration; the dev profile defaults to it.
 - STOMP independently validates RS256 JWT: `JWT_JWK_SET_URI`, `JWT_ISSUER`,
-  `JWT_AUDIENCE`, UUID `sub`, expiry and signature. Set `GAME_ALLOWED_ORIGINS`.
+  `JWT_AUDIENCE`, UUID `sub`, expiry and signature. Set `GAME_ALLOWED_ORIGINS`
+  (Compose default: the Vite dev server `:5173` and the FE container `:3000`).
 - `IDENTITY_SERVICE_URL` (auth-service, default `http://localhost:8090`) supplies
   account restrictions during CreateTable. With `GAME_RESTRICTIONS_ENABLED=true`
   (the application default) CreateTable fails with 503 `GAME_DEPENDENCY_UNAVAILABLE`

@@ -7,6 +7,8 @@ services:
     ports:
       - "${GAME_SERVICE_PORT:-8082}:8082"
     environment:
+      EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: game-service
       GAME_DB_URL: jdbc:postgresql://game-db:5432/game_db
       GAME_DB_USER: ${GAME_DB_USER:-poker}
       GAME_DB_PASSWORD: ${GAME_DB_PASSWORD:-poker_dev}
@@ -15,6 +17,8 @@ services:
       JWT_JWK_SET_URI: http://auth-service:8090/.well-known/jwks.json
       JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8090}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-poker}
+      # Browser origins allowed to open /ws/game: Vite dev server and the FE container.
+      GAME_ALLOWED_ORIGINS: ${GAME_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
       IDENTITY_SERVICE_URL: http://auth-service:8090
       # auth-service has no /internal/accounts/{id}/restrictions yet; set true once Khanh ships it.
       GAME_RESTRICTIONS_ENABLED: ${GAME_RESTRICTIONS_ENABLED:-false}
