@@ -28,6 +28,9 @@ Thumbs.db
 # Documentation & AI
 AGENTS.md
 docs/
+shop-wallet-gateway-contract.md
+shop-service/*.md
+wallet-service/*.md
 
 # Test Archives & Temporary Scripts
 *.zip
