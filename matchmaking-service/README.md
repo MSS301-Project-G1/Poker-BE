@@ -11,8 +11,8 @@ Khi service đang chạy và `MATCHMAKING_SWAGGER_ENABLED=true` (mặc định �
 - OpenAPI JSON: `http://localhost:8083/v3/api-docs`
 
 Swagger test trực tiếp service nên phải nhập `X-User-Id`. Contract production yêu cầu Gateway lấy
-identity từ JWT rồi ghi đè header này, nhưng `api-gateway` hiện chưa có JWT filter của Auth; không
-được xem header client tự gửi là bảo mật production. Swagger hiện mô tả bốn API `NORMAL`, bốn API queue/reconnect `RANK`, hai API
+identity từ JWT rồi ghi đè header này, Gateway hiện đã có JWT cookie filter và ghi đè header này; không
+được xem header client tự gửi trực tiếp tới service là bảo mật production. Swagger hiện mô tả bốn API `NORMAL`, bốn API queue/reconnect `RANK`, hai API
 proposal và năm API quản lý Party. Nó chưa bao phủ notification/outbox hoặc
 kiểm thử E2E qua Gateway.
 
@@ -23,6 +23,7 @@ kiểm thử E2E qua Gateway.
 API giữ cách đặt tên hiện tại của module:
 
 ```http
+GET    /api/party/me
 POST   /api/party/create
 POST   /api/party/invite
 POST   /api/party/join
@@ -102,10 +103,12 @@ Khi tất cả accept, Matchmaking debit phí bằng key `rank-fee:{proposalId}:
 với `sourceId=proposalId`. Debit hoặc Game thất bại chắc chắn sẽ refund bằng key
 `rank-refund:{proposalId}:{accountId}`; timeout dependency được recovery worker retry cùng key.
 
-Contract đã đối chiếu: Ranking và Game có implementation thật. `identity-service` và
-`wallet-service` trong nhánh hiện tại vẫn là scaffold, nên Docker Matchmaking mặc định bật stub cho
-hai dependency này. Khi hai service merge API thật, đặt `MATCHMAKING_RESTRICTION_STUB_ENABLED=false`
-và `MATCHMAKING_WALLET_STUB_ENABLED=false`.
+Contract phía Matchmaking đã khớp với Game/Ranking và được chỉnh để gọi Wallet theo
+`RANK_ENTRY_FEE`/`RANK_ENTRY_REFUND`. Nhánh develop chỉ sửa các module của Duy;
+Wallet migration, Auth restrictions và đăng ký Eureka của service khác do owner phụ trách.
+Compose giữ Wallet/Restriction stub bật cho đến khi các dependency đó sẵn sàng.
+Bản tích hợp có sửa các service khác được giữ riêng trên nhánh `testing`.
+Xem [INTEGRATION.md](INTEGRATION.md) để phân biệt phần đã làm và việc cần phối hợp.
 
 ## Cách hoạt động
 
@@ -133,8 +136,8 @@ Redis hiện chỉ hỗ trợ deployment standalone vì các Lua operation chạ
 | `MATCHMAKING_RANK_ACCEPT_TIMEOUT` | `10s` |
 | `MATCHMAKING_RANK_COOLDOWN` | `2m` |
 | `MATCHMAKING_RANKING_STUB_ENABLED` | `false` |
-| `MATCHMAKING_RESTRICTION_STUB_ENABLED` | `false` (`true` mặc định trong Compose hiện tại) |
-| `MATCHMAKING_WALLET_STUB_ENABLED` | `false` (`true` mặc định trong Compose hiện tại) |
+| `MATCHMAKING_RESTRICTION_STUB_ENABLED` | `false` (`true` mặc định trong Compose develop) |
+| `MATCHMAKING_WALLET_STUB_ENABLED` | `false` (`true` mặc định trong Compose develop) |
 | `GAME_PUBLIC_HOST` | `localhost` |
 | `GAME_PUBLIC_PORT` | `8082` |
 | `GAME_WEBSOCKET_PATH` | `/ws/game` |

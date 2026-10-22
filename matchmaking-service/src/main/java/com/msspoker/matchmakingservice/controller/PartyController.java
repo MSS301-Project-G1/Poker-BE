@@ -34,6 +34,12 @@ public class PartyController {
         this.party = party;
     }
 
+    @org.springframework.web.bind.annotation.GetMapping("/me")
+    public java.util.Optional<PartyResponse> current(
+            @RequestHeader(MatchmakingConstants.USER_ID_HEADER) UUID accountId) {
+        return party.current(accountId);
+    }
+
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "createParty", summary = "Create party", description = "Tạo party và mã mời; người gọi trở thành chủ party.")

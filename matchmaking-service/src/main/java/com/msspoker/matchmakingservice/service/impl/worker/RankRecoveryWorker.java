@@ -64,7 +64,7 @@ public class RankRecoveryWorker {
                 wallet.refund(new WalletTransferRequest(
                         refund.accountId(),
                         refund.amount(),
-                        "RANK_REFUND",
+                        "RANK_ENTRY_REFUND",
                         refund.proposalId().toString(),
                         "rank-refund:" + refund.proposalId() + ":" + refund.accountId()
                 ));

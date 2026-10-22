@@ -38,6 +38,15 @@ class PartyControllerTest {
     }
 
     @Test
+    void readsCurrentPartyAfterReload() throws Exception {
+        when(service.current(ACCOUNT_ID)).thenReturn(java.util.Optional.of(response()));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/party/me")
+                        .header("X-User-Id", ACCOUNT_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.partyId").value(PARTY_ID.toString()));
+    }
+
+    @Test
     void createContract() throws Exception {
         when(service.create(ACCOUNT_ID)).thenReturn(response());
 

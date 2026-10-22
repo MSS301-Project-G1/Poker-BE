@@ -6,3 +6,6 @@ services:
         MODULE: chat-service
     ports:
       - "${CHAT_SERVICE_PORT:-8085}:8085"
+    environment:
+      EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: chat-service
