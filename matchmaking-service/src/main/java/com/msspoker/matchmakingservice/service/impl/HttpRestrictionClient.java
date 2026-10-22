@@ -20,9 +20,11 @@ import java.util.UUID;
 @ConditionalOnProperty(name = "matchmaking.restriction.stub-enabled", havingValue = "false", matchIfMissing = true)
 public class HttpRestrictionClient implements RestrictionClient {
     private final RestClient identity;
+    private final String serviceKey;
 
     public HttpRestrictionClient(
-            @Value("${matchmaking.identity-url:http://localhost:8081}") String identityUrl,
+            @Value("${matchmaking.identity-url:http://localhost:8090}") String identityUrl,
+            @Value("${matchmaking.game.service-key:}") String serviceKey,
             MatchmakingProperties properties
     ) {
         Duration timeout = properties.getRestriction().getTimeout();
@@ -31,6 +33,7 @@ public class HttpRestrictionClient implements RestrictionClient {
         );
         factory.setReadTimeout(timeout);
         identity = RestClient.builder().baseUrl(identityUrl).requestFactory(factory).build();
+        this.serviceKey = serviceKey;
     }
 
     @Override
@@ -38,6 +41,7 @@ public class HttpRestrictionClient implements RestrictionClient {
         try {
             AccountRestrictionsResponse response = identity.get()
                     .uri("/internal/accounts/{id}/restrictions", accountId)
+                    .header("X-Game-Service-Key", serviceKey)
                     .retrieve()
                     .body(AccountRestrictionsResponse.class);
             if (response == null) throw new IllegalStateException("Identity trả response rỗng");

@@ -30,6 +30,7 @@ class AccountRestrictionsValidatorTest {
     void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/internal/accounts/", exchange -> {
+            assertEquals("internal-test-key", exchange.getRequestHeaders().getFirst("X-Game-Service-Key"));
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, bytes.length);
@@ -79,7 +80,7 @@ class AccountRestrictionsValidatorTest {
 
         int port = server.getAddress().getPort();
         server.stop(0);
-        var offline = new AccountRestrictionsValidator("http://127.0.0.1:" + port, 500);
+        var offline = new AccountRestrictionsValidator("http://127.0.0.1:" + port, "internal-test-key", 500);
         var ex = assertThrows(GameApiException.class, () -> offline.validate(request(GameMode.NORMAL)));
         assertEquals(GameError.GAME_DEPENDENCY_UNAVAILABLE, ex.getCode());
     }
@@ -95,7 +96,7 @@ class AccountRestrictionsValidatorTest {
     }
 
     private AccountRestrictionsValidator validator() {
-        return new AccountRestrictionsValidator("http://127.0.0.1:" + server.getAddress().getPort(), 2000);
+        return new AccountRestrictionsValidator("http://127.0.0.1:" + server.getAddress().getPort(), "internal-test-key", 2000);
     }
 
     private static CreateTableRequest request(GameMode mode) {

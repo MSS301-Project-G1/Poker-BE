@@ -130,7 +130,7 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
         return new WalletTransferRequest(
                 accountId,
                 work.entryFee(),
-                "RANK_ENTRY",
+                "RANK_ENTRY_FEE",
                 work.proposalId().toString(),
                 "rank-fee:" + work.proposalId() + ":" + accountId
         );
@@ -140,7 +140,7 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
         return new WalletTransferRequest(
                 accountId,
                 amount,
-                "RANK_REFUND",
+                "RANK_ENTRY_REFUND",
                 proposalId.toString(),
                 "rank-refund:" + proposalId + ":" + accountId
         );

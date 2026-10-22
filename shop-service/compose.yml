@@ -9,11 +9,16 @@ services:
     ports:
       - "${SHOP_SERVICE_PORT:-8088}:8088"
     environment:
+      EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: shop-service
       DB_HOST: shop-postgres
       DB_PORT: 5432
       DB_NAME: shop_db
       DB_USERNAME: ${SHOP_DB_USER:-postgres}
       DB_PASSWORD: ${SHOP_DB_PASSWORD:-123456}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       REDIS_HOST: shop-redis
       REDIS_PORT: 6379
       WALLET_SERVICE_URL: ${WALLET_SERVICE_URL:-http://wallet-service:8089}

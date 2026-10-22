@@ -48,12 +48,23 @@ public class HttpWalletClient implements WalletClient {
             wallet.post().uri(path).contentType(MediaType.APPLICATION_JSON)
                     .body(request).retrieve().toBodilessEntity();
         } catch (RestClientResponseException exception) {
-            if (debit && (exception.getStatusCode().value() == 409 || exception.getStatusCode().value() == 422)) {
+            if (debit && insufficientBalance(exception)) {
                 throw new InsufficientBalanceException("Wallet từ chối do không đủ số dư", exception);
             }
             throw new WalletCallUnknownException("Không xác định được kết quả thao tác Wallet", exception);
         } catch (RuntimeException exception) {
             throw new WalletCallUnknownException("Không kết nối được wallet-service", exception);
+        }
+    }
+
+    private boolean insufficientBalance(RestClientResponseException exception) {
+        try {
+            var error = tools.jackson.databind.json.JsonMapper.builder().build()
+                    .readTree(exception.getResponseBodyAsString());
+            return exception.getStatusCode().is4xxClientError()
+                    && "WALLET_INSUFFICIENT_BALANCE".equals(error.path("code").asString());
+        } catch (RuntimeException malformedResponse) {
+            return false;
         }
     }
 }

@@ -293,7 +293,7 @@ public class AuthServiceImpl implements AuthService {
         if (!account.isEmailVerified() || account.getAccountStatus() == AccountStatus.PENDING_VERIFICATION) {
             throw new ApiException(ErrorCode.AUTH_EMAIL_VERIFICATION_PENDING);
         }
-        if (account.getAccountStatus() != AccountStatus.ACTIVE) {
+        if (account.isBanned() || account.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new ApiException(ErrorCode.AUTH_ACCOUNT_UNAVAILABLE);
         }
     }

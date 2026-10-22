@@ -50,6 +50,15 @@ public class Account extends BaseEntity {
     @Column(name = "first_login_rewarded", nullable = false)
     private boolean firstLoginRewarded;
 
+    @Column(nullable = false)
+    private boolean banned;
+
+    @Column(name = "chat_banned_until")
+    private java.time.Instant chatBannedUntil;
+
+    @Column(name = "rank_banned_until")
+    private java.time.Instant rankBannedUntil;
+
     @OneToOne(mappedBy = "account", fetch = FetchType.LAZY)
     private Profile profile;
 }

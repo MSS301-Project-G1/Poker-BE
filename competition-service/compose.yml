@@ -7,10 +7,14 @@ services:
     ports:
       - "${COMPETITION_SERVICE_PORT:-8087}:8087"
     environment:
+      EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: competition-service
       COMPETITION_DB_URL: jdbc:postgresql://competition-db:5432/competition_db
       COMPETITION_DB_USER: ${COMPETITION_DB_USER:-poker}
       COMPETITION_DB_PASSWORD: ${COMPETITION_DB_PASSWORD:-poker_dev}
       RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-${RABBITMQ_USERNAME:-guest}}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       GAME_SERVICE_URL: http://game-service:8082
       GAME_SERVICE_KEY: ${GAME_SERVICE_KEY:-poker_game_dev}
       SOCIAL_SERVICE_URL: http://social-service:8084

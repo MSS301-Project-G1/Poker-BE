@@ -9,6 +9,8 @@ services:
     ports:
       - "${WALLET_SERVICE_PORT:-8089}:8089"
     environment:
+      EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: wallet-service
       WALLET_DB_URL: jdbc:postgresql://wallet-postgres:5432/wallet_db
       WALLET_DB_USER: ${WALLET_DB_USER:-postgres}
       WALLET_DB_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
@@ -41,7 +43,6 @@ services:
       - "127.0.0.1:${WALLET_DB_PORT:-54335}:5432"
     volumes:
       - wallet-postgres-data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - wallet-net
     healthcheck:

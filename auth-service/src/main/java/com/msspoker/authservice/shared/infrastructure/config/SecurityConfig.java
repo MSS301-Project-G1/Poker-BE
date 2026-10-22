@@ -7,6 +7,7 @@ import com.msspoker.authservice.shared.infrastructure.security.AuthCookieService
 import com.msspoker.authservice.shared.infrastructure.security.CookieAuthenticationFilter;
 import com.msspoker.authservice.shared.infrastructure.security.JwtService;
 import com.msspoker.authservice.shared.infrastructure.security.SecurityErrorHandler;
+import com.msspoker.authservice.shared.infrastructure.security.InternalServiceKeyFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain authSecurity(HttpSecurity http, AuthCookieService cookies, JwtService jwtService,
             AuthCookieProperties cookieProperties, GlobalExceptionHandler exceptionHandler, JsonMapper mapper,
+            @Value("${auth.internal-service-key:}") String internalKey,
             @Value("${auth.cors.allowed-origins}") List<String> allowedOrigins) throws Exception {
 
         if (allowedOrigins.stream().anyMatch(origin -> origin.contains("*"))) {
@@ -65,6 +67,7 @@ public class SecurityConfig {
                                 "/api/auth/password/forgot", "/api/auth/password/reset"))
 
                 .authorizeHttpRequests(config -> config
+                        .requestMatchers(HttpMethod.GET, "/internal/accounts/*/restrictions").permitAll()
                         .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/api/auth/csrf",
                                 "/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
@@ -85,6 +88,7 @@ public class SecurityConfig {
 
                 .addFilterBefore(new AllowedOriginFilter(allowedOrigins, errors), CsrfFilter.class)
 
+                .addFilterBefore(new InternalServiceKeyFilter(internalKey, errors), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new CookieAuthenticationFilter(cookies, jwtService), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

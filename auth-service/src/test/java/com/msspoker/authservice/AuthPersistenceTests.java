@@ -61,9 +61,12 @@ class AuthPersistenceTests {
         assertThat(stored.isEmailVerified()).isFalse();
         assertThat(stored.isDeleted()).isFalse();
         assertThat(stored.isFirstLoginRewarded()).isFalse();
+        assertThat(stored.isBanned()).isFalse();
+        assertThat(stored.getChatBannedUntil()).isNull();
+        assertThat(stored.getRankBannedUntil()).isNull();
         assertThat(stored.getCreatedAt()).isBetween(before.minusMillis(1), Instant.now());
         assertThat(stored.getUpdatedAt()).isEqualTo(stored.getCreatedAt());
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("4");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
     }
 
