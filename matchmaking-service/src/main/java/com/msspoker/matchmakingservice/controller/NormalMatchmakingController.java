@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/** API ghép Normal; danh tính lấy từ Gateway, nghiệp vụ được xử lý ở service. */
 @RestController
 @RequestMapping("/api/matchmaking/normal")
 @Tag(name = "Normal matchmaking", description = "Ghép trận thường, miễn phí và không dùng Ranking/Wallet.")
@@ -28,6 +29,7 @@ public class NormalMatchmakingController {
         this.matchmaking = matchmaking;
     }
 
+    /** Đưa người chơi hoặc party do họ làm chủ vào hàng chờ Normal. */
     @PostMapping("/join")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "joinNormal", summary = "Join Normal", description = "Đưa người chơi solo hoặc toàn bộ Party nếu người gọi là chủ Party vào hàng chờ NORMAL.")
@@ -43,6 +45,7 @@ public class NormalMatchmakingController {
         return matchmaking.join(accountId);
     }
 
+    /** Rời hàng chờ; service kiểm tra quyền và trạng thái đang ghép. */
     @DeleteMapping("/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "leaveNormal", summary = "Leave Normal", description = "Rời hàng chờ NORMAL; chủ Party sẽ hủy queue cho toàn bộ nhóm nếu chưa bị reserve.")
@@ -59,6 +62,7 @@ public class NormalMatchmakingController {
         matchmaking.leave(accountId);
     }
 
+    /** Trả trạng thái hàng chờ và thông tin bàn để frontend thăm dò. */
     @GetMapping("/status")
     @Operation(operationId = "getNormalStatus", summary = "Normal status", description = "Trả về NONE, WAITING, COUNTDOWN, MATCHING, CREATING_TABLE, READY hoặc FAILED.")
     @ApiResponses({
@@ -75,6 +79,7 @@ public class NormalMatchmakingController {
         return matchmaking.status(accountId);
     }
 
+    /** Kiểm tra bàn cũ với Game trước khi trả thông tin kết nối lại. */
     @GetMapping("/reconnect")
     @Operation(operationId = "reconnectNormal", summary = "Reconnect Normal", description = "Kiểm tra trạng thái IN_GAME trong Redis và trả host/port của bàn cũ nếu Game vẫn xác nhận bàn đang hoạt động.")
     @ApiResponses({

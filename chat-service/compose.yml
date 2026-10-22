@@ -5,7 +5,50 @@ services:
       args:
         MODULE: chat-service
     ports:
-      - "${CHAT_SERVICE_PORT:-8085}:8085"
+      - "127.0.0.1:${CHAT_SERVICE_PORT:-8085}:8085"
     environment:
       EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_HOSTNAME: chat-service
+      CHAT_DB_URL: jdbc:postgresql://chat-db:5432/chat_db
+      CHAT_DB_USER: ${CHAT_DB_USER:-poker}
+      CHAT_DB_PASSWORD: ${CHAT_DB_PASSWORD:-poker_dev}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-${RABBITMQ_USERNAME:-guest}}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      CHAT_GATEWAY_KEY: ${CHAT_GATEWAY_KEY:-}
+      CHAT_INTERNAL_KEY: ${CHAT_INTERNAL_KEY:-}
+      JWT_JWK_SET_URI: http://auth-service:8090/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8090}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-poker}
+      SOCIAL_SERVICE_URL: http://social-service:8084
+      SOCIAL_INTERNAL_KEY: ${SOCIAL_INTERNAL_KEY:-}
+    networks:
+      - default
+      - chat-net
+    depends_on:
+      chat-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  chat-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: chat_db
+      POSTGRES_USER: ${CHAT_DB_USER:-poker}
+      POSTGRES_PASSWORD: ${CHAT_DB_PASSWORD:-poker_dev}
+    ports:
+      - "127.0.0.1:${CHAT_DB_PORT:-54337}:5432"
+    volumes:
+      - chat-db-data:/var/lib/postgresql/data
+    networks:
+      - chat-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+networks:
+  chat-net:
+volumes:
+  chat-db-data:

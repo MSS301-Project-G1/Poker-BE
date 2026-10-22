@@ -172,7 +172,7 @@ chat-service/
     │   │   ├── repository/
     │   │   ├── service/
     │   │   ├── service/impl/
-    │   │   ├── messaging/
+    │   │   ├── service/impl/event/
     │   │   ├── security/
     │   │   └── websocket/
     │   └── resources/db/migration/
@@ -182,7 +182,8 @@ chat-service/
 - Không tạo package rỗng.
 - Controller/STOMP handler không chứa transaction/business.
 - Entity không trả trực tiếp; dùng DTO và MapStruct.
-- Interface chỉ ở dependency boundary hoặc nơi thật sự cần nhiều implementation.
+- Service nghiệp vụ khai báo interface trong `service/` và implementation trong `service/impl/`.
+- Repository kế thừa Spring Data JPA; SQL đặc thù nằm trong custom fragment.
 - Thời gian dùng `Instant`, enum UPPER_SNAKE_CASE, ID theo chuẩn `common`.
 - Error response dùng format chung, code bắt đầu `CHAT_`.
 
@@ -222,3 +223,17 @@ Chat MATCH không có public API tạo/đóng; chỉ event Game được phép t
 - Body WebSocket trong SPEC chưa có `clientMessageId`; muốn chống gửi trùng end-to-end
   phải cập nhật contract theo quy tắc chỉ thêm field.
 - Auth/Identity hiện lệch giữa SPEC và README; restrictions URL phải chờ Khanh chốt.
+
+
+## Cấu trúc triển khai theo Competition Service
+
+- `controller/`: REST transport; request và response khai báo riêng trong `dto/request/`, `dto/response/`.
+- `service/`: interface nghiệp vụ; `service/impl/`: implementation và transaction.
+- `service/client/`, `service/impl/client/`: hợp đồng và implementation gọi service ngoài, chỉ tạo khi có client thật.
+- `service/event/`, `service/impl/event/`: publisher interface và implementation event, consumer, delivery adapter.
+- `repository/`: Spring Data JPA cùng custom fragment cho SQL đặc thù.
+- `mapper/`: MapStruct mapping entity sang response.
+- `constant/`: header constants; `validator/`: kiểm tra quyền/đầu vào nghiệp vụ được tách khỏi service.
+- `config/`, `security/`, `websocket/`: cấu hình và adapter đặc thù transport.
+- DTO dùng hậu tố Request/Response; tách từng record thành file, không gom trong lớp Dtos.
+- Refactor package và tên Java không đổi JSON field, endpoint, schema, quy tắc khóa hoặc transaction.

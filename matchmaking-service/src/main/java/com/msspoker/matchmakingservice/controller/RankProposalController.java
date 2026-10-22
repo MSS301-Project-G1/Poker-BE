@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+/** API phản hồi đề xuất trận Rank; service kiểm tra thành viên, deadline và tiến trình tạo bàn. */
 @RestController
 @RequestMapping("/api/matchmaking/proposals/{proposalId}")
 @Tag(name = "Rank proposals", description = "Chấp nhận hoặc từ chối proposal Rank trong deadline server.")
@@ -27,6 +28,7 @@ public class RankProposalController {
         this.proposals = proposals;
     }
 
+    /** Ghi nhận đồng ý; service điều phối bước tiếp theo khi đủ người chấp nhận. */
     @PostMapping("/accept")
     @Operation(operationId = "acceptRankProposal", summary = "Accept proposal Rank")
     public QueueStatusResponse accept(
@@ -37,6 +39,7 @@ public class RankProposalController {
         return proposals.accept(proposalId, accountId);
     }
 
+    /** Từ chối đề xuất; service xử lý hủy và cập nhật trạng thái người liên quan. */
     @PostMapping("/decline")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "declineRankProposal", summary = "Decline proposal Rank")

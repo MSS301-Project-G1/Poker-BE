@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/** API ghép Rank cho người chơi solo; service kiểm tra điều kiện và trạng thái tham gia. */
 @RestController
 @RequestMapping("/api/matchmaking/rank")
 @Tag(name = "Rank matchmaking", description = "Ghép Rank theo Elo cố định; Party chưa được hỗ trợ.")
@@ -25,6 +26,7 @@ public class RankMatchmakingController {
         this.matchmaking = matchmaking;
     }
 
+    /** Đăng ký ghép Rank; service kiểm tra party, hạn chế tài khoản và Elo. */
     @PostMapping("/join")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "joinRank", summary = "Join Rank")
@@ -40,6 +42,7 @@ public class RankMatchmakingController {
         return matchmaking.join(accountId);
     }
 
+    /** Hủy hàng chờ Rank theo trạng thái hiện tại của người chơi. */
     @DeleteMapping("/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "leaveRank", summary = "Leave Rank")
@@ -50,6 +53,7 @@ public class RankMatchmakingController {
         matchmaking.leave(accountId);
     }
 
+    /** Trả trạng thái Rank để frontend biết lúc nào cần hiển thị đề xuất trận. */
     @GetMapping("/status")
     @Operation(operationId = "getRankStatus", summary = "Rank status")
     public QueueStatusResponse status(
@@ -59,6 +63,7 @@ public class RankMatchmakingController {
         return matchmaking.status(accountId);
     }
 
+    /** Tìm bàn Rank còn hoạt động để người chơi kết nối lại. */
     @GetMapping("/reconnect")
     @Operation(operationId = "reconnectRank", summary = "Reconnect bàn Rank")
     public NormalReconnectResponse reconnect(

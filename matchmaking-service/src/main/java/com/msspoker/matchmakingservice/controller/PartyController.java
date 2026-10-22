@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+/** API nhóm chơi Normal; accountId là người thao tác, quyền chủ nhóm được kiểm tra ở service. */
 @RestController
 @RequestMapping("/api/party")
 @Tag(name = "Normal party", description = "Quản lý nhóm bạn chơi chung và ghép cùng một trận Normal.")
@@ -34,12 +35,14 @@ public class PartyController {
         this.party = party;
     }
 
+    /** Lấy party hiện tại; Optional rỗng khi người gọi chưa thuộc nhóm nào. */
     @org.springframework.web.bind.annotation.GetMapping("/me")
     public java.util.Optional<PartyResponse> current(
             @RequestHeader(MatchmakingConstants.USER_ID_HEADER) UUID accountId) {
         return party.current(accountId);
     }
 
+    /** Tạo nhóm và đặt người gọi làm chủ party. */
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "createParty", summary = "Create party", description = "Tạo party và mã mời; người gọi trở thành chủ party.")
@@ -52,6 +55,7 @@ public class PartyController {
         return party.create(accountId);
     }
 
+    /** Lấy người được mời từ body rồi giao service kiểm tra và ghi nhận lời mời. */
     @PostMapping("/invite")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "invitePartyMember", summary = "Invite party member")
@@ -61,6 +65,7 @@ public class PartyController {
         party.invite(accountId, request.inviteeId());
     }
 
+    /** Dùng mã party để yêu cầu vào nhóm đã được mời. */
     @PostMapping("/join")
     @Operation(operationId = "joinParty", summary = "Join party", description = "Vào party bằng mã sau khi được chủ party mời.")
     public PartyResponse join(@Parameter(name = MatchmakingConstants.USER_ID_HEADER, required = true, in = ParameterIn.HEADER)
@@ -69,6 +74,7 @@ public class PartyController {
         return party.join(accountId, request.partyCode());
     }
 
+    /** accountId trong header là người thao tác; accountId trong body là người bị mời ra. */
     @PostMapping("/kick")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "kickPartyMember", summary = "Kick party member", description = "Chỉ chủ party được xóa thành viên.")
@@ -78,6 +84,7 @@ public class PartyController {
         party.kick(accountId, request.accountId());
     }
 
+    /** Rời nhóm; service xử lý chuyển quyền chủ hoặc giải tán khi cần. */
     @DeleteMapping("/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "leaveParty", summary = "Leave party", description = "Rời party; nếu chủ rời thì chuyển quyền cho thành viên vào sớm nhất.")
