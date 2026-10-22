@@ -32,3 +32,4 @@ docs/
 # Test Archives & Temporary Scripts
 *.zip
 generate_test_deck.ps1
+CLAUDE.md

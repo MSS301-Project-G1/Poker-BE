@@ -321,6 +321,22 @@ Soft delete nghiệp vụ sẽ làm sau. Cờ xóa ở Account; Profile không c
 `cascade = ALL` ở Profile → Account có cả REMOVE: luồng soft delete cần cập nhật
 `account.deleted`, không gọi `delete(profile)` hoặc `delete(account)`.
 
+## Tài khoản demo (data init)
+
+Khi `DATA_INIT_ENABLED=true`, `DataInitializer` tạo các tài khoản trong nhóm `DATA_INIT_*`
+của `.env` lúc auth khởi động, chỉ khi email chưa tồn tại. Vì vậy máy mới, `docker compose down -v`
+hay lần deploy đầu đều đăng nhập được ngay; tài khoản đã có (kể cả đã đổi mật khẩu) giữ nguyên.
+
+| Biến | Tài khoản |
+| --- | --- |
+| `DATA_INIT_ADMIN_*` | ADMIN, ACTIVE |
+| `DATA_INIT_USER_*` | USER, ACTIVE |
+| `DATA_INIT_SECONDARY_USER_*` | USER, ACTIVE, mật khẩu = `DATA_INIT_USER_PASSWORD` |
+| `DATA_INIT_UNVERIFIED_USER_*` | USER, PENDING_VERIFICATION, mật khẩu = `DATA_INIT_USER_PASSWORD`; gọi "Gửi lại OTP" để nhận mã |
+
+Tài khoản ACTIVE có event `account.registered` như khi xác thực OTP, nên ranking tạo Elo cho họ.
+Deploy công khai thì đổi mật khẩu demo hoặc đặt `DATA_INIT_ENABLED=false`.
+
 ## Thử đăng ký và OTP
 
 ```bash
