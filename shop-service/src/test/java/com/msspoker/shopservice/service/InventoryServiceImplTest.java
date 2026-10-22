@@ -66,7 +66,7 @@ class InventoryServiceImplTest {
                 inventoryItemRepository,
                 productRepository,
                 inventoryMapper,
-                new InventoryValidator()
+                new com.msspoker.shopservice.validator.impl.InventoryValidatorImpl()
         );
 
         accountId = UUID.randomUUID();

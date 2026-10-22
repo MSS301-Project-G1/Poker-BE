@@ -1,6 +1,7 @@
 package com.msspoker.shopservice.validator;
 
 import com.msspoker.shopservice.exception.AppException;
+import com.msspoker.shopservice.validator.impl.CardDeckValidatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,7 @@ class CardDeckValidatorTest {
 
     @BeforeEach
     void setUp() {
-        validator = new CardDeckValidator();
+        validator = new CardDeckValidatorImpl();
     }
 
     @Test

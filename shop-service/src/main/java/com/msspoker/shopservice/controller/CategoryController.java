@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,7 +41,8 @@ public class CategoryController {
     }
 
     @PostMapping
-    @Operation(summary = "Tạo danh mục", description = "Tạo danh mục sản phẩm mới")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Tạo danh mục", description = "Tạo danh mục sản phẩm mới (chỉ ADMIN)")
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(@Valid @RequestBody CreateCategoryRequest request) {
         CategoryResponse response = categoryService.createCategory(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -48,7 +50,8 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Cập nhật danh mục", description = "Cập nhật thông tin danh mục theo ID")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Cập nhật danh mục", description = "Cập nhật thông tin danh mục theo ID (chỉ ADMIN)")
     public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
             @Parameter(description = "ID của danh mục") @PathVariable UUID id,
             @Valid @RequestBody UpdateCategoryRequest request
@@ -58,7 +61,8 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Xóa danh mục", description = "Xóa danh mục sản phẩm theo ID")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Xóa danh mục", description = "Xóa danh mục sản phẩm theo ID (chỉ ADMIN)")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(
             @Parameter(description = "ID của danh mục") @PathVariable UUID id
     ) {

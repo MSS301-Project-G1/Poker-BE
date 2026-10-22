@@ -74,7 +74,7 @@ class ProductServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        ProductValidator productValidator = new ProductValidator(inventoryItemRepository);
+        ProductValidator productValidator = new com.msspoker.shopservice.validator.impl.ProductValidatorImpl(inventoryItemRepository);
         productService = new ProductServiceImpl(
                 productRepository,
                 categoryRepository,

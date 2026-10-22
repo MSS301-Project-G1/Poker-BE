@@ -4,6 +4,7 @@ import com.msspoker.shopservice.dto.request.GrantItemRequest;
 import com.msspoker.shopservice.entity.InventoryItem;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.exception.AppException;
+import com.msspoker.shopservice.validator.impl.InventoryValidatorImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InventoryValidatorTest {
 
-    private final InventoryValidator inventoryValidator = new InventoryValidator();
+    private final InventoryValidator inventoryValidator = new InventoryValidatorImpl();
 
     @Test
     @DisplayName("validateOwned: thành công khi item không null")

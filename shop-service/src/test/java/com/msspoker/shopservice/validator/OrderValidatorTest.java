@@ -4,6 +4,7 @@ import com.msspoker.shopservice.dto.request.CreateOrderRequest;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
+import com.msspoker.shopservice.validator.impl.OrderValidatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ class OrderValidatorTest {
 
     @BeforeEach
     void setUp() {
-        orderValidator = new OrderValidator(inventoryItemRepository);
+        orderValidator = new OrderValidatorImpl(inventoryItemRepository);
         accountId = UUID.randomUUID();
         product = Product.builder()
                 .id(UUID.randomUUID())

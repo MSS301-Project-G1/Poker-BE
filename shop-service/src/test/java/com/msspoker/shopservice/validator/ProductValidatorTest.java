@@ -7,6 +7,7 @@ import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
+import com.msspoker.shopservice.validator.impl.ProductValidatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class ProductValidatorTest {
     private InventoryItemRepository inventoryItemRepository;
 
     @InjectMocks
-    private ProductValidator productValidator;
+    private ProductValidatorImpl productValidator;
 
     private UUID productId;
     private Product activeProduct;

@@ -1,5 +1,3 @@
-name: poker-shop
-
 services:
   shop-service:
     build:
@@ -25,6 +23,9 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-poker123456}
       S3_BUCKET: ${S3_BUCKET:-poker-assets}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/poker-assets}
+      EUREKA_CLIENT_ENABLED: ${EUREKA_CLIENT_ENABLED:-true}
+      EUREKA_SERVICE_URL: ${EUREKA_SERVICE_URL:-http://discovery-service:8761/eureka/}
+      EUREKA_INSTANCE_HOSTNAME: shop-service
     networks:
       - default
       - shop-net
@@ -95,8 +96,6 @@ services:
 
 networks:
   shop-net:
-  default:
-    name: poker-network
 volumes:
   shop-postgres-data:
   shop-redis-data:

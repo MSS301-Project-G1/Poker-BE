@@ -51,7 +51,7 @@ class SandboxPaymentServiceImplTest {
                 coinBundleRepository,
                 walletClient,
                 sandboxPaymentMapper,
-                new CoinBundleValidator(coinBundleRepository)
+                new com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl(coinBundleRepository)
         );
 
         bundleId = UUID.randomUUID();

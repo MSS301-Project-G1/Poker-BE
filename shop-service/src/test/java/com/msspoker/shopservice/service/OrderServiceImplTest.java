@@ -107,7 +107,7 @@ class OrderServiceImplTest {
     @BeforeEach
     void setUp() {
         accountId = UUID.randomUUID();
-        orderValidator = new OrderValidator(inventoryItemRepository);
+        orderValidator = new com.msspoker.shopservice.validator.impl.OrderValidatorImpl(inventoryItemRepository);
 
         Category category = Category.builder()
                 .id(UUID.randomUUID())

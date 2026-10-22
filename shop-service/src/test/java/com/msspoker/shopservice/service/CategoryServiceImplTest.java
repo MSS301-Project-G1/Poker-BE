@@ -48,7 +48,7 @@ class CategoryServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        CategoryValidator categoryValidator = new CategoryValidator(categoryRepository, productRepository);
+        CategoryValidator categoryValidator = new com.msspoker.shopservice.validator.impl.CategoryValidatorImpl(categoryRepository, productRepository);
         categoryService = new CategoryServiceImpl(
                 categoryRepository,
                 productMapper,
