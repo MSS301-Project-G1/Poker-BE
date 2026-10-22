@@ -6,7 +6,9 @@ import com.msspoker.gameservice.websocket.GameSocketSessions;
 import com.msspoker.gameservice.websocket.GameStompErrorHandler;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.messaging.simp.config.*;
 import org.springframework.web.socket.config.annotation.*;
 import org.springframework.web.socket.*;
@@ -39,6 +41,24 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(interceptor);
+        registration.executor(stompChannelExecutor());
+    }
+
+    @Override
+    public void configureClientOutboundChannel(ChannelRegistration registration) {
+        registration.executor(stompChannelExecutor());
+    }
+
+    /**
+     * STOMP must not share the bounded taskScheduler: tick() publishes while holding a table lock, and inbound
+     * handlers wait for that lock, so both sides starved each other's slots and froze the table.
+     * Unbounded on purpose: preserve receive/publish order already allows one in-flight message per session.
+     */
+    @Bean(destroyMethod = "close")
+    public SimpleAsyncTaskExecutor stompChannelExecutor() {
+        SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor(GameSocketConstants.CHANNEL_THREAD_PREFIX);
+        executor.setVirtualThreads(true);
+        return executor;
     }
 
     @Override
