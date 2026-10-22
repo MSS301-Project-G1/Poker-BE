@@ -207,8 +207,8 @@ List API phải phân trang/cursor, không trả danh sách vô hạn.
 
 ## 8. Docker, cấu hình và test
 
-- `social-service/compose.yml` sở hữu `social-service`, `social-db`, `social-redis`
-  và private network `social-net`.
+- `social-service/compose.yml` sở hữu `social-service`, `social-db` và private network
+  `social-net`; bổ sung `social-redis` khi triển khai presence GĐ2.
 - RabbitMQ dùng `docker/compose.infra.yml`; container gọi `rabbitmq:5672`, Java
   chạy trên host gọi port publish của host.
 - Không hard-code secret/localhost trong cấu hình container.

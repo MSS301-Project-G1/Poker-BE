@@ -35,15 +35,19 @@ spring:
             - id: social-service
               uri: ${SOCIAL_SERVICE_URL:http://localhost:8084}
               predicates:
-                - Path=/api/social/**
-              filters:
-                - StripPrefix=2
+                - Path=/api/friends/**,/api/blocks/**,/api/notifications/**
             - id: chat-service
               uri: ${CHAT_SERVICE_URL:http://localhost:8085}
               predicates:
                 - Path=/api/chat/**
-              filters:
-                - StripPrefix=2
+            - id: social-websocket
+              uri: ${SOCIAL_WS_URL:ws://localhost:8084}
+              predicates:
+                - Path=/ws/social
+            - id: chat-websocket
+              uri: ${CHAT_WS_URL:ws://localhost:8085}
+              predicates:
+                - Path=/ws/chat
             - id: ranking-service
               uri: ${RANKING_SERVICE_URL:http://localhost:8086}
               predicates:
@@ -78,6 +82,8 @@ gateway:
   cors:
     allowed-origins: ${GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:8080,http://localhost:8090}
   game-service-key: ${GAME_SERVICE_KEY:}
+  social-gateway-key: ${SOCIAL_GATEWAY_KEY:}
+  chat-gateway-key: ${CHAT_GATEWAY_KEY:}
 management:
   endpoints:
     web:

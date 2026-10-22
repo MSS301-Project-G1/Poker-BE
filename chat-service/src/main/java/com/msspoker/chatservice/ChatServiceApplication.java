@@ -3,11 +3,11 @@ package com.msspoker.chatservice;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+@org.springframework.scheduling.annotation.EnableScheduling
 @SpringBootApplication
 public class ChatServiceApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(ChatServiceApplication.class, args);
-    }
-
+  public static void main(String[] args) {
+    SpringApplication.run(ChatServiceApplication.class, args);
+  }
 }

@@ -3,46 +3,49 @@
 Nguồn yêu cầu: `docs/SPEC.md` §2.6, §3–§6, §7.2, §9.3, §10 và §12.
 Quy tắc chi tiết: `chat-service/RULE.md`.
 
-## Trạng thái hiện tại — 2026-10-16
+## Trạng thái hiện tại — 2026-10-17
 
-- [x] Có scaffold Spring Boot, port `8085`, Actuator và context test.
-- [x] Có `RULE.md` và `RESEARCH_REFERENCES.md` ánh xạ SPEC với nguồn kỹ thuật gốc.
-- [ ] Chưa có PostgreSQL/JPA/Flyway/RabbitMQ/WebSocket/Security/Validation.
-- [ ] Chưa có migration, entity, repository, API, consumer hoặc test nghiệp vụ.
-- [ ] `compose.yml` mới chỉ dựng application, chưa có `chat-db`.
-- [ ] `<ChatPanel>` chưa được triển khai trong FE.
+- [x] Backend MVP: DIRECT/MATCH TEXT, REST/history cursor, STOMP và match lifecycle.
+- [x] PostgreSQL riêng, JPA/Flyway, Validation, MapStruct, RabbitMQ, WebSocket/STOMP và JWT/JWKS.
+- [x] REST chỉ tin Gateway key + X-User-Id; internal Social dùng key riêng. Gateway giữ path và proxy WS.
+- [x] Testcontainers PostgreSQL/RabbitMQ, REST ingress, concurrency, STOMP JWT và user-isolated delivery.
+- [x] Suite module hiện có 18 test; kết quả lần chạy cuối xem README.
+- [ ] FE chưa triển khai trong đợt backend này.
+- [ ] STICKER/SOUND, restrictions và ChatPanel thuộc các đợt tiếp theo.
+
+Các checklist bên dưới vẫn là kế hoạch chi tiết. Mục chưa được kiểm chứng riêng không được xem là hoàn tất chỉ vì backend MVP đã có.
 
 ## Thứ tự triển khai
 
 ### Đợt 0 — nền module và hạ tầng
 
-- [ ] Thêm JPA/PostgreSQL, Flyway, Validation, AMQP, WebSocket/STOMP, Security,
+- [x] Thêm JPA/PostgreSQL, Flyway, Validation, AMQP, WebSocket/STOMP, Security,
   MapStruct, OpenAPI và test dependencies.
 - [ ] Cấu hình datasource, RabbitMQ, Social URL, JWT/JWKS, CORS, message limits,
   timeout/retry/DLQ bằng env.
 - [ ] Mở rộng `compose.yml` với `chat-db`, healthcheck, volume, `chat-net`; dùng
   RabbitMQ chung, không tạo Redis/broker riêng.
-- [ ] Tạo `ChatError`, `ChatApiException`, exception handler và Clock bean.
+- [x] Tạo `ServiceException` với tiền tố CHAT_, exception handler và Clock bean.
 
 Tiêu chí: application chạy với PostgreSQL/RabbitMQ thật; không cần Social để boot
 nhưng call DIRECT phải fail closed nếu Social không sẵn sàng.
 
 ### Đợt 1 — schema và persistence
 
-- [ ] V1 tạo `conversations`, `conversation_members`, `messages`, constraint/index.
-- [ ] V2 tạo `processed_events`; chỉ thêm `chat_outbox` nếu chọn durable delivery.
-- [ ] Entity/repository/MapStruct DTO; tuyệt đối không serialize Entity ra API.
+- [x] V1 tạo `conversations`, `conversation_members`, `messages`, constraint/index.
+- [x] V1 tạo `processed_events`; WS delivery MVP best effort, chưa thêm `chat_outbox`.
+- [x] Entity/repository/MapStruct DTO; tuyệt đối không serialize Entity ra API.
 - [ ] Unique `direct_key`, unique `(type, ref_id)` cho MATCH, unique member và
   `(sender_id, client_message_id)` nếu field được chốt.
-- [ ] Test PostgreSQL thật cho constraint và concurrent get-or-create DIRECT.
+- [x] Test PostgreSQL thật cho constraint và concurrent get-or-create DIRECT.
 
 ### Đợt 2 — DIRECT REST MVP
 
-- [ ] `SocialClient` gọi `/internal/friends/{a}/with/{b}`, timeout ngắn, fail closed.
-- [ ] Get-or-create DIRECT; member lấy từ authenticated user và target hợp lệ.
-- [ ] List conversations và message history bằng cursor, ownership bắt buộc.
-- [ ] Application service gửi TEXT dùng chung cho REST fallback và STOMP.
-- [ ] Kiểm tra friendship/block tại thời điểm tạo và mỗi lần gửi.
+- [x] `SocialClient` gọi `/internal/friends/{a}/with/{b}`, timeout ngắn, fail closed.
+- [x] Get-or-create DIRECT; member lấy từ authenticated user và target hợp lệ.
+- [x] List conversations và message history bằng cursor, ownership bắt buộc.
+- [x] Application service gửi TEXT dùng chung cho REST fallback và STOMP.
+- [x] Kiểm tra friendship/block tại thời điểm tạo và mỗi lần gửi.
 - [ ] Unit/controller/contract test cho non-friend, blocked, non-member, empty/long
   content, duplicate request và pagination ordering.
 
@@ -51,22 +54,22 @@ thứ ba không đọc hoặc gửi được.
 
 ### Đợt 3 — `/ws/chat` MVP
 
-- [ ] WebSocket/STOMP config và JWT ChannelInterceptor theo mẫu bảo mật Game.
-- [ ] SEND `/app/conversations/{id}/send`, SUBSCRIBE `/user/queue/chat`.
-- [ ] Persist trước, sau commit mới fan-out message tới từng member.
-- [ ] User-specific error destination và error DTO `CHAT_*`.
+- [x] WebSocket/STOMP config và JWT ChannelInterceptor theo mẫu bảo mật Game.
+- [x] SEND `/app/conversations/{id}/send`, SUBSCRIBE `/user/queue/chat`.
+- [x] Persist trước, sau commit mới fan-out message tới từng member.
+- [x] User-specific error destination và error DTO `CHAT_*`.
 - [ ] Rate/message-size/heartbeat/allowed-origin config.
-- [ ] Integration test với ít nhất hai client và một attacker client.
+- [x] STOMP integration test hai member và một outsider client.
 
 Tiêu chí: message lưu đúng một lần, hai member nhận được và user ngoài conversation
 không nhận/đọc được.
 
 ### Đợt 4 — MATCH chat MVP
 
-- [ ] Bind `chat-service.match.started` và `chat-service.match.finished`.
-- [ ] `match.started` idempotently tạo MATCH conversation + members từ playerIds.
-- [ ] `match.finished` idempotently đóng conversation; sau đó gửi bị từ chối.
-- [ ] Retry hữu hạn + DLQ; processed event commit cùng business state.
+- [x] Bind `chat-service.match.started` và `chat-service.match.finished`.
+- [x] `match.started` idempotently tạo MATCH conversation + members từ playerIds.
+- [x] `match.finished` idempotently đóng conversation; sau đó gửi bị từ chối.
+- [x] Retry hữu hạn + DLQ; processed event commit cùng business state.
 - [ ] Test duplicate, finished-before-started, payload sai, service restart và
   nhiều trận chạy đồng thời.
 - [ ] Phối hợp Bảo để xử lý khoảng trống `match.cancelled` trước demo full flow.

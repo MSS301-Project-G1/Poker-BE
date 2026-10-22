@@ -103,6 +103,7 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(config -> config
                         .pathMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
                         .pathMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
+                        .pathMatchers("/ws/social", "/ws/chat").permitAll()
                         .pathMatchers("/api/admin/**").hasRole("ADMIN")
                         .pathMatchers("/api/**").authenticated().anyExchange().denyAll())
                 .exceptionHandling(config -> config

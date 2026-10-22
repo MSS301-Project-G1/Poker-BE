@@ -390,6 +390,16 @@ Các `type` của `notification.requested`: `FRIEND_REQUEST`, `FRIEND_ACCEPTED`,
 | `/ws/chat` | Duy | `/app/conversations/{id}/send` `{ messageType, content }` | `/user/queue/chat` |
 | `/ws/social` | Duy | — | `/user/queue/notifications` · `/user/queue/presence` |
 
+#### Social/Chat backend MVP — bổ sung 2026-10-17
+
+- Social REST: GET `/api/friends`, GET/POST `/api/friends/requests`, POST `/api/friends/requests/{id}/accept`, POST `/api/friends/requests/{id}/decline`, DELETE `/api/friends/requests/{id}`, DELETE `/api/friends/{id}`, GET `/api/blocks`, POST/DELETE `/api/blocks/{id}`. List dùng page/size (size 1–100), trả `{ items, page, size, totalElements, totalPages }`.
+- Chat REST: POST `/api/chat/conversations/direct` body `{ accountId }`; GET `/api/chat/conversations`, GET `/api/chat/conversations/{id}`, GET `/api/chat/conversations/{id}/messages?before=&limit=`, POST `/api/chat/conversations/{id}/messages` (REST fallback dùng chung use case với STOMP). Chỉ member đọc/gửi. MATCH lifecycle chỉ do event Game.
+- SEND Chat thêm field **tùy chọn** `clientMessageId` (UUID), giữ nguyên `{ messageType, content }` cũ. Có field thì dedup theo sender/clientMessageId; reuse khác phòng/nội dung bị từ chối. Không có field thì retry có thể tạo tin mới. History trả `{ items, nextCursor }`, thứ tự mới nhất trước theo `(createdAt,id)`.
+- Social/Chat HTTP FE đều cần login USER/ADMIN, request ghi cần CSRF; ADMIN không bỏ qua ownership. Gateway giữ nguyên prefix controller. Trusted ingress dùng `X-Social-Gateway-Key` / `X-Chat-Gateway-Key` (env `SOCIAL_GATEWAY_KEY` / `CHAT_GATEWAY_KEY`), Gateway bỏ header client rồi tự gắn. Key rỗng từ chối; không gửi key xuống FE.
+- Social internal giữ nguyên hai path/response ở §6.1, thêm header backend `X-Social-Internal-Key` từ env `SOCIAL_INTERNAL_KEY`; Chat/Competition phải cấu hình cùng credential. Gateway chặn `/internal/**` và bỏ bản header giả từ client. Bổ sung credential cần bên sử dụng review trước merge.
+- WS handshake `/ws/social`, `/ws/chat` được Gateway proxy, service tự xác thực JWT frame CONNECT; handshake thành công chưa cấp quyền SEND/SUBSCRIBE. Chat business errors vào `/user/queue/chat-errors`; invalid JWT/destination/rate hoặc token hết hạn sẽ đóng socket.
+- Notification và chat WS MVP là best effort sau DB commit, simple broker một instance. Social không lưu notification history cho tới GĐ2. Chat lưu history để reconnect tải lại. Không tự thêm presence, STICKER/SOUND hoặc read receipt vào MVP.
+
 `type` hành động trong bàn: `FOLD`, `CHECK`, `CALL`, `RAISE` (kèm `amount` = tổng cược muốn đạt tới), `ALL_IN`.
 
 #### Chi tiết tích hợp game đã triển khai trên nhánh Bảo
@@ -741,11 +751,11 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 - [ ] Hàng chờ Rank: vào/hủy hàng chờ, ghép theo Elo và chuỗi thắng, nới dần khoảng Elo khi chờ lâu, số người tối thiểu lấy từ config.
 - [ ] Proposal và popup chấp nhận 10 giây, thu phí, hoàn phí khi lỗi (luồng 7.2).
 - [ ] Hàng chờ Normal (miễn phí).
-- [ ] Bạn bè: gửi/nhận/đồng ý/từ chối/hủy lời mời, xóa bạn, chặn/bỏ chặn.
-- [ ] `/internal/friends/**` cho Hoài Anh và chat.
-- [ ] `chat-service`: chat DIRECT giữa bạn bè và chat MATCH trong trận (TEXT). Mở/đóng phòng chat trận theo `match.started` / `match.finished`.
+- [x] Bạn bè: gửi/nhận/đồng ý/từ chối/hủy lời mời, xóa bạn, chặn/bỏ chặn.
+- [x] `/internal/friends/**` cho Hoài Anh và chat.
+- [x] `chat-service`: chat DIRECT giữa bạn bè và chat MATCH trong trận (TEXT). Mở/đóng phòng chat trận theo `match.started` / `match.finished`.
 - [ ] Component `<ChatPanel conversationId>` dùng chung cho màn Bạn bè và màn Bàn chơi.
-- [ ] WebSocket `/ws/social` + consumer `notification.requested` → đẩy realtime (cần cho `MATCH_FOUND`, `ROOM_UPDATED`...).
+- [x] WebSocket `/ws/social` + consumer `notification.requested` → đẩy realtime (cần cho `MATCH_FOUND`, `ROOM_UPDATED`...).
 - [ ] Màn: Chờ ghép trận, popup chấp nhận trận, Bạn bè (danh sách, lời mời, đã chặn), Chat.
 
 🔵 GĐ2

@@ -5,4 +5,46 @@ services:
       args:
         MODULE: social-service
     ports:
-      - "${SOCIAL_SERVICE_PORT:-8084}:8084"
+      - "127.0.0.1:${SOCIAL_SERVICE_PORT:-8084}:8084"
+    environment:
+      SOCIAL_DB_URL: jdbc:postgresql://social-db:5432/social_db
+      SOCIAL_DB_USER: ${SOCIAL_DB_USER:-poker}
+      SOCIAL_DB_PASSWORD: ${SOCIAL_DB_PASSWORD:-poker_dev}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${AUTH_RABBIT_USERNAME:-poker}
+      RABBITMQ_PASSWORD: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+      SOCIAL_GATEWAY_KEY: ${SOCIAL_GATEWAY_KEY:-}
+      SOCIAL_INTERNAL_KEY: ${SOCIAL_INTERNAL_KEY:-}
+      JWT_JWK_SET_URI: http://auth-service:8090/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8090}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-poker}
+    networks:
+      - default
+      - social-net
+    depends_on:
+      social-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  social-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: social_db
+      POSTGRES_USER: ${SOCIAL_DB_USER:-poker}
+      POSTGRES_PASSWORD: ${SOCIAL_DB_PASSWORD:-poker_dev}
+    ports:
+      - "127.0.0.1:${SOCIAL_DB_PORT:-54334}:5432"
+    volumes:
+      - social-db-data:/var/lib/postgresql/data
+    networks:
+      - social-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+networks:
+  social-net:
+volumes:
+  social-db-data:

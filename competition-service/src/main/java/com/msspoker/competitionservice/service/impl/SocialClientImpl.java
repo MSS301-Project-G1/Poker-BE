@@ -19,6 +19,7 @@ import java.util.UUID;
 @Profile("!dev & !test")
 public class SocialClientImpl implements SocialClient {
     private final RestClient social;
+    @Value("${SOCIAL_INTERNAL_KEY:}") private String socialKey;
 
     public SocialClientImpl(@Value("${competition.social-url:http://localhost:8084}") String url,
             @Value("${competition.social-timeout-millis:3000}") long timeoutMillis) {
@@ -32,6 +33,7 @@ public class SocialClientImpl implements SocialClient {
     public FriendshipResponse friendship(UUID accountId, UUID otherId) {
         try {
             FriendshipResponse response = social.get().uri("/internal/friends/{a}/with/{b}", accountId, otherId)
+                    .header("X-Social-Internal-Key", socialKey)
                     .retrieve().body(FriendshipResponse.class);
             if (response == null) throw CompetitionExceptions.socialUnavailable();
             return response;

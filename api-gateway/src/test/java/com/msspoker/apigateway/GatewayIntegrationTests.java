@@ -79,6 +79,10 @@ class GatewayIntegrationTests {
         registry.add("AUTH_SERVICE_URL", () -> upstream);
         registry.add("GAME_SERVICE_URL", () -> upstream);
         registry.add("GAME_SERVICE_KEY", () -> "gateway-game-test-secret");
+        registry.add("SOCIAL_SERVICE_URL", () -> upstream);
+        registry.add("CHAT_SERVICE_URL", () -> upstream);
+        registry.add("SOCIAL_GATEWAY_KEY", () -> "social-gateway-test-key");
+        registry.add("CHAT_GATEWAY_KEY", () -> "chat-gateway-test-key");
         registry.add("spring.cloud.gateway.server.webflux.httpclient.response-timeout", () -> "2s");
         registry.add("MATCHMAKING_SERVICE_URL", () -> "http://127.0.0.1:" + unusedPort());
     }
@@ -93,6 +97,28 @@ class GatewayIntegrationTests {
         REPLY.set(null);
         client = WebTestClient.bindToServer().baseUrl("http://127.0.0.1:" + environment.getProperty("local.server.port"))
                 .responseTimeout(Duration.ofSeconds(10)).build();
+    }
+
+    @Test
+    void socialAndChatPreservePathsAndReplaceSpoofedIngressKeys() {
+        for (String path : List.of("/api/friends", "/api/blocks", "/api/chat/conversations")) {
+            client.get().uri(path).cookie("accessToken", token("USER", "valid"))
+                    .header("X-User-Id", UUID.randomUUID().toString())
+                    .header("X-Social-Gateway-Key", "forged")
+                    .header("X-Chat-Gateway-Key", "forged")
+                    .header("X-Social-Internal-Key", "forged")
+                    .exchange().expectStatus().isOk();
+            assertThat(LAST.get().uri()).isEqualTo(path);
+            assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+            assertThat(LAST.get().headers()).doesNotContainKey("X-Social-Internal-Key");
+            if (path.startsWith("/api/chat")) {
+                assertThat(LAST.get().headers().get("X-Chat-Gateway-Key")).isEqualTo("chat-gateway-test-key");
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Social-Gateway-Key");
+            } else {
+                assertThat(LAST.get().headers().get("X-Social-Gateway-Key")).isEqualTo("social-gateway-test-key");
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Chat-Gateway-Key");
+            }
+        }
     }
 
     @AfterAll
