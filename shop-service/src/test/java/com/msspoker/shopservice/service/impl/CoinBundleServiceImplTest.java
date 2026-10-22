@@ -46,7 +46,7 @@ class CoinBundleServiceImplTest {
         coinBundleService = new CoinBundleServiceImpl(
                 coinBundleRepository,
                 coinBundleMapper,
-                new CoinBundleValidator(coinBundleRepository)
+                new com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl(coinBundleRepository)
         );
 
         bundleId = UUID.randomUUID();

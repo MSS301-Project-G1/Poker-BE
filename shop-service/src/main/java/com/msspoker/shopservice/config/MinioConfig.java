@@ -31,6 +31,9 @@ public class MinioConfig {
                 && secretKey != null && !secretKey.isBlank();
 
         MinioClient.Builder builder = MinioClient.builder().endpoint(endpoint);
+        if (s3Properties.getRegion() != null && !s3Properties.getRegion().isBlank()) {
+            builder.region(s3Properties.getRegion());
+        }
         if (hasCredentials) {
             builder.credentials(accessKey, secretKey);
         }

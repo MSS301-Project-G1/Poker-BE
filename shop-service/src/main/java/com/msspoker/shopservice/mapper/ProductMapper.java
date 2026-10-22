@@ -46,6 +46,10 @@ public interface ProductMapper {
         Product product = toProduct(request);
         if (product != null) {
             product.setCategory(category);
+            long vipCoin = (request.priceVipCoin() != null && request.priceVipCoin() > 0)
+                    ? request.priceVipCoin()
+                    : Math.max(1, request.priceVnd() / 1000);
+            product.setPriceVipCoin(vipCoin);
         }
         return product;
     }
@@ -65,6 +69,11 @@ public interface ProductMapper {
         updateProductFromRequest(product, request);
         if (product != null) {
             product.setCategory(category);
+            if (request.priceVipCoin() != null && request.priceVipCoin() > 0) {
+                product.setPriceVipCoin(request.priceVipCoin());
+            } else if (request.priceVnd() > 0) {
+                product.setPriceVipCoin(Math.max(1, request.priceVnd() / 1000));
+            }
         }
     }
 }

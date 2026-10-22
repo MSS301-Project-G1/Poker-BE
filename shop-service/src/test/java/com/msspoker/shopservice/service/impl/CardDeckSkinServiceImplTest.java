@@ -60,7 +60,7 @@ class CardDeckSkinServiceImplTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         textureAtlasGenerator = new TextureAtlasGenerator(objectMapper);
-        cardDeckValidator = new CardDeckValidator();
+        cardDeckValidator = new com.msspoker.shopservice.validator.impl.CardDeckValidatorImpl();
 
         cardDeckSkinService = new CardDeckSkinServiceImpl(
                 productRepository,

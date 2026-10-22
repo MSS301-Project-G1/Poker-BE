@@ -137,7 +137,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
 
         // 2. Tạo version định danh theo timestamp (Cache busting)
         String version = "v" + Instant.now().toEpochMilli();
-        String basePath = "skins/cards/" + product.getId() + "/";
+        String basePath = "poker/skins/cards/" + product.getId() + "/";
         String currentVersionPath = basePath + version + "/";
 
         // Ghi nhận version cũ để dọn dẹp sau khi lưu thành công
@@ -228,6 +228,17 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
             JsonNode root = objectMapper.readTree(metadataJson);
             if (root.has("version") && root.has("card_back_url")) {
                 String cardBack = root.get("card_back_url").asText("");
+                int pokerIdx = cardBack.indexOf("poker/skins/cards/");
+                if (pokerIdx >= 0) {
+                    String sub = cardBack.substring(pokerIdx);
+                    int vIdx = sub.indexOf("/v");
+                    if (vIdx >= 0) {
+                        int nextSlash = sub.indexOf('/', vIdx + 1);
+                        if (nextSlash >= 0) {
+                            return sub.substring(0, nextSlash + 1);
+                        }
+                    }
+                }
                 int cardsIdx = cardBack.indexOf("skins/cards/");
                 if (cardsIdx >= 0) {
                     String sub = cardBack.substring(cardsIdx);

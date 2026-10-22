@@ -1,5 +1,8 @@
 package com.msspoker.shopservice.config;
 
+import com.msspoker.shopservice.security.GatewayAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -10,21 +13,21 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Cấu hình Spring Security nền tảng cho shop-service.
- *
- * Lưu ý nghiệp vụ:
- * 1. Đã bật @EnableMethodSecurity(prePostEnabled = true) để sẵn sàng sử dụng @PreAuthorize("...")
- * 2. Tạm thời cấu hình anyRequest().permitAll() để không chặn request hoặc làm gãy luồng test
- *    khi auth-service đang trong quá trình hoàn thiện.
- * 3. Khi auth-service hoàn tất phát hành JWT Bearer Token, cấu hình Resource Server / JWT filter
- *    sẽ được tích hợp trực tiếp tại đây mà không cần đập đi xây lại cấu trúc.
+ * Cấu hình Spring Security cho shop-service:
+ * - Stateless session
+ * - GatewayAuthenticationFilter nhận identity từ Gateway (HttpOnly Cookie chuyển thành X-User-Id / X-User-Role)
+ * - @EnableMethodSecurity(prePostEnabled = true) để hỗ trợ @PreAuthorize("hasRole('ADMIN')")
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final GatewayAuthenticationFilter gatewayAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -33,8 +36,20 @@ public class SecurityConfig {
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Tạm thời cho phép tất cả các request đi qua (chưa phân quyền cứng)
                         .anyRequest().permitAll()
+                )
+                .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"code\":\"FORBIDDEN\",\"message\":\"Bạn không có quyền thực hiện hành động này\"}");
+                        })
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"Vui lòng đăng nhập để tiếp tục\"}");
+                        })
                 );
 
         return http.build();

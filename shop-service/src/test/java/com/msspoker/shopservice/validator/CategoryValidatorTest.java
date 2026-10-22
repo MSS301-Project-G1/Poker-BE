@@ -6,6 +6,7 @@ import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.repository.CategoryRepository;
 import com.msspoker.shopservice.repository.ProductRepository;
+import com.msspoker.shopservice.validator.impl.CategoryValidatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class CategoryValidatorTest {
     private ProductRepository productRepository;
 
     @InjectMocks
-    private CategoryValidator categoryValidator;
+    private CategoryValidatorImpl categoryValidator;
 
     private UUID categoryId;
     private Category category;

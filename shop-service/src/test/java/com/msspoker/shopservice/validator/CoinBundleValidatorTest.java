@@ -4,6 +4,7 @@ import com.msspoker.shopservice.dto.request.CreateCoinBundleRequest;
 import com.msspoker.shopservice.entity.CoinBundle;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.repository.CoinBundleRepository;
+import com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,7 @@ class CoinBundleValidatorTest {
     private CoinBundleRepository coinBundleRepository;
 
     @InjectMocks
-    private CoinBundleValidator coinBundleValidator;
+    private CoinBundleValidatorImpl coinBundleValidator;
 
     @Test
     @DisplayName("validateExists: thành công khi bundle không null")
