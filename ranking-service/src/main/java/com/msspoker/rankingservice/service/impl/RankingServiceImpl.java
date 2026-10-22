@@ -3,14 +3,20 @@ package com.msspoker.rankingservice.service.impl;
 import com.msspoker.rankingservice.config.RankingProperties;
 import com.msspoker.rankingservice.constant.RankingConstants;
 import com.msspoker.rankingservice.dto.response.FriendRankingResponse;
+import com.msspoker.rankingservice.dto.response.MatchRatingResponse;
 import com.msspoker.rankingservice.dto.response.MyRankingResponse;
 import com.msspoker.rankingservice.dto.response.PageResponse;
 import com.msspoker.rankingservice.dto.response.PlayerRankingResponse;
 import com.msspoker.rankingservice.dto.response.RankedPlayerResponse;
+import com.msspoker.rankingservice.entity.EloHistoryEntity;
 import com.msspoker.rankingservice.entity.PlayerEloEntity;
+import com.msspoker.rankingservice.entity.RewardCreditEntity;
 import com.msspoker.rankingservice.enums.Tier;
+import com.msspoker.rankingservice.exception.RankingExceptions;
 import com.msspoker.rankingservice.mapper.RankingMapper;
+import com.msspoker.rankingservice.repository.EloHistoryRepository;
 import com.msspoker.rankingservice.repository.PlayerEloRepository;
+import com.msspoker.rankingservice.repository.RewardCreditRepository;
 import com.msspoker.rankingservice.service.EloCalculator;
 import com.msspoker.rankingservice.service.RankingService;
 import com.msspoker.rankingservice.service.SeasonService;
@@ -41,6 +47,8 @@ import java.util.stream.Collectors;
 public class RankingServiceImpl implements RankingService {
     private final SeasonService seasons;
     private final PlayerEloRepository players;
+    private final EloHistoryRepository history;
+    private final RewardCreditRepository rewards;
     private final EloCalculator calculator;
     private final RankingMapper mapper;
     private final RankingProperties properties;
@@ -99,6 +107,17 @@ public class RankingServiceImpl implements RankingService {
         snapshot.setReadOnly(true);
         snapshot.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
         return snapshot.execute(status -> friendsBoard(accountId, members));
+    }
+
+    /** The reward row is written in the same transaction as the Elo history, so a missing row means no reward. */
+    @Transactional(readOnly = true)
+    @Override
+    public MatchRatingResponse matchRating(UUID accountId, UUID matchId) {
+        EloHistoryEntity result = history.findByMatchIdAndAccountId(matchId, accountId)
+                .orElseThrow(RankingExceptions::matchRatingNotFound);
+        long rewardCoins = rewards.findByMatchIdAndAccountId(matchId, accountId)
+                .map(RewardCreditEntity::getAmount).orElse(0L);
+        return mapper.matchRating(result, rewardCoins);
     }
 
     private List<FriendRankingResponse> friendsBoard(UUID accountId, List<UUID> members) {

@@ -3,6 +3,7 @@ package com.msspoker.rankingservice.controller;
 import com.msspoker.rankingservice.constant.RankingConstants;
 import com.msspoker.rankingservice.constant.RankingHeaders;
 import com.msspoker.rankingservice.dto.response.FriendRankingResponse;
+import com.msspoker.rankingservice.dto.response.MatchRatingResponse;
 import com.msspoker.rankingservice.dto.response.MyRankingResponse;
 import com.msspoker.rankingservice.dto.response.PageResponse;
 import com.msspoker.rankingservice.dto.response.RankedPlayerResponse;
@@ -36,5 +37,11 @@ public class RankingController {
     @GetMapping("/me")
     public MyRankingResponse me(@RequestHeader(RankingHeaders.USER_ID) UUID accountId) {
         return ranking.me(accountId);
+    }
+
+    @GetMapping("/me/matches/{matchId}")
+    public MatchRatingResponse matchRating(@RequestHeader(RankingHeaders.USER_ID) UUID accountId,
+            @PathVariable UUID matchId) {
+        return ranking.matchRating(accountId, matchId);
     }
 }

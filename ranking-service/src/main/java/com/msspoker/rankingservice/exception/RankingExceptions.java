@@ -52,6 +52,10 @@ public final class RankingExceptions {
         return new RankingApiException(RankingError.RANK_NOT_FOUND, HttpStatus.NOT_FOUND, "Bạn không có quà ở mùa giải này.");
     }
 
+    public static RankingApiException matchRatingNotFound() {
+        return new RankingApiException(RankingError.RANK_NOT_FOUND, HttpStatus.NOT_FOUND, "Chưa có kết quả xếp hạng của bạn cho trận này.");
+    }
+
     public static RankingApiException adminOnly() {
         return new RankingApiException(RankingError.RANK_FORBIDDEN, HttpStatus.FORBIDDEN, "Chỉ quản trị viên được thực hiện thao tác này.");
     }
