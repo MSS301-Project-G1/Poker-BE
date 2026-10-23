@@ -64,6 +64,19 @@ To run the application container with the `dev` profile:
 docker compose -f docker-compose.yml -f ranking-service/compose.dev.yml up -d --build ranking-service
 ```
 
+## Service discovery and gateway
+
+The service registers in Eureka (`discovery-service`, 8761) as `ranking-service` and the
+API gateway routes `/api/ranking`, `/api/seasons`, `/api/tutorial` and `/api/admin/seasons` to it (`lb://ranking-service`). Calls to other services use the
+`@LoadBalanced RestClient.Builder` from `config/RestClientConfig`: base URLs are
+service names such as `http://wallet-service`, resolved through Eureka. The `dev`
+profile runs the jar on the host without Eureka (like game-service) and resolves
+the names from `spring.cloud.discovery.client.simple.instances` to the local
+ports (wallet 8089, shop 8088, social 8084); with `EUREKA_CLIENT_ENABLED=true` Eureka is asked first.
+`compose.dev.yml` turns Eureka on because the container shares the stack with
+discovery-service. To check the route, follow `api-gateway/ONBOARDING.md` with
+`-f ranking-service/compose.yml`.
+
 ## Integration contract
 
 See [SPEC §6](../docs/SPEC.md). Tiers use the SPEC enum names; `CARD_GOD` is
@@ -159,9 +172,10 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 
 - PostgreSQL: `RANKING_DB_URL`, `RANKING_DB_USER`, `RANKING_DB_PASSWORD`.
 - RabbitMQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
-- Wallet: `WALLET_SERVICE_URL` (default `http://localhost:8089`).
-- Shop: `SHOP_SERVICE_URL` (default `http://localhost:8088`).
-- Social: `SOCIAL_SERVICE_URL` (default `http://localhost:8084`).
+- Eureka: `EUREKA_CLIENT_ENABLED` (`true`), `EUREKA_SERVICE_URL`, `EUREKA_INSTANCE_HOSTNAME`.
+- Wallet: `WALLET_SERVICE_URL` (default `http://wallet-service`).
+- Shop: `SHOP_SERVICE_URL` (default `http://shop-service`).
+- Social: `SOCIAL_SERVICE_URL` (default `http://social-service`).
 - Mocks for services not running locally: `ranking.wallet.mock`, `ranking.shop.mock`,
   `ranking.social.mock` (`false`; `true` in `application-dev.properties` and tests).
 - SPEC §8 parameters: `ranking.elo-by-place`, `ranking.tier-thresholds`,

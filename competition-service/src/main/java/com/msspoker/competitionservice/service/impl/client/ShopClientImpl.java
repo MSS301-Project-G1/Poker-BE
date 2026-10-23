@@ -5,6 +5,7 @@ import com.msspoker.competitionservice.service.client.ShopClient;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -20,13 +21,14 @@ public class ShopClientImpl implements ShopClient {
     private final RestClient shop;
     private final boolean mock;
 
-    public ShopClientImpl(@Value("${competition.shop-url:http://localhost:8088}") String url,
+    public ShopClientImpl(@LoadBalanced RestClient.Builder restClients,
+            @Value("${competition.shop-url:http://shop-service}") String url,
             @Value("${competition.shop-timeout-millis:3000}") long timeoutMillis,
             @Value("${competition.shop.mock:false}") boolean mock) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
-        shop = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        shop = restClients.clone().baseUrl(url).requestFactory(factory).build();
         this.mock = mock;
     }
 

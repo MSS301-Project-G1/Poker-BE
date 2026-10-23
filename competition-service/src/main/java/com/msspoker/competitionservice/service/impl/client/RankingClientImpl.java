@@ -5,6 +5,7 @@ import com.msspoker.competitionservice.exception.CompetitionExceptions;
 import com.msspoker.competitionservice.service.client.RankingClient;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -24,12 +25,13 @@ public class RankingClientImpl implements RankingClient {
 
     private final RestClient ranking;
 
-    public RankingClientImpl(@Value("${competition.ranking-url:http://localhost:8086}") String url,
+    public RankingClientImpl(@LoadBalanced RestClient.Builder restClients,
+            @Value("${competition.ranking-url:http://ranking-service}") String url,
             @Value("${competition.ranking-timeout-millis:3000}") long timeoutMillis) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
-        ranking = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        ranking = restClients.clone().baseUrl(url).requestFactory(factory).build();
     }
 
     @Override
@@ -39,7 +41,8 @@ public class RankingClientImpl implements RankingClient {
                     .retrieve().body(RANKED_PLAYERS);
             if (top == null) throw CompetitionExceptions.rankingUnavailable();
             return top;
-        } catch (RestClientException ex) {
+        } catch (RestClientException | IllegalStateException ex) {
+            // IllegalStateException: no registered instance of the service.
             throw CompetitionExceptions.rankingUnavailable();
         }
     }

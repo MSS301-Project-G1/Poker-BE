@@ -11,7 +11,8 @@ import java.util.UUID;
 public interface TournamentService {
     TournamentResponse create(UUID adminId, CreateTournamentRequest request);
 
-    PageResponse<TournamentSummaryResponse> list(int page, int size);
+    /** Upcoming and running tournaments soonest first, or (past) finished and cancelled ones latest first. */
+    PageResponse<TournamentSummaryResponse> list(boolean past, int page, int size);
 
     TournamentResponse get(UUID tournamentId);
 
