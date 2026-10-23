@@ -212,12 +212,17 @@ public class OrderServiceImpl implements OrderService {
             return cachedOrder.get();
         }
 
-        // 2. Database Idempotency Check
-        Optional<Order> existingBundleOrderOpt = orderRepository.findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
-                accountId, bundleId, OrderStatus.PENDING);
-        if (existingBundleOrderOpt.isPresent()) {
-            Order pendingOrder = existingBundleOrderOpt.get();
-            if (pendingOrder.getExpiresAt() != null && pendingOrder.getExpiresAt().isAfter(Instant.now())) {
+        // 2. Database & Active Pending Order Check
+        Optional<Order> activePendingOpt = orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                accountId, OrderStatus.PENDING, Instant.now());
+        if (activePendingOpt.isPresent()) {
+            Order pendingOrder = activePendingOpt.get();
+            // Sync with PayOS to see if user has already paid the previous order
+            syncOrderEntity(pendingOrder);
+            if (pendingOrder.getStatus() == OrderStatus.PAID) {
+                log.info("Previous pending order id={}, orderCode={} was already paid. Proceeding.",
+                        pendingOrder.getId(), pendingOrder.getPayosOrderCode());
+            } else if (pendingOrder.getBundle() != null && pendingOrder.getBundle().getId().equals(bundleId)) {
                 log.info("Idempotent createBundleOrder detected for accountId={}, bundleId={}. Returning existing bundle order id={}, orderCode={}",
                         accountId, bundleId, pendingOrder.getId(), pendingOrder.getPayosOrderCode());
                 OrderResponse response = orderMapper.toOrderResponse(pendingOrder);
@@ -227,12 +232,21 @@ public class OrderServiceImpl implements OrderService {
                 }
                 return response;
             } else {
-                log.info("Expiring stale pending bundle order id={} for accountId={}", pendingOrder.getId(), accountId);
+                // User switched bundles; cancel old pending order so user does not have dangling orders
+                log.info("User switched bundle or created new order. Cancelling previous pending order id={}, orderCode={}",
+                        pendingOrder.getId(), pendingOrder.getPayosOrderCode());
+                try {
+                    payOS.paymentRequests().cancel(pendingOrder.getPayosOrderCode(), "User switched to a different bundle");
+                } catch (Exception ex) {
+                    log.warn("Could not cancel previous order on PayOS gateway: {}", ex.getMessage());
+                }
                 pendingOrder.setStatus(OrderStatus.CANCELLED);
                 orderRepository.save(pendingOrder);
-                paymentIdempotencyService.evictOrder(accountId, bundleId);
+                paymentIdempotencyService.evictOrder(accountId,
+                        pendingOrder.getBundle() != null ? pendingOrder.getBundle().getId() : (pendingOrder.getProduct() != null ? pendingOrder.getProduct().getId() : bundleId));
             }
         }
+
 
         // 3. Khóa phân tán Redis chống race condition
         boolean lockAcquired = paymentIdempotencyService.acquireLock(accountId, bundleId, Duration.ofSeconds(10));

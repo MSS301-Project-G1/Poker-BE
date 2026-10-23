@@ -20,6 +20,9 @@ public interface InventoryMapper {
     @Mapping(target = "categoryCode", source = "product.category.code")
     @Mapping(target = "categoryName", source = "product.category.name")
     @Mapping(target = "assetUrl", source = "product.assetUrl")
+    @Mapping(target = "previewUrl", source = "product.previewUrl")
+    @Mapping(target = "previewVideoUrl", source = "product.previewVideoUrl")
+    @Mapping(target = "metadata", source = "product.metadata")
     @Mapping(target = "tier", source = "product.tier")
     @Mapping(target = "isEquipped", source = "equipped")
     InventoryItemResponse toInventoryItemResponse(InventoryItem item);
