@@ -18,6 +18,30 @@ kiểm thử E2E qua Gateway.
 
 `Custom room` thuộc `competition-service`, không thuộc Swagger của Matchmaking.
 
+## Cấu trúc service
+
+```text
+service/
+├── normal/       # Interface nghiệp vụ Normal
+│   ├── impl/     # Ghép trận, proposal, coordinator Normal
+│   └── worker/   # Ghép và phục hồi trận Normal
+├── rank/         # Interface nghiệp vụ Rank
+│   ├── impl/     # Ghép Elo, xác nhận, trạng thái và coordinator Rank
+│   └── worker/   # Ghép trận, hết hạn proposal và phục hồi Rank
+├── party/
+│   └── impl/     # Tạo, vào, kick và rời nhóm
+├── proposal/
+│   └── impl/     # Lưu proposal dùng chung trong PostgreSQL
+├── store/        # Interface QueueStore, PartyStore
+│   └── redis/    # RedisQueueStore, RedisPartyStore
+└── client/       # Interface gọi Game, Ranking, Restriction, Wallet
+    ├── http/     # Client HTTP thực tế
+    └── stub/     # Client giả lập
+```
+
+Test phản chiếu cùng cấu trúc package trong `src/test/java`. Controller gọi interface;
+worker nằm cùng nhóm Normal/Rank và gọi service của nhóm đó.
+
 ## API Party
 
 API giữ cách đặt tên hiện tại của module:
@@ -25,15 +49,14 @@ API giữ cách đặt tên hiện tại của module:
 ```http
 GET    /api/party/me
 POST   /api/party/create
-POST   /api/party/invite
 POST   /api/party/join
 POST   /api/party/kick
 DELETE /api/party/leave
 ```
 
-Party được lưu trong Redis. Chỉ chủ party được mời hoặc kick; người được mời vào bằng mã gồm
-8 ký tự; tối đa mặc định 6 thành viên. Khi chủ rời, quyền chủ chuyển cho thành viên vào sớm nhất;
-người cuối cùng rời sẽ giải tán party.
+Party được lưu trong Redis. Chỉ chủ party được kick; người chơi vào bằng mã gồm
+8 ký tự và mật khẩu 6 số; tối đa mặc định 6 thành viên. Khi chủ rời, nhóm giải tán và
+toàn bộ thành viên rời theo. Thành viên thường rời riêng, không đổi chủ nhóm.
 
 Chủ Party dùng chính `POST /api/matchmaking/normal/join` để đưa toàn bộ nhóm vào queue và dùng
 `DELETE /api/matchmaking/normal/leave` để hủy cho cả nhóm. Thành viên thường không được tự gọi

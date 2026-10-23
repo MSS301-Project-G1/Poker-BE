@@ -221,21 +221,12 @@ matchmaking-service/
     │   │   │   ├── WalletOperationRepository.java
     │   │   │   └── OutboxRepository.java
     │   │   ├── service/
-    │   │   │   ├── NormalMatchmakingService.java
-    │   │   │   ├── QueueStore.java
-    │   │   │   ├── GameClient.java
-    │   │   │   ├── NormalMatchCoordinator.java
-    │   │   │   └── ProposalPersistenceService.java
-    │   │   ├── service/impl/
-    │   │   │   ├── NormalMatchmakingServiceImpl.java
-    │   │   │   ├── RedisQueueStore.java
-    │   │   │   ├── NormalMatchCoordinatorImpl.java
-    │   │   │   ├── ProposalPersistenceServiceImpl.java
-    │   │   │   ├── HttpGameClient.java
-    │   │   │   ├── StubGameClient.java
-    │   │   │   └── worker/
-    │   │   │       ├── NormalMatchWorker.java
-    │   │   │       └── NormalRecoveryWorker.java
+    │   │   │   ├── normal/       # interface + impl/ + worker/
+    │   │   │   ├── rank/         # interface + impl/ + worker/
+    │   │   │   ├── party/        # interface + impl/
+    │   │   │   ├── proposal/     # interface + impl/
+    │   │   │   ├── store/        # interface + redis/
+    │   │   │   └── client/       # interface + http/ + stub/
     │   │   └── util/MatchmakingIds.java
     │   └── resources/
     │       ├── application.properties

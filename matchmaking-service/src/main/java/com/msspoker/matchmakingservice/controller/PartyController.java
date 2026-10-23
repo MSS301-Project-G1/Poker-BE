@@ -4,7 +4,7 @@ import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
 import com.msspoker.matchmakingservice.dto.request.PartyJoinRequest;
 import com.msspoker.matchmakingservice.dto.request.PartyKickRequest;
 import com.msspoker.matchmakingservice.dto.response.PartyResponse;
-import com.msspoker.matchmakingservice.service.PartyService;
+import com.msspoker.matchmakingservice.service.party.PartyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -73,10 +73,10 @@ public class PartyController {
         party.kick(accountId, request.accountId());
     }
 
-    /** Rời nhóm; service xử lý chuyển quyền chủ hoặc giải tán khi cần. */
+    /** Chủ nhóm rời sẽ giải tán nhóm và đưa toàn bộ thành viên ra khỏi nhóm. */
     @DeleteMapping("/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(operationId = "leaveParty", summary = "Leave party", description = "Rời party; nếu chủ rời thì chuyển quyền cho thành viên vào sớm nhất.")
+    @Operation(operationId = "leaveParty", summary = "Leave party", description = "Thành viên rời riêng; chủ rời sẽ giải tán party và đưa toàn bộ thành viên ra khỏi nhóm. Phải hủy tìm trận trước khi rời.")
     public void leave(@Parameter(name = MatchmakingConstants.USER_ID_HEADER, required = true, in = ParameterIn.HEADER)
                       @RequestHeader(MatchmakingConstants.USER_ID_HEADER) UUID accountId) {
         party.leave(accountId);
