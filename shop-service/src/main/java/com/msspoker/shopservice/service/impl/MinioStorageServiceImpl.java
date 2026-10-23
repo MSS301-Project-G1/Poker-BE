@@ -133,6 +133,20 @@ public class MinioStorageServiceImpl implements S3StorageService {
 
     @Override
     public String getPublicUrl(String objectKey) {
+        if (s3Properties.getEndpoint() != null && s3Properties.getEndpoint().contains("amazonaws.com")) {
+            try {
+                return minioClient.getPresignedObjectUrl(
+                        io.minio.GetPresignedObjectUrlArgs.builder()
+                                .method(io.minio.http.Method.GET)
+                                .bucket(s3Properties.getBucket())
+                                .object(objectKey)
+                                .expiry(7, java.util.concurrent.TimeUnit.DAYS)
+                                .build()
+                );
+            } catch (Exception e) {
+                log.warn("Failed to generate presigned S3 URL for key {}: {}", objectKey, e.getMessage());
+            }
+        }
         String base = s3Properties.getPublicUrl();
         if (base == null) {
             base = "";
