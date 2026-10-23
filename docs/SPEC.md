@@ -4,7 +4,9 @@
 > Mọi thay đổi về **hợp đồng giữa các service** (API nội bộ, event, WebSocket) sau khi chốt phải sửa file này trước, qua Pull Request, và được người dùng API đó đồng ý.
 > Các con số có ghi *(đề xuất)* là giá trị mặc định, nằm trong config để chỉnh sau, không cần họp lại.
 >
-> **Trạng thái repo hiện tại:** mới có scaffold 10 ứng dụng Spring Boot và module `common`. Gateway đang có route mẫu theo tên service; PostgreSQL, Redis, RabbitMQ, Mailpit, JWT, database và hợp đồng mục 6 chưa được triển khai. Trước khi tích hợp FE, gateway phải đổi route theo mục 6.4.
+> **Trạng thái repo:** trên nhánh triển khai của Bảo, game đã có PostgreSQL/Flyway, RabbitMQ outbox, REST và STOMP/JWT cùng FE game/Admin; xem `game-service/README.md`. Các phần còn lại vẫn cần chủ module tích hợp. Gateway đang có route mẫu theo tên service và phải đổi route/JWT theo mục 6.4 trước khi tích hợp production.
+>
+> **Cập nhật 2026-10-15:** nghiệp vụ tài khoản của Khanh nằm ở `auth-service` (port 8090); `identity-service` chỉ còn scaffold. Phần đã làm, phần còn thiếu và API đề xuất cho phần còn thiếu của Khanh, Duy ghi ở mục 9.1 và 9.3. API ghi *(đề xuất)* được phép đổi, nhưng phải sửa file này theo mục 4.2.
 
 ## Mục lục
 
@@ -93,7 +95,8 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 | Service | Chủ sở hữu | Chức năng | Port | Database |
 |---|---|---|---|---|
 | `api-gateway` | Khanh | Định tuyến, xác thực JWT, route WebSocket | 8080 | — |
-| `identity-service` | Khanh | Tài khoản, hồ sơ, điểm danh, báo cáo, xử phạt | 8081 | `identity_db` |
+| `auth-service` | Khanh | Tài khoản, hồ sơ, điểm danh, báo cáo, xử phạt | 8090 | `auth_db` |
+| `identity-service` | Khanh | Scaffold giữ nguyên, không nhận nghiệp vụ | 8081 | — |
 | `game-service` | Bảo | Engine poker, bàn chơi, lịch sử trận, cấu hình trận | 8082 | `game_db` |
 | `matchmaking-service` | Duy | Hàng chờ Rank/Normal, party | 8083 | `matchmaking_db` + Redis |
 | `social-service` | Duy | Bạn bè, chặn, trạng thái online, thông báo realtime | 8084 | `social_db` + Redis |
@@ -107,11 +110,11 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 
 - **Backend:** Java 21, Spring Boot (bản ổn định mới nhất trên start.spring.io), Maven multi-module, một repo `MS-Poker-BE`.
 - **Frontend:** một repo `MS-Poker-FE` riêng.
-- **Hạ tầng local dự kiến (chưa có trong Compose scaffold hiện tại):**
-  - PostgreSQL — 1 container, 9 database (tạo bằng script init).
-  - Redis — hàng chờ ghép trận, presence, cache.
-  - RabbitMQ — event giữa các service.
-  - Mailpit — hộp thư giả để test OTP.
+- **Hạ tầng local (Docker Compose):**
+  - Database — mỗi service sở hữu DB riêng (*Database per Service*) và tự chọn công nghệ (PostgreSQL, MySQL...). DB khai báo trong `<service>/compose.yml`, nằm trong mạng riêng `<service>-net` nên service khác không kết nối được; cần dữ liệu của nhau thì gọi API nội bộ hoặc nhận event. Hiện có `game-db` (PostgreSQL).
+  - RabbitMQ — event giữa các service; một broker dùng chung, khai báo trong `docker/compose.infra.yml`.
+  - Redis — hàng chờ ghép trận, presence, cache (dự kiến, chưa có trong Compose).
+  - Mailpit — hộp thư giả để test OTP (dự kiến, chưa có trong Compose).
 - **Chưa dùng** Eureka / Config Server ở MVP. Service gọi nhau bằng tên container, vd `http://wallet-service:8089`.
 
 ### 3.3. Cấu trúc repo backend
@@ -130,9 +133,9 @@ MS-Poker-BE/
 ├── competition-service/
 ├── shop-service/
 ├── wallet-service/
-├── docker/                  ← sẽ thêm khi triển khai PostgreSQL
-│   └── postgres-init.sql    ← tạo 9 database
-├── docker-compose.yml
+├── docker/
+│   └── compose.infra.yml    ← hạ tầng dùng chung (RabbitMQ)
+├── docker-compose.yml       ← chỉ include docker/compose.infra.yml và <service>/compose.yml (service + DB riêng)
 ├── docs/
 │   └── SPEC.md              ← file này
 └── README.md
@@ -184,6 +187,7 @@ Package gốc hiện có: `com.msspoker.<tên-service-bỏ-dấu-gạch>` (vd `c
 | `pom.xml` gốc | Khanh | Mọi thay đổi qua PR, ít nhất 1 người review |
 | `common/` | Khanh | Chỉ chứa event, `BaseEntity`, format lỗi. Thêm event mới thì người phát event tự thêm, chủ `common` review |
 | `docker-compose.yml`, `docker/` | Khanh | Ai cần thêm hạ tầng thì PR, Khanh review |
+| `<service>/compose.yml` | Chủ service | Tự khai báo service và DB riêng; đặt tên theo mục "Database per service" trong `README.md` |
 | `docs/SPEC.md` | Cả nhóm | PR, người bị ảnh hưởng phải approve |
 | FE `shared/` (layout, UI kit, API client) | Khanh | PR, Khanh review |
 | FE `shared/skin/` | Tùng | PR, Tùng review |
@@ -203,7 +207,9 @@ Package gốc hiện có: `com.msspoker.<tên-service-bỏ-dấu-gạch>` (vd `c
 
 ### 5.1. Xác thực
 
-- FE gửi `Authorization: Bearer <accessToken>` lên gateway đối với endpoint cần đăng nhập. Đăng ký, xác thực email, đăng nhập, refresh, quên/đặt lại mật khẩu trong `/api/auth/**` và webhook PayOS không yêu cầu access token; Khanh phải chốt allowlist endpoint cụ thể trước khi bật xác thực.
+- FE không tự gửi header `Authorization` cho REST. Sau `POST /api/auth/login`, auth đặt cookie HttpOnly `accessToken` và `refreshToken`; FE gọi API qua gateway với `credentials: "include"`, request ghi gửi kèm header `X-XSRF-TOKEN` lấy từ `GET /api/auth/csrf`. Gateway đọc cookie `accessToken` để xác thực.
+- Đăng ký, xác thực email, đăng nhập, refresh, đăng xuất, quên/đặt lại mật khẩu trong `/api/auth/**` và webhook PayOS không yêu cầu access token. Allowlist hiện nằm trong `GatewaySecurityConfig` (nhánh `feat/api-gateway`); thêm endpoint public mới thì phải bổ sung vào đó.
+- WebSocket: FE gọi `GET /api/auth/ws-token` để lấy JWT, chỉ giữ trong bộ nhớ (không lưu localStorage) và gửi trong frame STOMP `CONNECT` (xem 6.3).
 - Gateway loại bỏ mọi header `X-User-Id`, `X-User-Role` do client tự gửi, kiểm tra JWT rồi gắn header tin cậy xuống service:
   - `X-User-Id` — UUID tài khoản
   - `X-User-Role` — `USER` hoặc `ADMIN`
@@ -282,7 +288,10 @@ Danh sách `reason`: `FIRST_LOGIN_BONUS`, `DAILY_CHECKIN`, `CHECKIN_MAKEUP`, `RA
 | Method | Endpoint | Người gọi | Mô tả |
 |---|---|---|---|
 | POST | `/internal/tables` | Duy, Hoài Anh | **CreateTable** — mở bàn mới |
-| GET | `/internal/matches?accountId=&page=` | Khanh | Lịch sử trận cho màn Hồ sơ |
+| GET | `/internal/matches?accountId=&page=` | Dự phòng cho service khác | Lịch sử trận; màn Hồ sơ của Khanh dùng `GET /api/game/matches` (xem 6.3) |
+| GET | `/internal/players/{accountId}/active-table` | Duy | Kiểm tra người chơi đang ở bàn nào trước khi vào queue; trả `{ tableId, matchId }` hoặc JSON `null` |
+| GET | `/internal/match-settings/{mode}` | Duy | Match Settings hiện tại của một mode (`minPlayers`, `maxPlayers`, blind, chip, thời gian lượt) |
+
 
 Body `CreateTable`:
 
@@ -317,6 +326,10 @@ Trả về: `{ "tableId": "uuid", "matchId": "uuid" }`. `settings` bỏ trống 
 | GET | `/internal/friends/{accountId}` | Hoài Anh, Duy (chat) | Danh sách id bạn bè |
 | GET | `/internal/friends/{a}/with/{b}` | Hoài Anh, Duy (chat) | `{ isFriend, isBlocked }` |
 
+- Base URL trong Docker: `http://social-service:8084`. Cả hai endpoint trả **JSON thô**, không bọc envelope.
+- `GET /internal/friends/{accountId}` trả mảng id `["uuid", ...]` *(đề xuất)*.
+- `GET /internal/friends/{a}/with/{b}` trả `{ "isFriend": true, "isBlocked": false }`; `isBlocked = true` khi một trong hai bên chặn bên kia *(đề xuất)*. `competition-service` đã gọi endpoint này khi mời vào Custom Room và từ chối nếu `!isFriend || isBlocked`; ngoài profile dev, thiếu endpoint thì chức năng mời phòng lỗi.
+
 #### shop-service (Tùng)
 
 | Method | Endpoint | Người gọi | Mô tả |
@@ -324,11 +337,17 @@ Trả về: `{ "tableId": "uuid", "matchId": "uuid" }`. `settings` bỏ trống 
 | GET | `/internal/inventory/{accountId}/owns/{productId}` | Duy (sticker/sound) | `{ owned: true/false }` |
 | POST | `/internal/inventory/grant` | Hoài Anh | Trao skin thưởng, có `idempotencyKey` |
 
-#### identity-service (Khanh)
+#### auth-service (Khanh) — trước đây ghi `identity-service`
 
 | Method | Endpoint | Người gọi | Mô tả |
 |---|---|---|---|
 | GET | `/internal/accounts/{accountId}/restrictions` | Duy, Bảo | `{ banned, chatBannedUntil, rankBannedUntil }` |
+
+- Base URL trong Docker: `http://auth-service:8090`. Chưa triển khai (2026-10-15).
+- Trả **JSON thô** đúng 3 field, không bọc trong envelope `{ code, message, result }` như API public của auth. Bên gọi bỏ qua field lạ, nên nếu bọc thì `banned` luôn đọc ra `false` và lệnh cấm bị bỏ qua mà không báo lỗi.
+- `banned`: boolean; `chatBannedUntil`, `rankBannedUntil`: thời điểm UTC dạng ISO-8601 hoặc `null`. MVP trả `false` / `null` / `null`. Account không tồn tại trả 404 *(đề xuất)*.
+- Gọi không cần cookie/JWT. Route không mở qua gateway (gateway đã chặn `/internal/**`). `SecurityConfig` của auth đang `denyAll` mọi path ngoài danh sách cho phép, nên phải mở riêng `/internal/**`.
+- Game gọi endpoint này mỗi lần CreateTable khi `GAME_RESTRICTIONS_ENABLED=true` (mặc định của ứng dụng; profile dev và test tắt); gọi không được thì từ chối mở bàn với 503 `GAME_DEPENDENCY_UNAVAILABLE`. `game-service/compose.yml` tạm để `false` vì auth chưa có endpoint; Khanh làm xong thì đổi thành `true`.
 
 > **Tên hiển thị và avatar:** các service chỉ trả `accountId`. FE tự lấy tên/avatar qua `GET /api/profiles/batch?ids=...` của Khanh và cache lại. Không service nào lưu bản sao tên người chơi.
 
@@ -349,8 +368,8 @@ Trả về: `{ "tableId": "uuid", "matchId": "uuid" }`. `settings` bỏ trống 
 
 | Event | Bên phát | Bên nhận | Payload chính | GĐ |
 |---|---|---|---|---|
-| `account.registered` | `identity-service` (Khanh) | `wallet-service` (Tùng), `ranking-service` (Hoài Anh) | `accountId` | 🟢 |
-| `account.penalized` | `identity-service` (Khanh) | `matchmaking-service`, `chat-service` (Duy), `game-service` (Bảo) | `accountId`, `type`, `until` | 🔵 |
+| `account.registered` | `auth-service` (Khanh) | `wallet-service` (Tùng), `ranking-service` (Hoài Anh) | `accountId` | 🟢 |
+| `account.penalized` | `auth-service` (Khanh) | `matchmaking-service`, `chat-service` (Duy), `game-service` (Bảo) | `accountId`, `type`, `until` | 🔵 |
 | `match.started` | `game-service` (Bảo) | `chat-service` (Duy); `social-service` (presence, GĐ2) | `matchId`, `tableId`, `mode`, `sourceId`, `playerIds` | 🟢 |
 | `match.finished` | `game-service` (Bảo) | `ranking-service` (Elo/thưởng Rank), `competition-service` (Custom/giải), `chat-service` (đóng phòng); `social-service` (presence, GĐ2) | xem dưới | 🟢 |
 | `notification.requested` | Mọi service | `social-service` (Duy, đẩy realtime qua `/ws/social`) | `accountIds`, `type`, `title`, `body`, `data` | 🟢 |
@@ -390,13 +409,58 @@ Các `type` của `notification.requested`: `FRIEND_REQUEST`, `FRIEND_ACCEPTED`,
 
 `type` hành động trong bàn: `FOLD`, `CHECK`, `CALL`, `RAISE` (kèm `amount` = tổng cược muốn đạt tới), `ALL_IN`.
 
+#### Chi tiết tích hợp game đã triển khai trên nhánh Bảo
+
+Các chi tiết bổ sung sau cần bên gọi/gateway review trước khi merge:
+
+- Action có thể thêm `actionSequence` từ snapshot để chống gửi trùng hoặc action
+  đến muộn; FE của Bảo luôn gửi trường này. Các hành động ngoài RAISE không gửi
+  `amount`. Business error gửi riêng qua `/user/queue/game-errors`.
+- Snapshot gồm `tableId`, `matchId`, `mode`, `accountId`, `street`, `handNumber`,
+  `actionSequence`, các chỉ số ghế dealer/blind/actor, `board`, `pot`, `currentBet`,
+  `deadline`, `serverTime`, `seats`, `legalActions`, `callAmount`, `minRaiseTo`,
+  `maxRaiseTo`, `placements`, `distribution`. Card dùng enum `{ rank, suit }`.
+  `seats[].cards` chỉ có bài của người nhận hoặc bài showdown chưa fold.
+- `GET /api/game/me/active-table` trả `{ tableId, matchId }` hoặc `null`;
+  `GET /api/game/tables/{tableId}` trả snapshot cá nhân;
+  `GET /api/game/tables/{tableId}/result` trả kết quả đã lưu. Hai endpoint theo
+  tableId bắt buộc membership. Lịch sử internal dùng `PageResponse`, hỗ trợ
+  `page` từ 0 và `size` 1–100, mặc định 20.
+- `GET /api/game/matches?accountId=&page=&size=` qua gateway cho màn Hồ sơ của
+  Khanh, trả cùng `PageResponse` như `/internal/matches`; mỗi phần tử `{ id,
+  tableId, mode, sourceId, entryFee, status, startedAt, finishedAt, placements[] }`.
+  `accountId` bắt buộc; mọi người dùng đã đăng nhập xem được lịch sử của bất kỳ
+  account nào. FE gọi thẳng, auth không cần làm proxy.
+- Admin: GET `/api/admin/match-settings`; PUT `/api/admin/match-settings/{mode}`
+  nhận `{ settings: { smallBlind, bigBlind, startingChips, turnTimeSeconds },
+  minPlayers, maxPlayers }`. Thay đổi chỉ áp dụng bàn mở sau đó.
+- CreateTable idempotent theo `(mode, sourceId)` và request giống nhau; request
+  khác cho cùng khóa trả conflict. Thứ tự `playerIds` là thứ tự ghế. Một account
+  chỉ ở một bàn đang chạy. NORMAL/CUSTOM phải có `entryFee = 0`.
+- Xếp hạng khi bị loại cùng ván: chip đầu ván lớn hơn đứng trên; nếu bằng nhau,
+  seatIndex nhỏ hơn đứng trên, bảo đảm placements duy nhất (Hoài Anh review).
+  AFK đủ N lượt fold tự động các ván sau, vẫn đóng blind để bảo toàn chip.
+- REST ngoài dev yêu cầu header server `X-Game-Service-Key` khớp cấu hình
+  `GAME_SERVICE_KEY`; gateway phải loại bỏ header giả từ client, xác thực JWT và
+  cấp `X-User-*`. WebSocket tự kiểm tra RS256/JWKS, issuer, audience, hạn token
+  và UUID subject. Không đưa service key vào FE.
+- Dev chạy PostgreSQL riêng của game (`game-db`, khai báo trong
+  `game-service/compose.yml`) và RabbitMQ dùng chung bằng Docker Compose ở root;
+  `game-service/compose.dev.yml` chỉ ghi đè cấu hình profile `dev`. H2 chỉ dành
+  cho test. Xem `game-service/README.md` để chạy và cấu hình. Restart service hủy
+  trận RAM đang dở; không phát match.finished để trao thưởng cho trận bị hủy.
+
+Đây là phần triển khai của Bảo, không xác nhận gateway/auth/chat/skin/Elo/wallet
+đã tích hợp. Consumer GĐ2 `account.penalized` còn phụ thuộc hợp đồng loại xử phạt
+của identity; hiện game kiểm tra restrictions khi tạo bàn.
+
 ### 6.4. Bảng route public qua gateway
 
-Đây là bảng route mục tiêu; cấu hình gateway trong scaffold hiện mới chứa các route mẫu theo tên service và phải được Khanh cập nhật trước khi FE tích hợp.
+Đây là bảng route mục tiêu. Gateway trên `develop` vẫn là route mẫu; nhánh `feat/api-gateway` đã có JWT/CSRF nhưng route còn sai và chưa có WebSocket, xem việc của Khanh ở mục 9.1.
 
 | Tiền tố | Service |
 |---|---|
-| `/api/auth/**`, `/api/profiles/**`, `/api/checkin/**`, `/api/reports/**`, `/api/admin/users/**`, `/api/admin/reports/**` | identity |
+| `/api/auth/**`, `/api/profiles/**`, `/api/checkin/**`, `/api/reports/**`, `/api/admin/users/**`, `/api/admin/reports/**` | auth |
 | `/api/game/**`, `/api/admin/match-settings/**` | game |
 | `/api/matchmaking/**`, `/api/party/**` | matchmaking |
 | `/api/friends/**`, `/api/blocks/**`, `/api/notifications/**` | social |
@@ -439,11 +503,30 @@ Các `type` của `notification.requested`: `FRIEND_REQUEST`, `FRIEND_ACCEPTED`,
 
 Giống 7.2 nhưng: không kiểm tra/trừ xu, không có popup chấp nhận *(đề xuất)*, bỏ qua Elo. Hoài Anh nhận `match.finished` với `mode = NORMAL` thì bỏ qua.
 
+API Normal: `POST /api/matchmaking/normal/join`, `DELETE /api/matchmaking/normal/leave`,
+`GET /api/matchmaking/normal/status` và `GET /api/matchmaking/normal/reconnect`. Khi tạo bàn,
+Matchmaking lưu trạng thái `IN_GAME`, `proposalId`, `tableId`, `matchId`, host, port và WebSocket
+path trong Redis theo account. Reconnect chỉ trả địa chỉ trận cũ khi Redis có `IN_GAME` và Game
+service vẫn xác nhận đúng bàn đó; record stale phải bị xóa.
+Mode được xác định bởi URL nên request join không cần body `mode`.
+
+Quy tắc gom người trước khi mở bàn:
+
+1. Có `0–1` người thì tiếp tục chờ, chưa bắt đầu đếm ngược.
+2. Khi đạt `minPlayers` (demo mặc định là 2), backend tạo `matchStartDeadline` sau **10 giây**.
+3. Trong 10 giây tiếp tục nhận thêm người vào nhóm.
+4. Nếu đạt `maxPlayers` (mặc định là 6), tạo bàn ngay, không chờ hết thời gian.
+5. Khi hết 10 giây và nhóm vẫn có từ `minPlayers` đến `maxPlayers - 1`, tạo bàn với số người hiện có.
+6. Nếu số người tụt xuống dưới `minPlayers` trước deadline, hủy/reset countdown.
+
+Countdown gom người này độc lập với thời gian 10 giây chấp nhận proposal của trận Rank. Deadline do
+backend sở hữu và trả về frontend; frontend chỉ hiển thị thời gian còn lại.
+
 ### 7.4. Custom Room 🟢
 
 1. **Hoài Anh** — người chơi tạo phòng, nhận Room ID. Mời bạn: kiểm tra quan hệ bạn bè (hỏi Duy), phát `ROOM_INVITE`.
 2. **Hoài Anh** — mỗi khi phòng thay đổi (vào, rời, sẵn sàng, kick) → phát `ROOM_UPDATED` cho các thành viên.
-3. **Hoài Anh** — chủ phòng bấm bắt đầu → gọi `CreateTable` với `mode = CUSTOM`, `sourceId = roomId` → phát `ROOM_STARTED` kèm `tableId`.
+3. **Hoài Anh** — chủ phòng bấm bắt đầu → gọi `CreateTable` với `mode = CUSTOM`, `sourceId` = UUID mới cho mỗi lần bắt đầu (lưu ở `custom_rooms.current_source_id`; game chặn trùng `(mode, sourceId)` nên không dùng lại `roomId` cho ván sau) → phát `ROOM_STARTED` kèm `tableId`.
 4. Sau trận, **Hoài Anh** nhận `match.finished` và đưa phòng về trạng thái chờ để chơi tiếp.
 
 ### 7.5. Mua skin 🟢
@@ -481,6 +564,7 @@ Tất cả nằm trong config / bảng Admin, chỉnh không cần sửa code.
 | Chip khởi điểm | 1.000 | Bảo |
 | Thời gian mỗi lượt | 20 giây | Bảo |
 | Số người bàn Rank / Normal | 6 (tối thiểu để mở bàn: config, demo để 2) | Bảo, Duy |
+| Thời gian gom thêm người Normal sau khi đủ tối thiểu | 10 giây; đủ 6 thì mở bàn ngay | Duy |
 | Elo theo thứ hạng (bàn 6) | +20, +10, +5, −5, −10, −15 | Hoài Anh |
 | Elo tối thiểu | 0 (không âm) *(đề xuất)* | Hoài Anh |
 | Phí vào Rank | 100 xu *(đề xuất)* | Duy |
@@ -494,6 +578,7 @@ Tất cả nằm trong config / bảng Admin, chỉnh không cần sửa code.
 | Mốc Elo các bậc | Tân thủ 0 · Sắt 100 · Đồng 200 · Bạc 350 · Vàng 500 · Bạch kim 700 · Kim cương 950 · Kiện tướng 1.250 · Đại kiện tướng 1.600 · Thần bài = top 50 Đại kiện tướng *(đề xuất)* | Hoài Anh |
 | Reset mùa | Giữ lại 50% Elo *(đề xuất)* | Hoài Anh |
 | Chia prize pool Giải Mở | 50% / 30% / 20% cho top 3 chung kết *(đề xuất)* | Hoài Anh |
+| Thưởng hoàn thành Tutorial | 200 xu, mỗi tài khoản nhận một lần | Hoài Anh |
 
 Mã enum bậc rank: `NEWBIE`, `IRON`, `BRONZE`, `SILVER`, `GOLD`, `PLATINUM`, `DIAMOND`, `CHAMPION`, `GRAND_CHAMPION`, `CARD_GOD`.
 
@@ -517,11 +602,11 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 
 ---
 
-### 9.1. 👤 Khanh — `identity-service`, `api-gateway`, hạ tầng, khung FE
+### 9.1. 👤 Khanh — `auth-service`, `api-gateway`, hạ tầng, khung FE
 
 **Sở hữu**
-- BE: `api-gateway`, `identity-service`, `common`, `pom.xml` gốc, `docker-compose.yml`, `docker/`.
-- DB: `identity_db`.
+- BE: `api-gateway`, `auth-service` (nghiệp vụ tài khoản; `identity-service` giữ scaffold), `common`, `pom.xml` gốc, `docker-compose.yml`, `docker/`.
+- DB: `auth_db`.
 - Route: `/api/auth/**`, `/api/profiles/**`, `/api/checkin/**`, `/api/reports/**`, `/api/admin/users/**`, `/api/admin/reports/**`.
 - FE: `shared/` (layout, UI kit, API client, lưu token, router), `features/auth`, `features/lobby`, `features/checkin`, `features/profile`, `features/report`, `features/admin/users`.
 
@@ -530,7 +615,7 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 - Không tự xây logic ghép trận trong Sảnh chờ → nút "Tìm trận" chỉ gọi API của Duy.
 - Không lưu Elo/bậc rank trong profile → lấy từ Hoài Anh.
 
-**Bảng dữ liệu (`identity_db`)**
+**Bảng dữ liệu (`auth_db`)**
 
 | Bảng | Nội dung chính |
 |---|---|
@@ -542,26 +627,54 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 | `reports` 🔵 | reporterId, targetId, matchId, reason, description, status |
 | `penalties` 🔵 | accountId, type (BAN / CHAT_BAN / RANK_BAN), until, reportId |
 
+> Hiện có (migration V1–V4): `accounts`, `profiles` (khóa chính `account_id`, thêm fullName, bio, countryCode, city), `registration_otps` (thay `email_otps` cho mục đích VERIFY), `account_registration_events` (outbox của `account.registered`), `refresh_tokens`. Chưa có: `checkins`, OTP cho đặt lại mật khẩu, `reports`, `penalties`.
+
 **Việc cần làm**
 
-🟢 MVP
-- [ ] **Tuần 0:** init repo, parent pom, 10 ứng dụng chạy được `/actuator/health` và 1 module thư viện `common`, `docker-compose.yml`, `.gitignore`, README, bảo vệ nhánh `main`.
-- [ ] **Tuần 0:** module `common` — `BaseEntity`, `ErrorResponse`, vỏ bọc event, class các event ở mục 6.2.
-- [ ] Gateway: route theo bảng 6.4, xác thực JWT, gắn header `X-User-*`, chặn `/internal/**`, route WebSocket.
-- [ ] Đăng ký, xác thực OTP email (qua Mailpit), gửi lại OTP, đăng nhập, refresh token, đăng xuất, quên/đặt lại mật khẩu.
-- [ ] Phát `account.registered`. Tặng xu lần đăng nhập đầu (7.1).
+🟢 MVP — trạng thái ngày 2026-10-15 (`develop` và nhánh `feat/api-gateway`)
+- [x] **Tuần 0:** init repo, parent pom, các ứng dụng chạy được `/actuator/health` và 1 module thư viện `common`, `docker-compose.yml`, `.gitignore`, README. *(Chưa kiểm tra bảo vệ nhánh `main`.)*
+- [ ] **Tuần 0:** module `common` — đã có `BaseEntity`, `ErrorResponse`, `EventEnvelope`, `AccountRegisteredEvent`. Còn thiếu class cho `match.started`, `match.finished`, `notification.requested`, `account.penalized`; game, ranking, competition đang tự khai báo bản sao.
+- [ ] **Sửa `docker compose up` ở root** — đang lỗi `services.rabbitmq conflicts with imported resource` vì `auth-service/compose.yml` khai báo lại service `rabbitmq` (user `poker`). Bỏ khai báo đó khỏi file auth, đặt user RabbitMQ chung trong `docker/compose.infra.yml`, cho mọi service dùng cùng `RABBITMQ_USER`/`RABBITMQ_PASSWORD` (game, ranking, competition đang mặc định `guest`).
+- [ ] Gateway — nhánh `feat/api-gateway` (chưa merge) đã có xác thực JWT từ cookie, CSRF, gắn header `X-User-*`, chặn `/internal/**`, route auth và game. Còn thiếu:
+  - Bỏ `StripPrefix=2` ở mọi route nghiệp vụ: controller các service giữ nguyên tiền tố `/api/...`, hiện `/api/ranking/leaderboard` bị đổi thành `/leaderboard` và trả 404.
+  - Đủ tiền tố theo bảng 6.4. Đang thiếu `/api/seasons/**`, `/api/tutorial/**`, `/api/admin/seasons/**` (ranking); `/api/rooms/**`, `/api/tournaments/**`, `/api/admin/tournaments/**` (competition, hiện dùng `/api/competition/**` không tồn tại); `/api/inventory/**`, `/api/payments/**`, `/api/admin/products/**` (shop); `/api/party/**` (matchmaking); `/api/friends/**`, `/api/blocks/**`, `/api/notifications/**` (social, hiện dùng `/api/social/**`).
+  - Route WebSocket `/ws/game`, `/ws/chat`, `/ws/social`. Hiện `anyExchange().denyAll()` chặn mọi path ngoài `/api/**`. Xác thực WebSocket nằm ở frame STOMP `CONNECT` (6.3).
+  - Thêm `POST /api/payments/payos/webhook` vào allowlist public.
+- [x] Đăng ký, xác thực OTP email, gửi lại OTP, đăng nhập, refresh token, đăng xuất (cookie HttpOnly + CSRF, JWT RS256/JWKS, `GET /api/auth/me`, `GET /api/auth/ws-token`).
+- [ ] Quên/đặt lại mật khẩu (API đề xuất bên dưới).
+- [x] Phát `account.registered` (outbox; ranking đã nhận).
+- [ ] Tặng xu lần đăng nhập đầu (7.1) — mới có cột `first_login_rewarded`, chưa gọi wallet.
 - [ ] Điểm danh, điểm danh bù, lịch điểm danh theo tháng (7.6).
-- [ ] Hồ sơ: xem/sửa, upload avatar, `GET /api/profiles/batch?ids=`.
-- [ ] Màn Hồ sơ hiển thị lịch sử trận (lấy từ Bảo) và Elo/bậc (lấy từ Hoài Anh).
+- [ ] Hồ sơ: xem/sửa, upload avatar, `GET /api/profiles/batch?ids=` (FE mọi người cần để hiện tên, avatar). Hiện chỉ có `GET /api/auth/me`.
+- [ ] Màn Hồ sơ hiển thị lịch sử trận (`GET /api/game/matches` của Bảo, xem 6.3) và Elo/bậc (`GET /api/ranking/me` của Hoài Anh).
 - [ ] **Tuần 0–1:** khung FE — router, layout, UI kit cơ bản, API client tự gắn token và tự refresh.
 - [ ] Màn: Đăng nhập, Đăng ký, Xác thực email, Quên mật khẩu, Sảnh chờ (khung + các nút lối tắt), Điểm danh, Hồ sơ.
-- [ ] `GET /internal/accounts/{id}/restrictions` (MVP trả tất cả là false).
+- [ ] `GET /internal/accounts/{id}/restrictions` (MVP trả tất cả là false, hợp đồng ở 6.1). **Đang chặn game:** ngoài profile dev, mọi lệnh CreateTable gọi endpoint này.
 
 🔵 GĐ2
 - [ ] Báo cáo: gửi báo cáo, xem trạng thái báo cáo của mình.
 - [ ] Xử phạt: ban, cấm chat, cấm Rank có thời hạn. Phát `account.penalized`.
 - [ ] Admin: danh sách người dùng, ban/unban, duyệt báo cáo.
 - [ ] *(đề xuất)* Đăng nhập Google, khóa tạm khi sai mật khẩu nhiều lần, onboarding lần đầu.
+
+**API đề xuất cho phần còn thiếu** *(đề xuất — Khanh được đổi, nhưng phải sửa SPEC)*
+
+| Method | Endpoint | Body / Query | Ghi chú |
+|---|---|---|---|
+| GET | `/internal/accounts/{id}/restrictions` | — | Hợp đồng ở 6.1. JSON thô, không bọc envelope |
+| GET | `/api/profiles/batch?ids=a,b,c` | Tối đa 50 id | Trả `[{ accountId, displayName, avatarUrl }]`; id không tồn tại hoặc đã xóa thì bỏ qua, không trả lỗi |
+| GET | `/api/profiles/me` | — | Hồ sơ đầy đủ của mình cho màn sửa hồ sơ |
+| PATCH | `/api/profiles/me` | `{ displayName, fullName, gender, birthDate, bio, countryCode, city }` | Field không gửi thì giữ nguyên |
+| POST | `/api/profiles/me/avatar` | multipart `file` | Giới hạn loại file và dung lượng; nơi lưu ảnh do Khanh chọn |
+| POST | `/api/checkin` | — | Luồng 7.6. Hôm nay (giờ Việt Nam) đã điểm danh thì trả 409 |
+| POST | `/api/checkin/makeup` | `{ date: "yyyy-MM-dd" }` | `debit` 30 xu `CHECKIN_MAKEUP`, key `checkin-makeup:{date}:{accountId}`; thành công mới lưu và `credit` `DAILY_CHECKIN`, key `checkin:{date}:{accountId}`. Khanh chốt phạm vi ngày được bù |
+| GET | `/api/checkin/calendar?month=yyyy-MM` | — | `{ month, days: [{ date, isMakeup }] }` |
+| POST | `/api/auth/password/forgot` | `{ email }` | Gửi OTP đặt lại mật khẩu. Luôn trả 200 dù email có tồn tại hay không, để không lộ email đã đăng ký |
+| POST | `/api/auth/password/reset` | `{ email, otp, password, confirmPassword }` | Thành công thì thu hồi mọi refresh token của account |
+
+- **Xu lần đăng nhập đầu:** login thành công mà `first_login_rewarded = false` → `credit` 500 xu `FIRST_LOGIN_BONUS`, key `first-login:{accountId}` → đặt cờ `true`. Wallet lỗi thì login vẫn thành công và thử lại sau (job hoặc lần login kế tiếp); key idempotent nên gọi lại không cộng hai lần *(đề xuất)*.
+- Wallet nằm ở nhánh `feature/wallet-shop-service` của Tùng, chưa merge: response thành công bọc `{ code, message, data, timestamp }`, không đủ xu trả HTTP 400 với `code = WALLET_INSUFFICIENT_BALANCE`. Xác nhận lại với Tùng khi merge.
+- Các endpoint public mới phải thêm vào allowlist gateway nếu không cần đăng nhập (`/api/auth/password/**`).
 
 **Cung cấp cho người khác:** gateway và khung FE (cả nhóm cần ngay tuần 0–1), `account.registered`, `account.penalized`, `/internal/accounts/{id}/restrictions`, `/api/profiles/batch`.
 
@@ -570,7 +683,7 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 | Cần gì | Của ai | Mock trong lúc chờ |
 |---|---|---|
 | API `credit`/`debit` | Tùng | Service giả trả `200 OK` và log ra console |
-| Lịch sử trận | Bảo | Trả danh sách rỗng |
+| Lịch sử trận (`GET /api/game/matches`, chưa có) | Bảo | Trả danh sách rỗng |
 | Elo/bậc | Hoài Anh | Hiển thị cứng "Tân thủ – 0" |
 
 ---
@@ -602,18 +715,18 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 **Việc cần làm**
 
 🟢 MVP
-- [ ] **Tuần 1:** lá bài, bộ bài (xáo theo seed để tái hiện bug), bộ so bài 7 lá, tính pot và Side pot.
-- [ ] **Tuần 1–2:** máy trạng thái bàn: bắt đầu ván, blind, các vòng cược, `FOLD/CHECK/CALL/RAISE/ALL_IN`, showdown, chia pot, loại người hết chip, xếp hạng cuối trận.
-- [ ] **Tuần 2:** bài mô phỏng: bot tự chơi hàng nghìn ván, kiểm tra tổng chip không đổi và không có exception.
-- [ ] `POST /internal/tables` (CreateTable), đọc Match Settings mặc định theo `mode`.
-- [ ] WebSocket `/ws/game`: nhận hành động, gửi snapshot riêng từng người, mỗi bàn một khóa riêng.
-- [ ] Timer lượt: hết giờ thì tự Check nếu được, không thì Fold. Timer phải kiểm tra số thứ tự hành động để không xử lý nhầm lượt cũ.
-- [ ] Reconnect: `GET /api/game/me/active-table` để FE biết người chơi đang ở bàn nào sau khi tải lại trang. AFK quá N lượt thì coi như rời bàn.
-- [ ] Phát `match.started` và `match.finished` (payload ở mục 6.2).
-- [ ] `GET /internal/matches` cho màn Hồ sơ.
-- [ ] Dev tool (chỉ bật ở profile `dev`): `POST /dev/tables?humans=...&bots=...` và đăng nhập giả `?devUser=` để tự test không cần người khác.
-- [ ] Màn: Bàn chơi (ghế, bài tẩy, bài chung, pot, nút Dealer/SB/BB, timer, thanh raise, popup bảng thứ hạng tay bài), Kết thúc trận (thứ hạng, Elo thay đổi, xu thưởng).
-- [ ] Admin: cấu hình Match Settings.
+- [x] **Tuần 1:** lá bài, bộ bài (xáo theo seed để tái hiện bug), bộ so bài 7 lá, tính pot và Side pot.
+- [x] **Tuần 1–2:** máy trạng thái bàn: bắt đầu ván, blind, các vòng cược, `FOLD/CHECK/CALL/RAISE/ALL_IN`, showdown, chia pot, loại người hết chip, xếp hạng cuối trận.
+- [x] **Tuần 2:** bài mô phỏng: bot tự chơi hàng nghìn ván, kiểm tra tổng chip không đổi và không có exception.
+- [x] `POST /internal/tables` (CreateTable), đọc Match Settings mặc định theo `mode`.
+- [x] WebSocket `/ws/game`: nhận hành động, gửi snapshot riêng từng người, mỗi bàn một khóa riêng.
+- [x] Timer lượt: hết giờ thì tự Check nếu được, không thì Fold. Timer phải kiểm tra số thứ tự hành động để không xử lý nhầm lượt cũ.
+- [x] Reconnect: `GET /api/game/me/active-table` để FE biết người chơi đang ở bàn nào sau khi tải lại trang. AFK quá N lượt thì coi như rời bàn.
+- [x] Phát `match.started` và `match.finished` (payload ở mục 6.2).
+- [x] `GET /internal/matches` cho màn Hồ sơ.
+- [x] Dev tool (chỉ bật ở profile `dev`): `POST /dev/tables?humans=...&bots=...` và đăng nhập giả `?devUser=` để tự test không cần người khác.
+- [x] Màn: Bàn chơi (ghế, bài tẩy, bài chung, pot, nút Dealer/SB/BB, timer, thanh raise, popup bảng thứ hạng tay bài), Kết thúc trận (thứ hạng, Elo thay đổi, xu thưởng). *Elo thay đổi và xu thưởng lấy từ `GET /api/ranking/me/matches/{matchId}`.*
+- [x] Admin: cấu hình Match Settings.
 
 🔵 GĐ2
 - [ ] Hỗ trợ tích hợp giải đấu: chạy ổn định nhiều bàn song song, test tải.
@@ -675,6 +788,13 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 
 **Việc cần làm**
 
+> **Trạng thái 2026-10-15:** `matchmaking-service`, `social-service`, `chat-service` mới là scaffold (chỉ có class `Application`), chưa có nhánh nào trên remote. Đang chặn:
+> - Luồng Rank/Normal 7.2, 7.3: không ai gọi CreateTable cho `RANK`/`NORMAL`.
+> - Thông báo realtime: competition và ranking đã phát `notification.requested` (`ROOM_INVITE`, `ROOM_UPDATED`, `ROOM_STARTED`, `TOURNAMENT_INVITE`, `TOURNAMENT_TABLE_READY`, `SEASON_REWARD_AVAILABLE`) nhưng chưa có ai đẩy xuống người chơi.
+> - Mời vào Custom Room: ngoài profile dev, competition gọi `/internal/friends/{a}/with/{b}` và lỗi vì endpoint chưa có.
+>
+> Thứ tự ưu tiên: hàng chờ Rank/Normal → `/internal/friends/**` + consumer `notification.requested` + `/ws/social` → bạn bè → chat.
+
 🟢 MVP
 - [ ] Hàng chờ Rank: vào/hủy hàng chờ, ghép theo Elo và chuỗi thắng, nới dần khoảng Elo khi chờ lâu, số người tối thiểu lấy từ config.
 - [ ] Proposal và popup chấp nhận 10 giây, thu phí, hoàn phí khi lỗi (luồng 7.2).
@@ -689,9 +809,63 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 🔵 GĐ2
 - [ ] Sticker và sound trong chat (kiểm tra sở hữu qua `/internal/inventory/.../owns/...`), cooldown chống spam.
 - [ ] Kiểm tra cấm chat (`restrictions` / `account.penalized`).
-- [ ] Party: tạo, mời, kick, rời, chủ party bấm tìm trận Normal, ghép party với người lạ.
+- [ ] Party: tạo (sinh mã + mật khẩu), vào bằng mã + mật khẩu, kick (đổi mật khẩu), rời, chủ party bấm tìm trận Normal, ghép party với người lạ.
 - [ ] Presence: online / trong trận / offline.
 - [ ] Chuông thông báo: lưu lịch sử, đánh dấu đã đọc.
+
+**API đề xuất** *(đề xuất — Duy được đổi, nhưng phải sửa SPEC)*
+
+`matchmaking-service`
+
+| Method | Endpoint | Body | Ghi chú |
+|---|---|---|---|
+| POST | `/api/matchmaking/queue` | `{ mode: "RANK" \| "NORMAL" }` | Vào hàng chờ. Đã ở hàng chờ thì 409; bị cấm Rank hoặc không đủ xu thì trả lỗi tương ứng (`MM_...`) |
+| DELETE | `/api/matchmaking/queue` | — | Rời hàng chờ |
+| GET | `/api/matchmaking/me` | — | `{ state: IDLE \| QUEUED \| PROPOSED \| MATCHED, mode, proposalId, tableId, queuedAt }` để FE khôi phục sau khi tải lại trang |
+| POST | `/api/matchmaking/proposals/{id}/accept` | — | Đã có ở 7.2 |
+| POST | `/api/matchmaking/proposals/{id}/decline` | — | Từ chối; bị phạt không vào hàng chờ 2 phút (mục 8) |
+
+`social-service`
+
+| Method | Endpoint | Body | Ghi chú |
+|---|---|---|---|
+| GET | `/api/friends` | — | Danh sách id bạn bè (FE lấy tên qua `/api/profiles/batch`) |
+| GET | `/api/friends/requests?direction=INCOMING\|OUTGOING` | — | Lời mời đang chờ |
+| POST | `/api/friends/requests` | `{ addresseeId }` | Gửi lời mời, phát `FRIEND_REQUEST` |
+| POST | `/api/friends/requests/{id}/accept` | — | Lưu `friendships` 2 chiều, phát `FRIEND_ACCEPTED` |
+| POST | `/api/friends/requests/{id}/decline` | — | Người nhận từ chối |
+| DELETE | `/api/friends/requests/{id}` | — | Người gửi hủy lời mời |
+| DELETE | `/api/friends/{friendId}` | — | Xóa bạn (cả 2 chiều) |
+| GET | `/api/blocks` | — | Danh sách đã chặn |
+| PUT | `/api/blocks/{accountId}` | — | Chặn |
+| DELETE | `/api/blocks/{accountId}` | — | Bỏ chặn |
+
+Ca biên cần xử lý: gửi lời mời cho chính mình, cho người đã là bạn, giữa hai người có chặn nhau → từ chối. Hai người gửi lời mời cho nhau → *(đề xuất)* tự thành bạn. Chặn người đang là bạn → *(đề xuất)* xóa quan hệ bạn và lời mời đang chờ. Cách tìm người để kết bạn (theo id, email hay tên) cần Duy và Khanh chốt; tìm theo tên thì Khanh phải có API tìm kiếm hồ sơ.
+
+`chat-service`
+
+| Method | Endpoint | Body | Ghi chú |
+|---|---|---|---|
+| GET | `/api/chat/conversations` | — | Các hội thoại DIRECT của mình, kèm tin nhắn cuối |
+| POST | `/api/chat/conversations/direct` | `{ friendId }` | Lấy hoặc tạo hội thoại DIRECT; chỉ khi là bạn và không chặn nhau (hỏi social) |
+| GET | `/api/chat/conversations/{id}/messages?before=&size=` | — | Lịch sử tin nhắn, phân trang lùi theo thời gian; chỉ thành viên được xem |
+
+- Hội thoại MATCH dùng luôn `matchId` làm `id` để khớp `<ChatPanel conversationId={matchId}>` ở mục 9.2 *(đề xuất)*. Tạo khi nhận `match.started` (thành viên = `playerIds`), đặt `closedAt` khi nhận `match.finished`; đã đóng thì không gửi thêm được.
+- `/ws/social` đẩy xuống `/user/queue/notifications` nội dung `{ type, title, body, data, occurredAt }` lấy từ event *(đề xuất)*. MVP chưa lưu lịch sử thông báo (bảng `notifications` là GĐ2), người đang offline sẽ không nhận được.
+
+**Hợp đồng các bên đã triển khai** (đọc code ngày 2026-10-15, để gọi đúng)
+
+- **CreateTable** — `POST http://game-service:8082/internal/tables`, body ở 6.1:
+  - Ngoài profile dev phải gửi header `X-Game-Service-Key` bằng biến `GAME_SERVICE_KEY`. Game chạy profile `dev` thì không cần key và bỏ qua kiểm tra restrictions, dùng được để test thật.
+  - `sourceId` = `proposalId`. Game idempotent theo `(mode, sourceId)`, nên gọi lại cùng body sau timeout là an toàn.
+  - `playerIds` không trùng, số người trong khoảng `minPlayers`–`maxPlayers` của Match Settings theo mode (mặc định 2–6). `NORMAL` phải có `entryFee = 0`.
+  - Lỗi trả `{ code, message, timestamp, requestId }`: 409 `GAME_PLAYER_BUSY` (có người đang ở bàn khác), 409 `GAME_SOURCE_CONFLICT` (`sourceId` đã dùng với body khác), 403 `GAME_FORBIDDEN` (có người bị cấm), 400 `GAME_INVALID_REQUEST`, 503 `GAME_DEPENDENCY_UNAVAILABLE` (game không gọi được auth). Mọi lỗi: hoàn phí toàn bộ theo 7.2 bước 5; riêng 400 và `GAME_SOURCE_CONFLICT` là lỗi code, không retry.
+  - Game chưa có API nội bộ kiểm tra "đang trong trận" (7.2 bước 1); MVP dựa vào lỗi 409 `GAME_PLAYER_BUSY` (không cho biết người nào bận).
+- **Ranking** — `GET http://ranking-service:8086/internal/ranking/{accountId}` trả JSON thô `{ accountId, elo, tier, winStreak, lossStreak }`.
+- **Wallet** — nhánh `feature/wallet-shop-service` của Tùng, chưa merge: `POST /internal/wallet/debit` và `/credit` body như 6.1; response thành công bọc `{ code, message, data, timestamp }`; `GET /internal/wallet/{accountId}/balance` có số dư xu ở `data.balance`; không đủ xu trả HTTP 400 với `code = WALLET_INSUFFICIENT_BALANCE`. Xác nhận lại với Tùng khi merge.
+- **Restrictions** — `GET http://auth-service:8090/internal/accounts/{id}/restrictions`, JSON thô (6.1). Khanh chưa làm; trong lúc chờ mock trả không bị phạt.
+- **Event** — envelope `{ eventId, eventType, occurredAt, payload }` (class `EventEnvelope` trong `common`). Queue: `social-service.notification.requested`, `chat-service.match.started`, `chat-service.match.finished`. Payload `notification.requested` các service đang phát: `{ accountIds, type, title, body, data }`. Bỏ qua `type` và field lạ, chống trùng bằng `eventId`.
+- **Xác thực** — REST qua gateway: đọc `X-User-Id`, `X-User-Role`, không tự parse JWT. WebSocket `/ws/chat`, `/ws/social`: FE gửi `Authorization: Bearer <jwt>` trong STOMP `CONNECT` (JWT lấy từ `GET /api/auth/ws-token`); service kiểm tra RS256 qua JWKS `http://auth-service:8090/.well-known/jwks.json`, `iss` = `JWT_ISSUER` (mặc định `http://localhost:8090`), `aud` chứa `poker`, `sub` là UUID tài khoản. Tham khảo `GameIdentity` và `GameChannelInterceptor` trong `game-service`.
 
 **Cung cấp cho người khác:** `<ChatPanel>` (Bảo cần), `/internal/friends/**` (Hoài Anh cần), kênh `notification.requested` → realtime (cả nhóm cần).
 
@@ -699,9 +873,9 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 
 | Cần gì | Của ai | Mock trong lúc chờ |
 |---|---|---|
-| `CreateTable` | Bảo | Trả `tableId` ngẫu nhiên, 10 giây sau tự phát `match.finished` giả |
-| Elo | Hoài Anh | Mọi người Elo 0 |
-| `debit`/`credit` | Tùng | Service giả luôn thành công |
+| `CreateTable` | Bảo | Đã có: chạy game ở profile `dev` (không cần key). Hoặc trả `tableId` ngẫu nhiên, 10 giây sau tự phát `match.finished` giả |
+| Elo | Hoài Anh | Đã có trên `develop`; mock mọi người Elo 0 nếu không chạy ranking |
+| `debit`/`credit` | Tùng | Service giả luôn thành công (wallet chưa merge) |
 | `restrictions` | Khanh | Luôn trả không bị phạt |
 
 ---
@@ -748,11 +922,11 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 🔵 GĐ2
 - [ ] Giải Cao thủ và Giải Mở chạy thật (luồng 7.7), bracket cập nhật realtime, bù người vắng, prize pool, trao thưởng.
 - [ ] Mùa giải: đóng mùa, reset Elo theo %, quà dồn theo bậc, nhận quà.
-- [ ] BXH bạn bè.
-- [ ] Tutorial: kịch bản ván bài dựng sẵn ở FE, hướng dẫn từng nút, hoàn thành thì FE gọi `POST /api/tutorial/complete`, ranking-service gọi `credit` `TUTORIAL_REWARD` với key `tutorial:{accountId}` (chỉ thưởng một lần).
+- [ ] BXH bạn bè: `GET /api/ranking/friends` trả người gọi và bạn bè (lấy qua `/internal/friends/{accountId}`, tối đa 200 người), mỗi dòng `{ rank, position, accountId, elo, tier, winStreak, matchesPlayed, you }`. `position` là vị trí trên BXH toàn server; bạn chưa đánh Rank trong mùa xếp cuối với Elo khởi điểm và `position = null`.
+- [ ] Tutorial: kịch bản ván bài dựng sẵn ở FE, hướng dẫn từng nút, hoàn thành thì FE gọi `POST /api/tutorial/complete`, ranking-service gọi `credit` `TUTORIAL_REWARD` 200 xu (mục 8) với key `tutorial:{accountId}` (chỉ thưởng một lần). `GET /api/tutorial/me` trả `{ completed, completedAt, rewardCoins }` để FE biết người chơi đã hoàn thành chưa.
 - [ ] Admin: quản lý mùa giải, quà theo bậc, lịch và cấu hình giải.
 
-**Cung cấp cho người khác:** `/internal/ranking/**` (Duy cần), dữ liệu Elo/bậc cho màn Hồ sơ và Sảnh chờ (Khanh cần).
+**Cung cấp cho người khác:** `/internal/ranking/**` (Duy cần), dữ liệu Elo/bậc cho màn Hồ sơ và Sảnh chờ (Khanh cần), `GET /api/ranking/me/matches/{matchId}` trả `{ place, eloDelta, eloAfter, rewardCoins }` cho màn Kết thúc trận (Bảo cần; `404` khi `match.finished` chưa được xử lý).
 
 **Phụ thuộc và cách mock**
 

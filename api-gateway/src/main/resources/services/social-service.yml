@@ -1,0 +1,10 @@
+gateway:
+  catalog:
+    services:
+      social-service:
+        uri: ${SOCIAL_SERVICE_URL:lb://social-service}
+        routes:
+        - id: social-service
+          paths:
+          - /api/friends/**
+          - /api/blocks/**

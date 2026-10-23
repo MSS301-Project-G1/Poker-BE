@@ -11,10 +11,28 @@
 .project
 .settings/
 
-# Local configuration
+# Local configuration & Secrets
 .env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 *.log
+.local/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Documentation & AI
+AGENTS.md
+docs/
+shop-wallet-gateway-contract.md
+shop-service/*.md
+wallet-service/*.md
+
+# Test Archives & Temporary Scripts
+*.zip
+generate_test_deck.ps1
+CLAUDE.md

@@ -1,0 +1,10 @@
+gateway:
+  catalog:
+    services:
+      identity-service:
+        uri: ${IDENTITY_SERVICE_URL:lb://identity-service}
+        routes:
+        - id: identity-service
+          paths:
+          - /api/identity/**
+          strip-prefix: 2

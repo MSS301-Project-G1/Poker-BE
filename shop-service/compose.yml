@@ -1,0 +1,106 @@
+services:
+  shop-service:
+    build:
+      context: ..
+      args:
+        MODULE: shop-service
+    ports:
+      - "${SHOP_SERVICE_PORT:-8088}:8088"
+    environment:
+      DB_HOST: shop-postgres
+      DB_PORT: 5432
+      DB_NAME: shop_db
+      DB_USERNAME: ${SHOP_DB_USER:-postgres}
+      DB_PASSWORD: ${SHOP_DB_PASSWORD:-123456}
+      REDIS_HOST: shop-redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      WALLET_SERVICE_URL: ${WALLET_SERVICE_DOCKER_URL:-http://wallet-service:8089}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
+      PAYOS_API_KEY: ${PAYOS_API_KEY:-}
+      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://shop-minio:9000}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-poker123456}
+      S3_BUCKET: ${S3_BUCKET:-poker-assets}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/poker-assets}
+      EUREKA_CLIENT_ENABLED: ${EUREKA_CLIENT_ENABLED:-true}
+      EUREKA_SERVICE_URL: ${EUREKA_SERVICE_URL:-http://discovery-service:8761/eureka/}
+      EUREKA_INSTANCE_HOSTNAME: shop-service
+    networks:
+      - default
+      - shop-net
+    depends_on:
+      shop-postgres:
+        condition: service_healthy
+      shop-redis:
+        condition: service_healthy
+      shop-minio:
+        condition: service_healthy
+
+  shop-postgres:
+    image: postgres:16-alpine
+    container_name: shop-postgres
+    environment:
+      POSTGRES_DB: shop_db
+      POSTGRES_USER: ${SHOP_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${SHOP_DB_PASSWORD:-123456}
+    ports:
+      - "127.0.0.1:${SHOP_DB_PORT:-54334}:5432"
+    volumes:
+      - shop-postgres-data:/var/lib/postgresql/data
+    networks:
+      - shop-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  shop-redis:
+    image: redis:7-alpine
+    container_name: shop-redis
+    ports:
+      - "127.0.0.1:${SHOP_REDIS_PORT:-6379}:6379"
+    volumes:
+      - shop-redis-data:/data
+    networks:
+      - default
+      - shop-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  shop-minio:
+    image: alpine/minio:latest-release
+    container_name: shop-minio
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-poker123456}
+    volumes:
+      - shop-minio-data:/data
+    networks:
+      - default
+      - shop-net
+    user: "0:0"
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  shop-net:
+volumes:
+  shop-postgres-data:
+  shop-redis-data:
+  shop-minio-data:

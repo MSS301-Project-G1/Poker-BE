@@ -1,13 +1,31 @@
 package com.msspoker.apigateway;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.gateway.route.RouteDefinitionLocator;
 
-@SpringBootTest
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest(properties = "eureka.client.enabled=false")
 class ApiGatewayApplicationTests {
+    @Autowired RouteDefinitionLocator routes;
 
     @Test
     void contextLoads() {
+    }
+
+    @Test
+    void matchmakingRoutePreservesControllerPathAndIncludesParty() {
+        var route = routes.getRouteDefinitions()
+                .filter(definition -> definition.getId().equals("matchmaking-service"))
+                .blockFirst();
+
+        assertThat(route).isNotNull();
+        assertThat(route.getPredicates().toString())
+                .contains("/api/matchmaking/**")
+                .contains("/api/party/**");
+        assertThat(route.getFilters()).isEmpty();
     }
 
 }

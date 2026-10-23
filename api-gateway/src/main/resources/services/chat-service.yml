@@ -1,0 +1,9 @@
+gateway:
+  catalog:
+    services:
+      chat-service:
+        uri: ${CHAT_SERVICE_URL:lb://chat-service}
+        routes:
+        - id: chat-service
+          paths:
+          - /api/chat/**

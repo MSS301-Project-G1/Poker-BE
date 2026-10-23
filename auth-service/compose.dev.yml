@@ -1,0 +1,27 @@
+# Apply after docker/compose.infra.yml and auth-service/compose.yml.
+services:
+  auth-service:
+    ports: !override
+      - "127.0.0.1:${AUTH_SERVICE_PORT:-8090}:8090"
+    environment:
+      AUTH_RABBIT_USERNAME: ${AUTH_RABBIT_USERNAME:-poker}
+      AUTH_RABBIT_PASSWORD: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+  auth-postgres:
+    ports:
+      - "127.0.0.1:54330:5432"
+  auth-mailpit:
+    ports:
+      - "127.0.0.1:1026:1025"
+  rabbitmq:
+    # Auth-only overrides of docker/compose.infra.yml; the shared file stays intact.
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${AUTH_RABBIT_USERNAME:-poker}
+      RABBITMQ_DEFAULT_PASS: ${AUTH_RABBIT_PASSWORD:-poker_dev}
+    ports: !override
+      - "127.0.0.1:${AUTH_RABBIT_PORT:-5673}:5672"
+      - "127.0.0.1:15673:15672"
+    volumes:
+      - auth-rabbit:/var/lib/rabbitmq
+volumes:
+  auth-rabbit:

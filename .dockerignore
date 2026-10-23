@@ -9,4 +9,5 @@
 **/mvnw
 **/mvnw.cmd
 .env
+.local
 *.iml
