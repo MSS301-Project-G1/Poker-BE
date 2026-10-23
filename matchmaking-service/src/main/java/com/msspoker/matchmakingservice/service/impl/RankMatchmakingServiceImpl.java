@@ -143,7 +143,7 @@ public class RankMatchmakingServiceImpl implements RankMatchmakingService {
                 .findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusInAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
                         accountId, ACTIVE_STATUSES
                 );
-        if (proposal.isPresent()) {
+        if (proposal.isPresent() && proposal.get().getProposal().getMode() == MatchMode.RANK) {
             return proposal.get().getProposal().getStatus() == ProposalStatus.WAITING_ACCEPTANCE
                     ? statusMapper.rankProposal(proposal.get())
                     : statusMapper.proposal(proposal.get());
@@ -205,7 +205,8 @@ public class RankMatchmakingServiceImpl implements RankMatchmakingService {
                 queueStore.size(MatchMode.RANK),
                 settings.minPlayers(),
                 settings.maxPlayers(),
-                deadline.orElse(null)
+                deadline.orElse(null),
+                queueStore.oldest(MatchMode.RANK, settings.maxPlayers()).stream().map(QueueEntry::accountId).toList()
         );
     }
 

@@ -43,6 +43,11 @@ public class TableRegistryImpl implements TableRegistry {
     }
 
     @Override
+    public void releasePlayer(UUID accountId, UUID tableId) {
+        activePlayers.remove(accountId, tableId);
+    }
+
+    @Override
     public Collection<ManagedTable> all() {
         return tables.values();
     }

@@ -178,6 +178,28 @@ public final class PokerTable {
         return true;
     }
 
+    /** Forfeits the rest of the match: folds the live hand; the match ends once at most one player stays. */
+    public void leave(UUID accountId) {
+        Seat seat = seats.stream().filter(s -> s.getAccountId().equals(accountId)).findFirst()
+                .orElseThrow(GameExceptions::forbidden);
+        if (street == Street.FINISHED || seat.eliminated || seat.leftEarly) return;
+        seat.leftEarly = true;
+        if (street == Street.HAND_FINISHED) {
+            finishIfAbandoned();
+            return;
+        }
+        if (seat.getSeatIndex() == actorSeat) {
+            act(accountId, ActionType.FOLD, sequence);
+            return;
+        }
+        // Out of turn: the current actor keeps the turn, so their in-flight action stays valid.
+        if (seat.folded) return;
+        seat.folded = true;
+        seat.lastAction = ActionType.FOLD.name();
+        pending.remove(seat.getSeatIndex());
+        if (seats.stream().filter(s -> !s.folded && !s.eliminated).count() <= 1) settle();
+    }
+
     public boolean canRaise(Seat seat) {
         return seat.canAct() && seat.streetBet + seat.chips > currentBet
                 && (seat.lastActedBet == TableRules.NOT_ACTED
@@ -283,6 +305,20 @@ public final class PokerTable {
         if (remaining == 1) seats.stream().filter(s -> !s.eliminated).forEach(s -> s.place = 1);
         pending.clear();
         actorSeat = TableRules.NO_SEAT;
+        finishIfAbandoned();
+    }
+
+    /** Ends the match once at most one player has not left; the stayer wins and leavers are placed by chips. */
+    private void finishIfAbandoned() {
+        if (street != Street.HAND_FINISHED
+                || seats.stream().filter(s -> !s.eliminated && !s.leftEarly).count() > 1) return;
+        List<Seat> standing = seats.stream().filter(s -> !s.eliminated)
+                .sorted(Comparator.comparing(Seat::isLeftEarly)
+                        .thenComparing(Seat::getChips, Comparator.reverseOrder())
+                        .thenComparingInt(Seat::getSeatIndex))
+                .toList();
+        for (int i = 0; i < standing.size(); i++) standing.get(i).place = i + 1;
+        street = Street.FINISHED;
     }
 
     private int nextLive(int afterSeat) {

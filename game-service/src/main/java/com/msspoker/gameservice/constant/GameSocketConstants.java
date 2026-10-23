@@ -11,6 +11,7 @@ public final class GameSocketConstants {
     public static final int MESSAGE_SIZE_LIMIT_BYTES = 8192;
     public static final int SEND_BUFFER_SIZE_LIMIT_BYTES = 65536;
     public static final int SEND_TIME_LIMIT_MILLIS = 10000;
+    public static final String CHANNEL_THREAD_PREFIX = "game-ws-";
 
     private GameSocketConstants() {
     }

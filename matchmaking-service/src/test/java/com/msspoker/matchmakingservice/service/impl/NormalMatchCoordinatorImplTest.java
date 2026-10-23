@@ -35,9 +35,8 @@ class NormalMatchCoordinatorImplTest {
         List<QueueEntry> entries = entries();
         when(game.createTable(any())).thenReturn(new TableCreatedResponse(tableId, matchId));
 
-        coordinator.start(proposalId, entries);
+        coordinator.retry(proposalId, entries);
 
-        verify(persistence).createNormal(proposalId, entries);
         verify(persistence).ready(proposalId, tableId, matchId);
         verify(queueStore).complete(eq(entries), argThat(session ->
                 session.mode() == MatchMode.NORMAL
@@ -57,7 +56,7 @@ class NormalMatchCoordinatorImplTest {
         List<QueueEntry> entries = entries();
         when(game.createTable(any())).thenThrow(new GameCallRejectedException("bad request", null));
 
-        coordinator.start(proposalId, entries);
+        coordinator.retry(proposalId, entries);
 
         verify(persistence).failed(proposalId, "GAME_REJECTED");
         verify(queueStore).requeue(entries);
@@ -69,11 +68,20 @@ class NormalMatchCoordinatorImplTest {
         List<QueueEntry> entries = entries();
         when(game.createTable(any())).thenThrow(new GameCallUnknownException("timeout", null));
 
-        coordinator.start(proposalId, entries);
+        coordinator.retry(proposalId, entries);
 
         verify(persistence, never()).failed(any(), any());
         verify(queueStore, never()).requeue(anyList());
         verify(queueStore, never()).complete(anyList(), any());
+    }
+
+    @Test
+    void startOnlyReservesProposalUntilEveryoneAccepts() {
+        UUID id = UUID.randomUUID();
+        List<QueueEntry> entries = entries();
+        coordinator.start(id, entries);
+        verify(persistence).createNormal(id, entries);
+        verifyNoInteractions(game);
     }
 
     private List<QueueEntry> entries() {

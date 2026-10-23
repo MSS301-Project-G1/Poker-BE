@@ -54,7 +54,7 @@ class NormalMatchWorkerTest {
     }
 
     @Test
-    void startsTenSecondCountdownAtMinimumPlayers() {
+    void startsThirtySecondCountdownAtMinimumPlayers() {
         lock();
         List<QueueEntry> entries = List.of(entry(1), entry(2));
         when(queueStore.oldest(MatchMode.NORMAL, 6)).thenReturn(entries);
@@ -62,7 +62,7 @@ class NormalMatchWorkerTest {
 
         worker.find();
 
-        verify(queueStore).startCountdown(MatchMode.NORMAL, NOW.plusSeconds(10));
+        verify(queueStore).startCountdown(MatchMode.NORMAL, NOW.plusSeconds(30));
         verify(queueStore, never()).reserve(any(), anyList(), any());
         verifyNoInteractions(coordinator);
     }
@@ -80,7 +80,7 @@ class NormalMatchWorkerTest {
     }
 
     @Test
-    void startsImmediatelyWhenSixPlayersAreWaiting() {
+    void startsAtDeadlineWhenSixPlayersAreWaiting() {
         lock();
         List<QueueEntry> entries = List.of(entry(1), entry(2), entry(3), entry(4), entry(5), entry(6));
         when(queueStore.oldest(MatchMode.NORMAL, 6)).thenReturn(entries);
@@ -125,6 +125,7 @@ class NormalMatchWorkerTest {
         when(partyStore.findByAccountId(partyOne.accountId())).thenReturn(Optional.of(new PartySnapshot(
                 partyId,
                 "AB12CD34",
+                "123456",
                 partyOne.accountId(),
                 List.of(partyOne.accountId(), partyTwo.accountId(), partyThree.accountId()),
                 NOW
@@ -157,6 +158,7 @@ class NormalMatchWorkerTest {
         when(partyStore.findByAccountId(partyOne.accountId())).thenReturn(Optional.of(new PartySnapshot(
                 partyId,
                 "EF56GH78",
+                "123456",
                 partyOne.accountId(),
                 List.of(partyOne.accountId(), partyTwo.accountId(), partyThree.accountId(), partyFour.accountId()),
                 NOW
@@ -172,9 +174,20 @@ class NormalMatchWorkerTest {
         verify(coordinator).start(any(UUID.class), eq(List.of(soloOne, soloTwo, soloThree)));
     }
 
+    @Test
+    void fullTableStillWaitsUntilFillDeadline() {
+        lock();
+        var entries = List.of(entry(1), entry(2), entry(3), entry(4), entry(5), entry(6));
+        when(queueStore.oldest(MatchMode.NORMAL, 6)).thenReturn(entries);
+        when(queueStore.countdownDeadline(MatchMode.NORMAL)).thenReturn(Optional.of(NOW.plusSeconds(20)));
+        worker.find();
+        verify(queueStore, never()).reserve(any(), anyList(), any());
+    }
+
     private void lock() {
         when(game.matchSettings(MatchMode.NORMAL))
                 .thenReturn(new GameMatchSettingsResponse(MatchMode.NORMAL, 2, 6));
+        when(queueStore.countdownDeadline(MatchMode.NORMAL)).thenReturn(Optional.of(NOW));
         when(queueStore.acquireFinderLock(MatchMode.NORMAL)).thenReturn(Optional.of("lock"));
     }
 

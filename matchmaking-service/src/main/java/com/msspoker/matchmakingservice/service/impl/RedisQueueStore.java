@@ -318,6 +318,8 @@ public class RedisQueueStore implements QueueStore {
         List<String> arguments = new ArrayList<>(1 + entries.size());
         arguments.add(Integer.toString(entries.size()));
         entries.forEach(entry -> arguments.add(entry.accountId().toString()));
+        entries.stream().map(QueueEntry::partyId).filter(java.util.Objects::nonNull).distinct()
+                .forEach(partyId -> keys.add(partyQueuedKey(partyId)));
         redis.execute(DISCARD, keys, arguments.toArray());
     }
 

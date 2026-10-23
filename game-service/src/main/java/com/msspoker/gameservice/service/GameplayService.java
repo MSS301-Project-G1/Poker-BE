@@ -12,5 +12,7 @@ public interface GameplayService {
 
     void action(UUID tableId, UUID accountId, ActionRequest request);
 
+    void leave(UUID tableId, UUID accountId);
+
     void tick();
 }

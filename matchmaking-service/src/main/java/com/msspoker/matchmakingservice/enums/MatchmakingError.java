@@ -64,8 +64,8 @@ public enum MatchmakingError {
     // Party đã đạt số thành viên tối đa.
     MM_PARTY_FULL,
 
-    // Người chơi chưa được mời vào party.
-    MM_PARTY_INVITE_REQUIRED,
+    // Mật khẩu party không đúng.
+    MM_PARTY_WRONG_PASSWORD,
 
     // Lỗi nội bộ không xác định của Matchmaking service.
     MM_INTERNAL_ERROR

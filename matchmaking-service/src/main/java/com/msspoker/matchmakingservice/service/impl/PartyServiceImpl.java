@@ -1,6 +1,7 @@
 package com.msspoker.matchmakingservice.service.impl;
 
 import com.msspoker.matchmakingservice.config.MatchmakingProperties;
+import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
 import com.msspoker.matchmakingservice.dto.response.PartyResponse;
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
 import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
@@ -11,14 +12,17 @@ import com.msspoker.matchmakingservice.service.QueueStore;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class PartyServiceImpl implements PartyService {
     private static final int CODE_ATTEMPTS = 5;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final PartyStore store;
     private final MatchmakingProperties properties;
@@ -48,11 +52,12 @@ public class PartyServiceImpl implements PartyService {
         for (int attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
             UUID partyId = UUID.randomUUID();
             String partyCode = code();
+            String password = password();
             Instant createdAt = clock.instant();
-            PartyStore.CreateResult result = store.create(partyId, partyCode, accountId, createdAt);
+            PartyStore.CreateResult result = store.create(partyId, partyCode, password, accountId, createdAt);
             if (result == PartyStore.CreateResult.CREATED) {
                 return PartyResponse.from(new PartySnapshot(
-                        partyId, partyCode, accountId, java.util.List.of(accountId), createdAt
+                        partyId, partyCode, password, accountId, java.util.List.of(accountId), createdAt
                 ));
             }
             if (result == PartyStore.CreateResult.ALREADY_IN_PARTY) {
@@ -65,25 +70,7 @@ public class PartyServiceImpl implements PartyService {
     }
 
     @Override
-    public void invite(UUID accountId, UUID inviteeId) {
-        if (accountId.equals(inviteeId)) {
-            throw error(MatchmakingError.MM_INVALID_REQUEST, HttpStatus.BAD_REQUEST,
-                    "Không thể tự mời chính mình vào party.");
-        }
-        store.findByAccountId(accountId).ifPresent(this::ensurePartyMutable);
-        ensureNotQueued(inviteeId);
-        PartyStore.InviteResult result = store.invite(accountId, inviteeId, properties.getParty().getInviteTtl());
-        switch (result) {
-            case INVITED -> { return; }
-            case PARTY_NOT_FOUND -> throw partyNotFound();
-            case INVITEE_ALREADY_IN_PARTY -> throw error(MatchmakingError.MM_ALREADY_IN_PARTY,
-                    HttpStatus.CONFLICT, "Người được mời đã là thành viên của một party.");
-            case NOT_LEADER -> throw notLeader();
-        }
-    }
-
-    @Override
-    public PartyResponse join(UUID accountId, String partyCode) {
+    public PartyResponse join(UUID accountId, String partyCode, String password) {
         String normalizedCode = partyCode.toUpperCase(Locale.ROOT);
         ensureNotQueued(accountId);
         PartySnapshot targetParty = store.findByCode(normalizedCode).orElseThrow(PartyServiceImpl::partyNotFound);
@@ -91,6 +78,7 @@ public class PartyServiceImpl implements PartyService {
         PartyStore.JoinResult result = store.join(
                 accountId,
                 normalizedCode,
+                password,
                 properties.getParty().getMaxMembers(),
                 clock.instant()
         );
@@ -98,8 +86,8 @@ public class PartyServiceImpl implements PartyService {
             case PARTY_NOT_FOUND -> throw partyNotFound();
             case ALREADY_IN_PARTY -> throw error(MatchmakingError.MM_ALREADY_IN_PARTY,
                     HttpStatus.CONFLICT, "Tài khoản đã là thành viên của một party.");
-            case INVITE_REQUIRED -> throw error(MatchmakingError.MM_PARTY_INVITE_REQUIRED,
-                    HttpStatus.FORBIDDEN, "Tài khoản chưa được chủ party mời.");
+            case WRONG_PASSWORD -> throw error(MatchmakingError.MM_PARTY_WRONG_PASSWORD,
+                    HttpStatus.FORBIDDEN, "Mật khẩu party không đúng.");
             case PARTY_FULL -> throw error(MatchmakingError.MM_PARTY_FULL,
                     HttpStatus.CONFLICT, "Party đã đủ thành viên.");
             case PARTY_QUEUED -> throw partyQueued();
@@ -115,7 +103,7 @@ public class PartyServiceImpl implements PartyService {
     public void kick(UUID accountId, UUID targetAccountId) {
         PartySnapshot currentParty = store.findByAccountId(accountId).orElseThrow(PartyServiceImpl::partyNotFound);
         ensurePartyMutable(currentParty);
-        PartyStore.KickResult result = store.kick(accountId, targetAccountId);
+        PartyStore.KickResult result = store.kick(accountId, targetAccountId, password());
         switch (result) {
             case KICKED -> { return; }
             case PARTY_NOT_FOUND -> throw partyNotFound();
@@ -156,6 +144,12 @@ public class PartyServiceImpl implements PartyService {
 
     private static String code() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+    }
+
+    private static String password() {
+        return RANDOM.ints(MatchmakingConstants.PARTY_PASSWORD_DIGITS, 0, 10)
+                .mapToObj(Integer::toString)
+                .collect(Collectors.joining());
     }
 
     private static MatchmakingApiException partyNotFound() {

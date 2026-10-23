@@ -110,6 +110,7 @@ Chips are integer table chips and are distinct from wallet coins.
 | GET | `/api/game/matches?accountId=...&page=0&size=20` | Same page as `/internal/matches`, for the Profile screen via gateway |
 | GET | `/api/game/tables/{tableId}` | Personal snapshot; membership required |
 | GET | `/api/game/tables/{tableId}/result` | Durable final result; membership required |
+| POST | `/api/game/tables/{tableId}/leave` | NORMAL only: forfeit the rest of the match and free the player to queue; `204` |
 | GET | `/api/admin/match-settings` | All mode settings; ADMIN required |
 | PUT | `/api/admin/match-settings/{mode}` | `{ settings: { smallBlind, bigBlind, startingChips, turnTimeSeconds }, minPlayers, maxPlayers }` |
 

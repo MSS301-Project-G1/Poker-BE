@@ -197,6 +197,38 @@ class GameApplicationTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("GAME_INVALID_REQUEST"));
     }
 
+    @Test
+    void leavingANormalMatchFreesThePlayerAndHandsTheWinToTheOpponent() throws Exception {
+        var request = request();
+        var created = tables.create(request);
+        UUID leaver = request.playerIds().getFirst();
+        mvc.perform(post("/api/game/tables/{id}/leave", created.tableId())
+                        .servletPath("/api/game/tables/" + created.tableId() + "/leave")
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", leaver))
+                .andExpect(status().isNoContent());
+        var engine = registry.require(created.tableId()).getEngine();
+        assertEquals(Street.FINISHED, engine.getStreet());
+        assertEquals(1, engine.getSeats().get(1).getPlace());
+        assertTrue(tables.active(leaver).isEmpty());
+        assertEquals("FINISHED", persistence.result(created.tableId(), leaver).status());
+        mvc.perform(post("/api/game/tables/{id}/leave", created.tableId())
+                        .servletPath("/api/game/tables/" + created.tableId() + "/leave")
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", UUID.randomUUID()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void rankMatchCannotBeLeft() throws Exception {
+        var created = tables.create(new CreateTableRequest(GameMode.RANK, UUID.randomUUID(),
+                List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0));
+        UUID player = registry.require(created.tableId()).getEngine().getSeats().getFirst().getAccountId();
+        mvc.perform(post("/api/game/tables/{id}/leave", created.tableId())
+                        .servletPath("/api/game/tables/" + created.tableId() + "/leave")
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", player))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("GAME_FORBIDDEN"));
+        assertEquals(created.tableId(), tables.active(player).orElseThrow().tableId());
+    }
+
     private static CreateTableRequest request() {
         return new CreateTableRequest(GameMode.NORMAL, UUID.randomUUID(),
                 List.of(UUID.randomUUID(), UUID.randomUUID()), null, 0);
