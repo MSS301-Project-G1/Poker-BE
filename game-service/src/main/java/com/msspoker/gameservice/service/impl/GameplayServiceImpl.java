@@ -153,9 +153,13 @@ public class GameplayServiceImpl implements GameplayService {
     private void afterTransition(ManagedTable table) {
         PokerTable engine = table.getEngine();
         table.setDeadline(engine.getStreet() == Street.HAND_FINISHED
-                ? Instant.now().plusMillis(properties.getHandPauseMillis())
+                ? Instant.now().plusMillis(handPauseMillis(engine))
                 : Instant.now().plusSeconds(engine.getRules().turnTimeSeconds()));
         if (engine.getStreet() == Street.FINISHED) complete(table);
+    }
+
+    private long handPauseMillis(PokerTable engine) {
+        return engine.getShowdownHands().isEmpty() ? properties.getHandPauseMillis() : properties.getShowdownPauseMillis();
     }
 
     private void complete(ManagedTable table) {
