@@ -21,6 +21,8 @@ public interface OrderService {
 
     OrderResponse syncOrder(UUID accountId, UUID orderId);
 
+    OrderResponse getActivePendingOrder(UUID accountId);
+
     void handlePayosWebhook(Webhook webhook);
 
     void reconcileOrder(UUID orderId);

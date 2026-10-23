@@ -447,6 +447,28 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public OrderResponse getActivePendingOrder(UUID accountId) {
+        log.debug("Checking active pending order for accountId={}", accountId);
+        Instant now = Instant.now();
+        Optional<Order> pendingOrderOpt = orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                accountId, OrderStatus.PENDING, now);
+
+        if (pendingOrderOpt.isEmpty()) {
+            return null;
+        }
+
+        Order order = pendingOrderOpt.get();
+        syncOrderEntity(order);
+
+        if (order.getStatus() != OrderStatus.PENDING) {
+            return null;
+        }
+
+        return orderMapper.toOrderResponse(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void reconcileOrder(UUID orderId) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null || order.getStatus() != OrderStatus.PENDING) {

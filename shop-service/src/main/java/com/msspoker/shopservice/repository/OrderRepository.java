@@ -38,6 +38,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
             UUID accountId, UUID bundleId, OrderStatus status);
 
+    Optional<Order> findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+            UUID accountId, OrderStatus status, Instant now);
+
     List<Order> findByAccountIdOrderByCreatedAtDesc(UUID accountId);
 
     List<Order> findByStatusAndExpiresAtBefore(OrderStatus status, Instant now);
