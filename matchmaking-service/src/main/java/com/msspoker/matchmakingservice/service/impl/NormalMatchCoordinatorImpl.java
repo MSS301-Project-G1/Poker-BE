@@ -48,7 +48,7 @@ public class NormalMatchCoordinatorImpl implements NormalMatchCoordinator {
             queueStore.requeue(entries);
             throw exception;
         }
-        createTable(proposalId, entries);
+        // The last acceptance starts table creation through retry().
     }
 
     @Override

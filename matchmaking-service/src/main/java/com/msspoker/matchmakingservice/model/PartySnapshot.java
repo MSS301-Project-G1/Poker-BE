@@ -7,6 +7,7 @@ import java.util.UUID;
 public record PartySnapshot(
         UUID partyId,
         String partyCode,
+        String password,
         UUID leaderId,
         List<UUID> memberIds,
         Instant createdAt

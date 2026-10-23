@@ -91,7 +91,7 @@ class RankMatchmakingServiceImplTest {
     void partyMemberCannotJoinRank() {
         UUID accountId = UUID.randomUUID();
         when(parties.findByAccountId(accountId)).thenReturn(Optional.of(new PartySnapshot(
-                UUID.randomUUID(), "AB12CD34", accountId, List.of(accountId), NOW
+                UUID.randomUUID(), "AB12CD34", "123456", accountId, List.of(accountId), NOW
         )));
 
         assertThatThrownBy(() -> service.join(accountId))
@@ -178,6 +178,8 @@ class RankMatchmakingServiceImplTest {
                 accountId, 950, 0, 0, NOW.minusSeconds(5), NOW
         );
         proposal.addPlayer(player);
+        UUID opponent = UUID.randomUUID();
+        proposal.addPlayer(MatchProposalPlayerEntity.rankPending(opponent, 960, 0, 0, NOW, NOW));
         when(players.findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusInAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
                 any(), any())).thenReturn(Optional.of(player));
 
@@ -186,6 +188,7 @@ class RankMatchmakingServiceImplTest {
         assertThat(response.status()).isEqualTo("PROPOSED");
         assertThat(response.proposalId()).isEqualTo(proposalId);
         assertThat(response.acceptDeadline()).isEqualTo(deadline);
+        assertThat(response.playerIds()).containsExactly(accountId, opponent);
         verify(queueStore, never()).find(accountId);
     }
 

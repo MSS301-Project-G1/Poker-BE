@@ -8,7 +8,6 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Repository;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -22,11 +21,9 @@ public class RedisPartyStore implements PartyStore {
     private static final String MEMBERS_PREFIX = "mm:v1:party:members:";
     private static final String ACCOUNT_PREFIX = "mm:v1:party:account:";
     private static final String CODE_PREFIX = "mm:v1:party:code:";
-    private static final String INVITE_PREFIX = "mm:v1:party:invite:";
     private static final String QUEUED_PREFIX = "mm:v1:party:queued:";
 
     private static final DefaultRedisScript<Long> CREATE = script("redis/party-create.lua");
-    private static final DefaultRedisScript<Long> INVITE = script("redis/party-invite.lua");
     private static final DefaultRedisScript<Long> JOIN = script("redis/party-join.lua");
     private static final DefaultRedisScript<Long> KICK = script("redis/party-kick.lua");
     private static final DefaultRedisScript<Long> LEAVE = script("redis/party-leave.lua");
@@ -38,11 +35,11 @@ public class RedisPartyStore implements PartyStore {
     }
 
     @Override
-    public CreateResult create(UUID partyId, String partyCode, UUID leaderId, Instant createdAt) {
+    public CreateResult create(UUID partyId, String partyCode, String password, UUID leaderId, Instant createdAt) {
         Long result = redis.execute(
                 CREATE,
                 List.of(accountKey(leaderId), codeKey(partyCode), dataKey(partyId), membersKey(partyId)),
-                partyId.toString(), partyCode, leaderId.toString(), Long.toString(createdAt.toEpochMilli())
+                partyId.toString(), partyCode, leaderId.toString(), Long.toString(createdAt.toEpochMilli()), password
         );
         if (Long.valueOf(1).equals(result)) return CreateResult.CREATED;
         if (Long.valueOf(-1).equals(result)) return CreateResult.ALREADY_IN_PARTY;
@@ -64,40 +61,27 @@ public class RedisPartyStore implements PartyStore {
     }
 
     @Override
-    public InviteResult invite(UUID leaderId, UUID inviteeId, Duration ttl) {
-        Long result = redis.execute(
-                INVITE,
-                List.of(accountKey(leaderId), accountKey(inviteeId), inviteKey(inviteeId)),
-                leaderId.toString(), inviteeId.toString(), Long.toString(ttl.toMillis()), DATA_PREFIX
-        );
-        if (Long.valueOf(1).equals(result)) return InviteResult.INVITED;
-        if (Long.valueOf(-1).equals(result)) return InviteResult.PARTY_NOT_FOUND;
-        if (Long.valueOf(-2).equals(result)) return InviteResult.INVITEE_ALREADY_IN_PARTY;
-        return InviteResult.NOT_LEADER;
-    }
-
-    @Override
-    public JoinResult join(UUID accountId, String partyCode, int maxMembers, Instant joinedAt) {
+    public JoinResult join(UUID accountId, String partyCode, String password, int maxMembers, Instant joinedAt) {
         Long result = redis.execute(
                 JOIN,
-                List.of(codeKey(partyCode), accountKey(accountId), inviteKey(accountId)),
+                List.of(codeKey(partyCode), accountKey(accountId)),
                 accountId.toString(), partyCode, Integer.toString(maxMembers),
-                Long.toString(joinedAt.toEpochMilli()), DATA_PREFIX, MEMBERS_PREFIX, QUEUED_PREFIX
+                Long.toString(joinedAt.toEpochMilli()), DATA_PREFIX, MEMBERS_PREFIX, QUEUED_PREFIX, password
         );
         if (Long.valueOf(1).equals(result)) return JoinResult.JOINED;
         if (Long.valueOf(-1).equals(result)) return JoinResult.PARTY_NOT_FOUND;
         if (Long.valueOf(-2).equals(result)) return JoinResult.ALREADY_IN_PARTY;
-        if (Long.valueOf(-3).equals(result)) return JoinResult.INVITE_REQUIRED;
+        if (Long.valueOf(-3).equals(result)) return JoinResult.WRONG_PASSWORD;
         if (Long.valueOf(-4).equals(result)) return JoinResult.PARTY_FULL;
         return JoinResult.PARTY_QUEUED;
     }
 
     @Override
-    public KickResult kick(UUID leaderId, UUID accountId) {
+    public KickResult kick(UUID leaderId, UUID accountId, String newPassword) {
         Long result = redis.execute(
                 KICK,
                 List.of(accountKey(leaderId), accountKey(accountId)),
-                leaderId.toString(), accountId.toString(), DATA_PREFIX, MEMBERS_PREFIX, QUEUED_PREFIX
+                leaderId.toString(), accountId.toString(), DATA_PREFIX, MEMBERS_PREFIX, QUEUED_PREFIX, newPassword
         );
         if (Long.valueOf(1).equals(result)) return KickResult.KICKED;
         if (Long.valueOf(-1).equals(result)) return KickResult.PARTY_NOT_FOUND;
@@ -128,6 +112,8 @@ public class RedisPartyStore implements PartyStore {
             return Optional.of(new PartySnapshot(
                     partyId,
                     data.get("partyCode").toString(),
+                    // Party tạo trước khi có mật khẩu không có trường này; vẫn đọc được để thành viên rời nhóm.
+                    (String) data.get("password"),
                     UUID.fromString(data.get("leaderId").toString()),
                     members == null ? List.of() : members.stream().map(UUID::fromString).toList(),
                     Instant.ofEpochMilli(Long.parseLong(data.get("createdAt").toString()))
@@ -141,7 +127,6 @@ public class RedisPartyStore implements PartyStore {
     private static String membersKey(UUID partyId) { return MEMBERS_PREFIX + partyId; }
     private static String accountKey(UUID accountId) { return ACCOUNT_PREFIX + accountId; }
     private static String codeKey(String partyCode) { return CODE_PREFIX + partyCode; }
-    private static String inviteKey(UUID accountId) { return INVITE_PREFIX + accountId; }
 
     private static DefaultRedisScript<Long> script(String path) {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();

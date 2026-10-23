@@ -28,7 +28,7 @@ class RankProposalControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(RankProposalService.class);
-        mvc = standaloneSetup(new RankProposalController(service))
+        mvc = standaloneSetup(new RankProposalController(service, mock(com.msspoker.matchmakingservice.service.NormalProposalService.class)))
                 .setControllerAdvice(new MatchmakingExceptionHandler())
                 .build();
     }

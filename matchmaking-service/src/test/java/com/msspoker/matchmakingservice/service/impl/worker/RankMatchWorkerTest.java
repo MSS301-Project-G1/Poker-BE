@@ -76,8 +76,9 @@ class RankMatchWorkerTest {
     }
 
     @Test
-    void startsTenSecondFillCountdownAtAdminMinimum() {
+    void startsThirtySecondFillCountdownAtAdminMinimum() {
         lock(3, 6);
+        when(queueStore.countdownDeadline(MatchMode.RANK)).thenReturn(Optional.empty());
         List<QueueEntry> entries = List.of(
                 rank(1, 1000, 0, 0), rank(2, 1010, 0, 0), rank(3, 1020, 0, 0)
         );
@@ -86,12 +87,12 @@ class RankMatchWorkerTest {
 
         worker.find();
 
-        verify(queueStore).startCountdown(MatchMode.RANK, NOW.plusSeconds(10));
+        verify(queueStore).startCountdown(MatchMode.RANK, NOW.plusSeconds(30));
         verify(queueStore, never()).reserve(any(), anyList(), any());
     }
 
     @Test
-    void createsProposalImmediatelyAtAdminMaximumAndReleasesLockFirst() {
+    void createsProposalAtDeadlineAndReleasesLockFirst() {
         lock(2, 4);
         List<QueueEntry> entries = List.of(
                 rank(1, 1000, 0, 0), rank(2, 1010, 0, 0),
@@ -103,10 +104,10 @@ class RankMatchWorkerTest {
 
         worker.find();
 
-        verify(persistence).createRank(any(UUID.class), eq(entries), eq(100L), eq(NOW.plusSeconds(10)));
+        verify(persistence).createRank(any(UUID.class), eq(entries), eq(100L), eq(NOW.plusSeconds(30)));
         InOrder order = inOrder(queueStore, persistence);
         order.verify(queueStore).releaseFinderLock(MatchMode.RANK, "lock");
-        order.verify(persistence).createRank(any(UUID.class), eq(entries), eq(100L), eq(NOW.plusSeconds(10)));
+        order.verify(persistence).createRank(any(UUID.class), eq(entries), eq(100L), eq(NOW.plusSeconds(30)));
     }
 
     @Test
@@ -124,9 +125,21 @@ class RankMatchWorkerTest {
         verify(queueStore).requeue(entries);
     }
 
+    @Test
+    void fullTableStillWaitsUntilFillDeadline() {
+        lock(2, 2);
+        var entries = List.of(rank(1, 1000, 0, 0), rank(2, 1010, 0, 0));
+        when(queueStore.size(MatchMode.RANK)).thenReturn(2L);
+        when(queueStore.oldest(MatchMode.RANK, 2)).thenReturn(entries);
+        when(queueStore.countdownDeadline(MatchMode.RANK)).thenReturn(Optional.of(NOW.plusSeconds(20)));
+        worker.find();
+        verify(queueStore, never()).reserve(any(), anyList(), any());
+    }
+
     private void lock(int minPlayers, int maxPlayers) {
         when(game.matchSettings(MatchMode.RANK))
                 .thenReturn(new GameMatchSettingsResponse(MatchMode.RANK, minPlayers, maxPlayers));
+        when(queueStore.countdownDeadline(MatchMode.RANK)).thenReturn(Optional.of(NOW));
         when(queueStore.acquireFinderLock(MatchMode.RANK)).thenReturn(Optional.of("lock"));
     }
 

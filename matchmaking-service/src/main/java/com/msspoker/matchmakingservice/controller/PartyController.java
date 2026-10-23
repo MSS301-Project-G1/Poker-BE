@@ -1,7 +1,6 @@
 package com.msspoker.matchmakingservice.controller;
 
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
-import com.msspoker.matchmakingservice.dto.request.PartyInviteRequest;
 import com.msspoker.matchmakingservice.dto.request.PartyJoinRequest;
 import com.msspoker.matchmakingservice.dto.request.PartyKickRequest;
 import com.msspoker.matchmakingservice.dto.response.PartyResponse;
@@ -45,7 +44,7 @@ public class PartyController {
     /** Tạo nhóm và đặt người gọi làm chủ party. */
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(operationId = "createParty", summary = "Create party", description = "Tạo party và mã mời; người gọi trở thành chủ party.")
+    @Operation(operationId = "createParty", summary = "Create party", description = "Tạo party kèm mã và mật khẩu; người gọi trở thành chủ party.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Đã tạo party"),
             @ApiResponse(responseCode = "409", description = "Người chơi đã thuộc một party")
@@ -55,29 +54,19 @@ public class PartyController {
         return party.create(accountId);
     }
 
-    /** Lấy người được mời từ body rồi giao service kiểm tra và ghi nhận lời mời. */
-    @PostMapping("/invite")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(operationId = "invitePartyMember", summary = "Invite party member")
-    public void invite(@Parameter(name = MatchmakingConstants.USER_ID_HEADER, required = true, in = ParameterIn.HEADER)
-                       @RequestHeader(MatchmakingConstants.USER_ID_HEADER) UUID accountId,
-                       @Valid @RequestBody PartyInviteRequest request) {
-        party.invite(accountId, request.inviteeId());
-    }
-
-    /** Dùng mã party để yêu cầu vào nhóm đã được mời. */
+    /** Dùng mã và mật khẩu party do thành viên chia sẻ để vào nhóm. */
     @PostMapping("/join")
-    @Operation(operationId = "joinParty", summary = "Join party", description = "Vào party bằng mã sau khi được chủ party mời.")
+    @Operation(operationId = "joinParty", summary = "Join party", description = "Vào party bằng mã và mật khẩu party.")
     public PartyResponse join(@Parameter(name = MatchmakingConstants.USER_ID_HEADER, required = true, in = ParameterIn.HEADER)
                               @RequestHeader(MatchmakingConstants.USER_ID_HEADER) UUID accountId,
                               @Valid @RequestBody PartyJoinRequest request) {
-        return party.join(accountId, request.partyCode());
+        return party.join(accountId, request.partyCode(), request.password());
     }
 
     /** accountId trong header là người thao tác; accountId trong body là người bị mời ra. */
     @PostMapping("/kick")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(operationId = "kickPartyMember", summary = "Kick party member", description = "Chỉ chủ party được xóa thành viên.")
+    @Operation(operationId = "kickPartyMember", summary = "Kick party member", description = "Chỉ chủ party được xóa thành viên; mật khẩu party được đổi mới sau khi kick.")
     public void kick(@Parameter(name = MatchmakingConstants.USER_ID_HEADER, required = true, in = ParameterIn.HEADER)
                      @RequestHeader(MatchmakingConstants.USER_ID_HEADER) UUID accountId,
                      @Valid @RequestBody PartyKickRequest request) {

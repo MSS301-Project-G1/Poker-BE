@@ -190,6 +190,85 @@ class PokerTableTest {
         assertTrue(hands >= 3000, "Played " + hands + " hands");
     }
 
+    @Test
+    void leavingOnYourTurnHeadsUpEndsTheMatchWithTheOpponentFirst() {
+        PokerTable table = table(2, 11);
+        Seat leaver = table.getSeats().get(table.getActorSeat());
+        Seat stayer = table.getSeats().stream().filter(s -> s != leaver).findFirst().orElseThrow();
+        table.leave(leaver.getAccountId());
+        assertEquals(Street.FINISHED, table.getStreet());
+        assertTrue(leaver.isLeftEarly());
+        assertEquals(1, stayer.getPlace());
+        assertEquals(2, leaver.getPlace());
+        table.assertConserved();
+    }
+
+    @Test
+    void leavingOutOfTurnFoldsWithoutTakingTheActorsTurnAndTheRestPlayOn() {
+        PokerTable table = table(3, 12);
+        int actor = table.getActorSeat();
+        long sequence = table.getSequence();
+        Seat leaver = table.getSeats().stream().filter(s -> s.getSeatIndex() != actor).findFirst().orElseThrow();
+        table.leave(leaver.getAccountId());
+        assertTrue(leaver.isFolded());
+        assertTrue(leaver.isLeftEarly());
+        assertEquals(actor, table.getActorSeat());
+        assertEquals(sequence, table.getSequence());
+        assertEquals(Street.PREFLOP, table.getStreet());
+        table.assertConserved();
+    }
+
+    @Test
+    void lastPlayerWhoStaysWinsAndLeaversArePlacedByChips() {
+        PokerTable table = table(3, 13);
+        while (table.getStreet() != Street.HAND_FINISHED && table.getStreet() != Street.FINISHED) {
+            Seat actor = table.getSeats().get(table.getActorSeat());
+            act(table, actor.getStreetBet() >= table.getCurrentBet() ? ActionType.CHECK : ActionType.CALL);
+        }
+        if (table.getStreet() == Street.FINISHED) return;
+        List<Seat> seats = table.getSeats();
+        table.leave(seats.get(0).getAccountId());
+        assertEquals(Street.HAND_FINISHED, table.getStreet());
+        table.leave(seats.get(1).getAccountId());
+        assertEquals(Street.FINISHED, table.getStreet());
+        assertEquals(1, seats.get(2).getPlace());
+        Seat richer = seats.get(0).getChips() >= seats.get(1).getChips() ? seats.get(0) : seats.get(1);
+        assertEquals(2, richer.getPlace());
+        table.assertConserved();
+    }
+
+    @Test
+    void leavingTwiceOrAfterTheMatchChangesNothing() {
+        PokerTable table = table(3, 14);
+        Seat leaver = table.getSeats().stream().filter(s -> s.getSeatIndex() != table.getActorSeat()).findFirst().orElseThrow();
+        table.leave(leaver.getAccountId());
+        long sequence = table.getSequence();
+        table.leave(leaver.getAccountId());
+        assertEquals(sequence, table.getSequence());
+        PokerTable finished = table(2, 15);
+        finished.leave(finished.getSeats().getFirst().getAccountId());
+        int place = finished.getSeats().get(1).getPlace();
+        finished.leave(finished.getSeats().get(1).getAccountId());
+        assertEquals(place, finished.getSeats().get(1).getPlace());
+        assertFalse(finished.getSeats().get(1).isLeftEarly());
+    }
+
+    @Test
+    void headsUpAfkPlayerEndsTheMatchInsteadOfBleedingBlinds() {
+        PokerTable table = table(2, 16);
+        Seat afk = table.getSeats().get(table.getActorSeat());
+        table.timeout(table.getSequence(), 1);
+        while (table.getStreet() != Street.HAND_FINISHED && table.getStreet() != Street.FINISHED) {
+            Seat actor = table.getSeats().get(table.getActorSeat());
+            if (actor == afk) table.timeout(table.getSequence(), 1);
+            else act(table, actor.getStreetBet() >= table.getCurrentBet() ? ActionType.CHECK : ActionType.CALL);
+        }
+        if (table.getStreet() == Street.HAND_FINISHED) table.startHand();
+        assertEquals(Street.FINISHED, table.getStreet());
+        assertNotEquals(1, afk.getPlace());
+        table.assertConserved();
+    }
+
     private static PokerTable table(int players, long seed) {
         List<UUID> ids = IntStream.range(0, players).mapToObj(i -> UUID.randomUUID()).toList();
         return new PokerTable(UUID.randomUUID(), UUID.randomUUID(), ids, RULES,

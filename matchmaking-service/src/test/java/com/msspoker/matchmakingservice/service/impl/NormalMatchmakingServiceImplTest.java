@@ -59,6 +59,24 @@ class NormalMatchmakingServiceImplTest {
     }
 
     @Test
+    void statusRosterTracksPlayersJoiningAndLeaving() {
+        UUID self = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        UUID third = UUID.randomUUID();
+        QueueEntry entry = new QueueEntry(self, MatchMode.NORMAL, NOW);
+        QueueEntry other = new QueueEntry(second, MatchMode.NORMAL, NOW);
+        QueueEntry newcomer = new QueueEntry(third, MatchMode.NORMAL, NOW);
+        when(queueStore.find(self)).thenReturn(Optional.of(entry));
+        when(queueStore.size(MatchMode.NORMAL)).thenReturn(2L, 3L, 2L);
+        when(queueStore.oldest(MatchMode.NORMAL, 6)).thenReturn(
+                List.of(entry, other), List.of(entry, other, newcomer), List.of(entry, newcomer));
+
+        assertThat(service.status(self).playerIds()).containsExactly(self, second);
+        assertThat(service.status(self).playerIds()).containsExactly(self, second, third);
+        assertThat(service.status(self).playerIds()).containsExactly(self, third);
+    }
+
+    @Test
     void joinsNormalQueueWithServerTime() {
         UUID accountId = UUID.randomUUID();
         when(queueStore.find(accountId)).thenReturn(Optional.empty());
@@ -114,7 +132,7 @@ class NormalMatchmakingServiceImplTest {
         UUID member = UUID.randomUUID();
         UUID partyId = UUID.randomUUID();
         PartySnapshot party = new PartySnapshot(
-                partyId, "AB12CD34", leader, List.of(leader, member), NOW.minusSeconds(60)
+                partyId, "AB12CD34", "123456", leader, List.of(leader, member), NOW.minusSeconds(60)
         );
         when(partyStore.findByAccountId(leader)).thenReturn(Optional.of(party));
         when(queueStore.enqueueParty(anyList())).thenReturn(true);
@@ -137,7 +155,7 @@ class NormalMatchmakingServiceImplTest {
         UUID leader = UUID.randomUUID();
         UUID member = UUID.randomUUID();
         when(partyStore.findByAccountId(member)).thenReturn(Optional.of(new PartySnapshot(
-                UUID.randomUUID(), "AB12CD34", leader, List.of(leader, member), NOW
+                UUID.randomUUID(), "AB12CD34", "123456", leader, List.of(leader, member), NOW
         )));
 
         assertThatThrownBy(() -> service.join(member))
@@ -156,7 +174,7 @@ class NormalMatchmakingServiceImplTest {
         QueueEntry leaderEntry = new QueueEntry(leader, MatchMode.NORMAL, NOW, partyId);
         QueueEntry memberEntry = new QueueEntry(member, MatchMode.NORMAL, NOW, partyId);
         when(partyStore.findByAccountId(leader)).thenReturn(Optional.of(new PartySnapshot(
-                partyId, "AB12CD34", leader, List.of(leader, member), NOW
+                partyId, "AB12CD34", "123456", leader, List.of(leader, member), NOW
         )));
         when(queueStore.find(leader)).thenReturn(Optional.of(leaderEntry));
         when(queueStore.find(member)).thenReturn(Optional.of(memberEntry));

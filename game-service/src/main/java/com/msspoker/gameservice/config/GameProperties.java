@@ -18,6 +18,8 @@ public class GameProperties {
     private int maxPlayers = 6;
     private int tournamentMaxPlayers = 8;
     private long handPauseMillis = 4000;
+    /** Longer pause after a showdown so clients can reveal the cards and pay the pot before the next deal. */
+    private long showdownPauseMillis = 7000;
     private int afkTurns = 3;
     private long tableRetentionSeconds = 300;
     private String[] allowedOrigins = {"http://localhost:5173"};

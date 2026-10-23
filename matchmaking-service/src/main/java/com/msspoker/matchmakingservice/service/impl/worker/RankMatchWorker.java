@@ -79,7 +79,7 @@ public class RankMatchWorker {
             }
 
             Instant now = clock.instant();
-            if (entries.size() < settings.maxPlayers()) {
+            {
                 Optional<Instant> deadline = queueStore.countdownDeadline(MatchMode.RANK);
                 if (deadline.isEmpty()) {
                     queueStore.startCountdown(MatchMode.RANK, now.plus(properties.getRank().getFillTimeout()));
