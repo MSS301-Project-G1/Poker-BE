@@ -40,6 +40,11 @@ public class Profile {
     @Column(name = "account_id", nullable = false, updatable = false)
     private UUID accountId;
 
+    @org.hibernate.annotations.Generated(event = org.hibernate.generator.EventType.INSERT)
+    @Column(name = "player_code", nullable = false, unique = true, length = 24,
+            insertable = false, updatable = false)
+    private String playerCode;
+
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = false)
     @MapsId
     @JoinColumn(name = "account_id", nullable = false)

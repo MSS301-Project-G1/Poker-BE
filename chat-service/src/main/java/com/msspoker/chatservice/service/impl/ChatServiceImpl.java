@@ -113,14 +113,13 @@ public class ChatServiceImpl implements ChatService {
 
   @Transactional(readOnly = true)
   @Override
-  public PageResponse<ConversationResponse> list(UUID actor, int page, int size) {
+  public PageResponse<ConversationResponse> list(UUID actor, int page, int size, String type) {
     if (page < 0 || size < 1 || size > 100)
       throw ServiceException.invalid("Phân trang không hợp lệ.");
-    var p =
-        conversations.mine(
-            actor,
-            PageRequest.of(
-                page, size, Sort.by("createdAt").descending().and(Sort.by("id").descending())));
+    if (type != null && !Set.of("DIRECT", "MATCH").contains(type))
+      throw ServiceException.invalid("Loại hội thoại không hợp lệ.");
+    var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending().and(Sort.by("id").descending()));
+    var p = type == null ? conversations.mine(actor, pageable) : conversations.mineByType(actor, type, pageable);
     return new PageResponse<>(
         p.stream().map(this::view).toList(), page, size, p.getTotalElements(), p.getTotalPages());
   }

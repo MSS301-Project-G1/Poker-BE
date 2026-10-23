@@ -73,6 +73,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/admin/avatars").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/admin/avatars/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me",
+                                "/api/profiles/search", "/api/profiles/players/me",
                                 "/api/profiles/avatars", "/api/profiles/me/avatar/presign", "/api/checkin/calendar").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/profiles/me", "/api/profiles/me/avatar").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/profiles/me/avatar", "/api/auth/password/change", "/api/checkin").authenticated()
