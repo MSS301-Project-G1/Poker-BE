@@ -81,7 +81,7 @@ public class NormalMatchWorker {
             }
 
             Instant now = clock.instant();
-            if (entries.size() < maxPlayers) {
+            {
                 Optional<Instant> deadline = queueStore.countdownDeadline(MatchMode.NORMAL);
                 if (deadline.isEmpty()) {
                     queueStore.startCountdown(

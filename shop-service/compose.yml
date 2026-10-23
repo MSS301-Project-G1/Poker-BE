@@ -22,6 +22,8 @@ services:
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
       PAYOS_API_KEY: ${PAYOS_API_KEY:-}
       PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
+      PAYOS_RETURN_URL: ${PAYOS_RETURN_URL:-http://localhost:5173/shop/payment/success}
+      PAYOS_CANCEL_URL: ${PAYOS_CANCEL_URL:-http://localhost:5173/shop/payment/cancel}
       S3_ENDPOINT: ${S3_ENDPOINT:-http://shop-minio:9000}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-poker123456}
@@ -42,7 +44,7 @@ services:
         condition: service_healthy
 
   shop-postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: shop-postgres
     environment:
       POSTGRES_DB: shop_db

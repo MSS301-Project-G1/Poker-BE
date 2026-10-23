@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 
 @Schema(description = "Trạng thái hàng chờ hoặc kết quả tạo bàn gần nhất")
 public record QueueStatusResponse(
@@ -19,9 +20,10 @@ public record QueueStatusResponse(
         @Schema(description = "Deadline UTC để chấp nhận proposal Rank") Instant acceptDeadline,
         @Schema(description = "Proposal đang xử lý") UUID proposalId,
         @Schema(description = "Bàn do Game Service tạo khi READY") UUID tableId,
-        @Schema(description = "Match do Game Service tạo khi READY") UUID matchId
+        @Schema(description = "Match do Game Service tạo khi READY") UUID matchId,
+        @Schema(description = "UUID người đang chờ, tối đa maxPlayers; trước proposal đây là danh sách xem trước hàng chờ, chưa phải ghế đã chốt") List<UUID> playerIds
 ) {
     public static QueueStatusResponse none() {
-        return new QueueStatusResponse("NONE", null, null, null, null, null, null, null, null, null, null, null);
+        return new QueueStatusResponse("NONE", null, null, null, null, null, null, null, null, null, null, null, List.of());
     }
 }

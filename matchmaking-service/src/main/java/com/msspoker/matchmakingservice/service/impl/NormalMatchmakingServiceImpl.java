@@ -168,16 +168,18 @@ public class NormalMatchmakingServiceImpl implements NormalMatchmakingService {
 
     @Override
     public QueueStatusResponse status(UUID accountId) {
+        var pending = players.findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusInAndProposal_IsDeletedFalseOrderByCreatedAtDesc(accountId, List.of(ProposalStatus.WAITING_ACCEPTANCE));
+        if (pending.isPresent() && pending.get().getProposal().getMode() == MatchMode.NORMAL) return statusMapper.rankProposal(pending.get());
         Optional<MatchProposalPlayerEntity> activeProposal =
                 players.findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
                         accountId,
                         ProposalStatus.CREATING_TABLE
                 );
-        if (activeProposal.isPresent()) {
+        if (activeProposal.isPresent() && activeProposal.get().getProposal().getMode() == MatchMode.NORMAL) {
             return statusMapper.proposal(activeProposal.get());
         }
 
-        Optional<InGameSession> inGame = queueStore.inGame(accountId);
+        Optional<InGameSession> inGame = queueStore.inGame(accountId).filter(session -> session.mode() == MatchMode.NORMAL);
         if (inGame.isPresent()) {
             InGameSession session = inGame.get();
             Optional<TableCreatedResponse> activeTable = game.activeTable(accountId);
@@ -189,7 +191,7 @@ public class NormalMatchmakingServiceImpl implements NormalMatchmakingService {
             queueStore.clearInGame(accountId);
         }
 
-        Optional<QueueEntry> current = queueStore.find(accountId);
+        Optional<QueueEntry> current = queueStore.find(accountId).filter(entry -> entry.mode() == MatchMode.NORMAL);
         if (current.isPresent()) {
             QueueEntry entry = current.get();
             Optional<UUID> reservation = queueStore.reservation(accountId);
@@ -241,7 +243,8 @@ public class NormalMatchmakingServiceImpl implements NormalMatchmakingService {
                 queueStore.size(entry.mode()),
                 settings.minPlayers(),
                 settings.maxPlayers(),
-                deadline.orElse(null)
+                deadline.orElse(null),
+                queueStore.oldest(entry.mode(), settings.maxPlayers()).stream().map(QueueEntry::accountId).toList()
         );
     }
 }

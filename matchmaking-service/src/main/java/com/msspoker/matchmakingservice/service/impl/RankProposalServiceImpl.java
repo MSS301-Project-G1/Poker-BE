@@ -44,7 +44,7 @@ public class RankProposalServiceImpl implements RankProposalService {
             throw new MatchmakingApiException(
                     MatchmakingError.MM_PROPOSAL_EXPIRED,
                     HttpStatus.CONFLICT,
-                    "Proposal đã hết 10 giây chấp nhận."
+                    "Đã hết thời gian chấp nhận trận."
             );
         }
         if (result.startMatch()) {

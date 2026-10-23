@@ -20,19 +20,21 @@ import java.util.UUID;
 public class ProposalPersistenceServiceImpl implements ProposalPersistenceService {
     private final MatchProposalRepository proposals;
     private final Clock clock;
+    private final com.msspoker.matchmakingservice.config.MatchmakingProperties properties;
 
-    public ProposalPersistenceServiceImpl(MatchProposalRepository proposals, Clock clock) {
+    public ProposalPersistenceServiceImpl(MatchProposalRepository proposals, Clock clock, com.msspoker.matchmakingservice.config.MatchmakingProperties properties) {
         this.proposals = proposals;
         this.clock = clock;
+        this.properties = properties;
     }
 
     @Override
     @Transactional
     public void createNormal(UUID proposalId, List<QueueEntry> entries) {
         Instant now = clock.instant();
-        MatchProposalEntity proposal = MatchProposalEntity.normal(proposalId, now);
+        MatchProposalEntity proposal = MatchProposalEntity.normalPending(proposalId, now, now.plus(properties.getNormal().getAcceptTimeout()));
         entries.forEach(entry -> proposal.addPlayer(
-                MatchProposalPlayerEntity.reserved(entry.accountId(), entry.joinedAt(), now)
+                MatchProposalPlayerEntity.normalPending(entry.accountId(), entry.joinedAt(), now)
         ));
         proposals.save(proposal);
     }

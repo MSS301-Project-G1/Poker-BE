@@ -41,6 +41,12 @@ public class MatchProposalPlayerEntity {
         return player;
     }
 
+    public static MatchProposalPlayerEntity normalPending(UUID accountId, Instant joinedAt, Instant now) {
+        MatchProposalPlayerEntity player = reserved(accountId, joinedAt, now);
+        player.status = ProposalPlayerStatus.PENDING;
+        return player;
+    }
+
     public static MatchProposalPlayerEntity rankPending(
             UUID accountId,
             int elo,

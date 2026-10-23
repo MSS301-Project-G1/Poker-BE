@@ -59,6 +59,24 @@ class NormalMatchmakingServiceImplTest {
     }
 
     @Test
+    void statusRosterTracksPlayersJoiningAndLeaving() {
+        UUID self = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        UUID third = UUID.randomUUID();
+        QueueEntry entry = new QueueEntry(self, MatchMode.NORMAL, NOW);
+        QueueEntry other = new QueueEntry(second, MatchMode.NORMAL, NOW);
+        QueueEntry newcomer = new QueueEntry(third, MatchMode.NORMAL, NOW);
+        when(queueStore.find(self)).thenReturn(Optional.of(entry));
+        when(queueStore.size(MatchMode.NORMAL)).thenReturn(2L, 3L, 2L);
+        when(queueStore.oldest(MatchMode.NORMAL, 6)).thenReturn(
+                List.of(entry, other), List.of(entry, other, newcomer), List.of(entry, newcomer));
+
+        assertThat(service.status(self).playerIds()).containsExactly(self, second);
+        assertThat(service.status(self).playerIds()).containsExactly(self, second, third);
+        assertThat(service.status(self).playerIds()).containsExactly(self, third);
+    }
+
+    @Test
     void joinsNormalQueueWithServerTime() {
         UUID accountId = UUID.randomUUID();
         when(queueStore.find(accountId)).thenReturn(Optional.empty());
