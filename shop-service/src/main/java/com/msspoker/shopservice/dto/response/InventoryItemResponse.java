@@ -15,8 +15,12 @@ public record InventoryItemResponse(
         String categoryCode,
         String categoryName,
         String assetUrl,
+        String previewUrl,
+        String previewVideoUrl,
+        String metadata,
         ProductTier tier,
         ItemSource source,
         boolean isEquipped,
         Instant acquiredAt
 ) {}
+
