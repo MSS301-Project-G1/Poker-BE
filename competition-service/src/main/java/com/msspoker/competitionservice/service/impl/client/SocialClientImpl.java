@@ -5,6 +5,7 @@ import com.msspoker.competitionservice.exception.CompetitionExceptions;
 import com.msspoker.competitionservice.service.client.SocialClient;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -20,13 +21,14 @@ public class SocialClientImpl implements SocialClient {
     private final RestClient social;
     private final boolean mock;
 
-    public SocialClientImpl(@Value("${competition.social-url:http://localhost:8084}") String url,
+    public SocialClientImpl(@LoadBalanced RestClient.Builder restClients,
+            @Value("${competition.social-url:http://social-service}") String url,
             @Value("${competition.social-timeout-millis:3000}") long timeoutMillis,
             @Value("${competition.social.mock:false}") boolean mock) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
-        social = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        social = restClients.clone().baseUrl(url).requestFactory(factory).build();
         this.mock = mock;
     }
 
@@ -38,7 +40,8 @@ public class SocialClientImpl implements SocialClient {
                     .retrieve().body(FriendshipResponse.class);
             if (response == null) throw CompetitionExceptions.socialUnavailable();
             return response;
-        } catch (RestClientException ex) {
+        } catch (RestClientException | IllegalStateException ex) {
+            // IllegalStateException: no registered instance of the service.
             throw CompetitionExceptions.socialUnavailable();
         }
     }

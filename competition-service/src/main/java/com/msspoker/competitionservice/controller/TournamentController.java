@@ -21,9 +21,10 @@ public class TournamentController {
     private final TournamentService tournaments;
 
     @GetMapping
-    public PageResponse<TournamentSummaryResponse> list(@RequestParam(defaultValue = "0") @Min(0) int page,
+    public PageResponse<TournamentSummaryResponse> list(@RequestParam(defaultValue = "false") boolean past,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(CompetitionConstants.MAX_PAGE_SIZE) int size) {
-        return tournaments.list(page, size);
+        return tournaments.list(past, page, size);
     }
 
     @GetMapping("/{tournamentId}")

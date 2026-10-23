@@ -9,6 +9,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
@@ -83,6 +84,6 @@ class WalletClientImplTest {
     }
 
     private WalletClient client() {
-        return new WalletClientImpl("http://127.0.0.1:" + server.getAddress().getPort(), 2000, false);
+        return new WalletClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000, false);
     }
 }
