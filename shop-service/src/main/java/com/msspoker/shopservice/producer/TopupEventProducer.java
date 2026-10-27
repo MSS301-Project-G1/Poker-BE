@@ -1,7 +1,7 @@
 package com.msspoker.shopservice.producer;
 
 import com.msspoker.shopservice.config.RabbitMQConfig;
-import com.msspoker.shopservice.event.VipCoinTopupSuccessEvent;
+import com.msspoker.shopservice.dto.event.VipCoinTopupSuccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;

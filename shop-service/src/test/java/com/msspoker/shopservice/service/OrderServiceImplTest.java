@@ -11,7 +11,7 @@ import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.OrderStatus;
 import com.msspoker.shopservice.enums.ProductTier;
-import com.msspoker.shopservice.event.VipCoinTopupSuccessEvent;
+import com.msspoker.shopservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.OrderMapper;
 import com.msspoker.shopservice.producer.TopupEventProducer;
@@ -36,6 +36,7 @@ import vn.payos.PayOS;
 import vn.payos.exception.InvalidSignatureException;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
 import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
@@ -111,8 +112,8 @@ class OrderServiceImplTest {
 
         Category category = Category.builder()
                 .id(UUID.randomUUID())
-                .code("CARD_BACK")
-                .name("Card Backs")
+                .code("CARD_SKIN")
+                .name("Skin bộ bài")
                 .build();
 
         product = Product.builder()
@@ -533,16 +534,20 @@ class OrderServiceImplTest {
                 .expiresAt(Instant.now().plusSeconds(600))
                 .build();
 
-        when(orderRepository.findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
-                accountId, bundleId, OrderStatus.PENDING))
+        when(orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(accountId), eq(OrderStatus.PENDING), any(Instant.class)))
                 .thenReturn(Optional.of(existingBundleOrder));
+        when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
+        PaymentLink mockLink = mock(PaymentLink.class);
+        when(mockLink.getStatus()).thenReturn(PaymentLinkStatus.PENDING);
+        when(paymentRequestsService.get(200055L)).thenReturn(mockLink);
 
         OrderResponse response = orderService.createBundleOrder(accountId, bundleId);
 
         assertThat(response).isNotNull();
         assertThat(response.id()).isEqualTo(existingBundleOrder.getId());
         assertThat(response.payosOrderCode()).isEqualTo(200055L);
-        verify(payOS, never()).paymentRequests();
+        verify(paymentRequestsService, never()).create(any(CreatePaymentLinkRequest.class));
     }
 
     @Test

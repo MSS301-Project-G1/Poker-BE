@@ -4,7 +4,7 @@ import com.msspoker.walletservice.dto.request.CreditRequest;
 import com.msspoker.walletservice.dto.response.TransactionResponse;
 import com.msspoker.walletservice.enums.CurrencyType;
 import com.msspoker.walletservice.enums.TransactionReason;
-import com.msspoker.walletservice.event.VipCoinTopupSuccessEvent;
+import com.msspoker.walletservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.walletservice.service.WalletService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

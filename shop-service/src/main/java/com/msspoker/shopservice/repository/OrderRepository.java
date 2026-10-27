@@ -20,17 +20,11 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     @Query(value = "SELECT nextval('orders_payos_order_code_seq')", nativeQuery = true)
     Long generatePayosOrderCode();
 
-    Optional<Order> findByPayosOrderCode(long payosOrderCode);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.payosOrderCode = :payosOrderCode")
     Optional<Order> findByPayosOrderCodeForUpdate(@Param("payosOrderCode") long payosOrderCode);
 
-    boolean existsByAccountIdAndProductIdAndStatusAndExpiresAtAfter(
-            UUID accountId, UUID productId, OrderStatus status, Instant now);
-
-    Optional<Order> findByAccountIdAndProductIdAndStatusAndExpiresAtAfter(
-            UUID accountId, UUID productId, OrderStatus status, Instant now);
 
     Optional<Order> findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
             UUID accountId, UUID productId, OrderStatus status);
@@ -43,7 +37,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     List<Order> findByAccountIdOrderByCreatedAtDesc(UUID accountId);
 
-    List<Order> findByStatusAndExpiresAtBefore(OrderStatus status, Instant now);
 
     List<Order> findByStatus(OrderStatus status);
 }

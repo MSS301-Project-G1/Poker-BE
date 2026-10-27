@@ -32,7 +32,7 @@ services:
         condition: service_healthy
 
   wallet-postgres:
-    image: postgres:17-alpine
+    image: postgres:16-alpine
     container_name: wallet-postgres
     environment:
       POSTGRES_DB: wallet_db
