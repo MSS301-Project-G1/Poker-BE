@@ -163,6 +163,11 @@ public class MinioStorageServiceImpl implements S3StorageService {
         if (lower.endsWith(".webp")) return "image/webp";
         if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
         if (lower.endsWith(".json")) return "application/json";
+        if (lower.endsWith(".zip")) return "application/zip";
+        if (lower.endsWith(".mp3")) return "audio/mpeg";
+        if (lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".wav")) return "audio/wav";
+        if (lower.endsWith(".py")) return "text/x-python";
         return fallback != null ? fallback : "application/octet-stream";
     }
 }
