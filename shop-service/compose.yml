@@ -31,6 +31,7 @@ services:
       EUREKA_CLIENT_ENABLED: ${EUREKA_CLIENT_ENABLED:-true}
       EUREKA_SERVICE_URL: ${EUREKA_SERVICE_URL:-http://discovery-service:8761/eureka/}
       EUREKA_INSTANCE_HOSTNAME: shop-service
+      ASSET_SANDBOX_URL: ${ASSET_SANDBOX_URL:-http://asset-sandbox:8095}
     networks:
       - default
       - shop-net
@@ -98,6 +99,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  asset-sandbox:
+    build:
+      context: ./scripts/asset_generator
+    container_name: asset-sandbox
+    ports:
+      - "8095:8095"
+    networks:
+      - default
+      - shop-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 networks:
   shop-net:
