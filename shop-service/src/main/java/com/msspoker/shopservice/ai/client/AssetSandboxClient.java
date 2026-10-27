@@ -43,7 +43,8 @@ public class AssetSandboxClient {
             byte[] zipBytes,
             byte[] previewBytes,
             String manifestJson,
-            int fileCount
+            int fileCount,
+            Map<String, byte[]> posesPreviewBytes
     ) {}
 
     public RenderResult render(String category, String styleSpecJson, byte[] refImageBytes, Map<String, byte[]> posesMap) {
@@ -88,12 +89,23 @@ public class AssetSandboxClient {
                     byte[] prevBytes = Base64.getDecoder().decode(prevB64);
                     int fileCount = manifestNode.path("file_count").asInt(1);
 
+                    Map<String, byte[]> posesPreview = new java.util.HashMap<>();
+                    JsonNode posesNode = resJson.path("poses_preview_base64");
+                    if (posesNode.isObject()) {
+                        posesNode.fields().forEachRemaining(entry -> {
+                            if (!entry.getValue().asText().isBlank()) {
+                                posesPreview.put(entry.getKey(), Base64.getDecoder().decode(entry.getValue().asText()));
+                            }
+                        });
+                    }
+
                     return RenderResult.builder()
                             .success(true)
                             .zipBytes(zipBytes)
                             .previewBytes(prevBytes)
                             .manifestJson(objectMapper.writeValueAsString(manifestNode))
                             .fileCount(fileCount)
+                            .posesPreviewBytes(posesPreview)
                             .build();
                 }
             }

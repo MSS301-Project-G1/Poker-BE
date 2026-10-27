@@ -13,9 +13,14 @@ public interface AssetGeneratorMapper {
     @Mapping(target = "batchId", source = "id")
     @Mapping(target = "modelName", expression = "java(batch.getModelConfig() != null ? batch.getModelConfig().getModelName() : \"DEFAULT\")")
     @Mapping(target = "fileCount", constant = "0")
+    @Mapping(target = "poseUrls", ignore = true)
     AssetGenerationBatchResponse toResponse(AssetGenerationBatch batch);
 
     default AssetGenerationBatchResponse toResponse(AssetGenerationBatch batch, int fileCount) {
+        return toResponse(batch, fileCount, null);
+    }
+
+    default AssetGenerationBatchResponse toResponse(AssetGenerationBatch batch, int fileCount, java.util.Map<String, String> poseUrls) {
         if (batch == null) {
             return null;
         }
@@ -29,6 +34,7 @@ public interface AssetGeneratorMapper {
                 .styleSpec(batch.getStyleSpec())
                 .status(batch.getStatus())
                 .fileCount(fileCount)
+                .poseUrls(poseUrls)
                 .createdAt(batch.getCreatedAt())
                 .expiresAt(batch.getExpiresAt())
                 .build();

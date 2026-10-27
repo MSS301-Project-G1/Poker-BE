@@ -112,6 +112,8 @@ services:
     networks:
       - default
       - shop-net
+    volumes:
+      - ./scripts/asset_generator:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8095/health"]
       interval: 10s

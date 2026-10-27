@@ -16,6 +16,7 @@ public record AssetGenerationBatchResponse(
         String styleSpec,
         String status,
         int fileCount,
+        java.util.Map<String, String> poseUrls,
         Instant createdAt,
         Instant expiresAt
 ) {}

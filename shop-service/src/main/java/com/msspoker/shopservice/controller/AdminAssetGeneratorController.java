@@ -81,12 +81,13 @@ public class AdminAssetGeneratorController {
             @RequestBody(required = false) ApplyBatchRequest request
     ) {
         UUID targetProductId = request != null ? request.targetProductId() : null;
+        UUID categoryId = request != null ? request.categoryId() : null;
         String productName = request != null ? request.productName() : null;
         Long priceVipCoin = request != null ? request.priceVipCoin() : null;
         Long priceVnd = request != null ? request.priceVnd() : null;
 
         ProductResponse response = generatorService.applyBatchToProduct(
-                batchId, targetProductId, productName, priceVipCoin, priceVnd
+                batchId, targetProductId, categoryId, productName, priceVipCoin, priceVnd
         );
 
         return ResponseEntity.ok(ApiResponse.success("Đã áp dụng gói tài nguyên thành công vào Shop", response));
@@ -138,6 +139,7 @@ public class AdminAssetGeneratorController {
     @Builder
     public record ApplyBatchRequest(
             UUID targetProductId,
+            UUID categoryId,
             String productName,
             Long priceVipCoin,
             Long priceVnd

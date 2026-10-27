@@ -37,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -120,6 +121,18 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
         String s3ZipUrl = storageService.uploadFile(zipKey, renderResult.zipBytes(), "application/zip");
         String s3PreviewUrl = storageService.uploadFile(previewKey, renderResult.previewBytes(), "image/png");
 
+        Map<String, String> poseUrls = new HashMap<>();
+        if (renderResult.posesPreviewBytes() != null && !renderResult.posesPreviewBytes().isEmpty()) {
+            for (Map.Entry<String, byte[]> entry : renderResult.posesPreviewBytes().entrySet()) {
+                if (entry.getValue() != null && entry.getValue().length > 0) {
+                    String poseKey = "generated/" + batchId + "/poses/" + entry.getKey() + ".png";
+                    String pUrl = storageService.uploadFile(poseKey, entry.getValue(), "image/png");
+                    poseUrls.put(entry.getKey(), pUrl);
+                }
+            }
+        }
+        poseUrls.put("avatar", s3PreviewUrl);
+
         // 7. Save Batch Record
         AssetGenerationBatch batch = AssetGenerationBatch.builder()
                 .id(batchId)
@@ -137,7 +150,7 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
 
         AssetGenerationBatch saved = batchRepository.save(batch);
 
-        return generatorMapper.toResponse(saved, renderResult.fileCount());
+        return generatorMapper.toResponse(saved, renderResult.fileCount(), poseUrls);
     }
 
     @Override
@@ -161,12 +174,24 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
         String s3ZipUrl = storageService.uploadFile(zipKey, renderResult.zipBytes(), "application/zip");
         String s3PreviewUrl = storageService.uploadFile(previewKey, renderResult.previewBytes(), "image/png");
 
+        Map<String, String> poseUrls = new HashMap<>();
+        if (renderResult.posesPreviewBytes() != null && !renderResult.posesPreviewBytes().isEmpty()) {
+            for (Map.Entry<String, byte[]> entry : renderResult.posesPreviewBytes().entrySet()) {
+                if (entry.getValue() != null && entry.getValue().length > 0) {
+                    String poseKey = "generated/" + batchId + "/poses/" + entry.getKey() + ".png";
+                    String pUrl = storageService.uploadFile(poseKey, entry.getValue(), "image/png");
+                    poseUrls.put(entry.getKey(), pUrl);
+                }
+            }
+        }
+        poseUrls.put("avatar", s3PreviewUrl);
+
         batch.setStyleSpec(refinedSpec);
         batch.setS3ZipUrl(s3ZipUrl);
         batch.setS3PreviewUrl(s3PreviewUrl);
         batch.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
 
-        return generatorMapper.toResponse(batchRepository.save(batch), renderResult.fileCount());
+        return generatorMapper.toResponse(batchRepository.save(batch), renderResult.fileCount(), poseUrls);
     }
 
     @Override
@@ -174,6 +199,7 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
     public ProductResponse applyBatchToProduct(
             UUID batchId,
             UUID targetProductId,
+            UUID categoryId,
             String productName,
             Long priceVipCoin,
             Long priceVnd
@@ -188,13 +214,19 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
         generatorValidator.validateForApply(batch, targetProductId, product);
 
         if (product == null) {
-            Category category = categoryRepository.findByCode(batch.getCategoryCode())
-                    .orElseGet(() -> categoryRepository.findAll().stream().findFirst()
-                            .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục cho mã: " + batch.getCategoryCode())));
+            Category category = null;
+            if (categoryId != null) {
+                category = categoryRepository.findById(categoryId).orElse(null);
+            }
+            if (category == null) {
+                category = categoryRepository.findByCode(batch.getCategoryCode())
+                        .orElseGet(() -> categoryRepository.findAll().stream().findFirst()
+                                .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục cho mã: " + batch.getCategoryCode())));
+            }
 
             String name = (productName != null && !productName.isBlank())
                     ? productName.trim()
-                    : "Vật phẩm AI: " + batch.getCategoryCode() + " #" + batch.getId().toString().substring(0, 6);
+                    : "Vật phẩm AI: " + category.getName() + " #" + batch.getId().toString().substring(0, 6);
 
             long vipPrice = (priceVipCoin != null && priceVipCoin > 0) ? priceVipCoin : 50L;
             long vndPrice = (priceVnd != null && priceVnd > 0) ? priceVnd : (vipPrice * 1000);

@@ -21,9 +21,20 @@ public interface AssetGeneratorService {
 
     AssetGenerationBatchResponse refineBatch(UUID batchId, String feedback);
 
+    default ProductResponse applyBatchToProduct(
+            UUID batchId,
+            UUID targetProductId,
+            String productName,
+            Long priceVipCoin,
+            Long priceVnd
+    ) {
+        return applyBatchToProduct(batchId, targetProductId, null, productName, priceVipCoin, priceVnd);
+    }
+
     ProductResponse applyBatchToProduct(
             UUID batchId,
             UUID targetProductId,
+            UUID categoryId,
             String productName,
             Long priceVipCoin,
             Long priceVnd

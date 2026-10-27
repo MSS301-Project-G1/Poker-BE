@@ -69,12 +69,20 @@ def render_assets():
         zip_bytes = zip_buffer.getvalue()
         preview_bytes = rendered_files.get('PREVIEW.png', next(iter(rendered_files.values())))
 
+        poses_preview = {}
+        if category == 'DEALER':
+            for k in ['idle', 'deal', 'flip', 'win']:
+                fname = f"{k}.png"
+                if fname in rendered_files:
+                    poses_preview[k] = base64.b64encode(rendered_files[fname]).decode('utf-8')
+
         return jsonify({
             'success': True,
             'category': category,
             'manifest': manifest,
             'zip_base64': base64.b64encode(zip_bytes).decode('utf-8'),
             'preview_image_base64': base64.b64encode(preview_bytes).decode('utf-8'),
+            'poses_preview_base64': poses_preview,
             'total_bytes': len(zip_bytes)
         }), 200
 
