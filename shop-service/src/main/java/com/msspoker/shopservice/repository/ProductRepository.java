@@ -22,6 +22,10 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     boolean existsByCategoryIdAndIsDeletedFalse(UUID categoryId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM Product p WHERE p.category.id = :categoryId")
+    void deleteAllByCategoryId(@Param("categoryId") UUID categoryId);
+
     @Query(value = "SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false " +
            "AND (:categoryCode IS NULL OR p.category.code = :categoryCode) " +
            "AND (:tier IS NULL OR p.tier = :tier)",
@@ -31,5 +35,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> findAvailableProducts(@Param("categoryCode") String categoryCode,
                                         @Param("tier") ProductTier tier,
                                         Pageable pageable);
+
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false " +
+           "AND p.isExclusive = false AND p.saleExpiresAt IS NOT NULL AND p.saleExpiresAt <= :now")
+    java.util.List<Product> findExpiredSaleProducts(@Param("now") java.time.Instant now);
 }
 

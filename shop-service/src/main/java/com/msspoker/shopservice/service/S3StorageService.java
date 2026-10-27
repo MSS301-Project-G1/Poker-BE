@@ -34,4 +34,12 @@ public interface S3StorageService {
      * Lấy URL công khai truy cập file từ S3.
      */
     String getPublicUrl(String objectKey);
+
+    /**
+     * Tải về nội dung byte của một tệp tin từ S3/MinIO.
+     *
+     * @param objectKey Đường dẫn định danh file trên bucket
+     * @return Mảng byte dữ liệu file
+     */
+    byte[] downloadFile(String objectKey);
 }

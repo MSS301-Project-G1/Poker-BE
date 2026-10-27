@@ -43,6 +43,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
     private final TextureAtlasGenerator textureAtlasGenerator;
     private final CardDeckValidator cardDeckValidator;
     private final ObjectMapper objectMapper;
+    private final com.msspoker.shopservice.util.MetadataJsonMerger metadataJsonMerger;
 
     @Override
     @Transactional
@@ -193,9 +194,10 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
         // 7. Cập nhật vào PostgreSQL (chỉ lưu Metadata JSONB, không lưu binary)
         try {
             String manifestJson = objectMapper.writeValueAsString(manifest);
+            String mergedMetadata = metadataJsonMerger.merge(product.getMetadata(), manifestJson);
             product.setAssetUrl(atlasTextureUrl);
             product.setPreviewUrl(previewUrl);
-            product.setMetadata(manifestJson);
+            product.setMetadata(mergedMetadata);
             productRepository.save(product);
             log.info("Saved card skin product {} metadata to PostgreSQL ({} cards)", product.getId(), cardUrlMap.size());
         } catch (JsonProcessingException e) {
@@ -203,7 +205,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
             throw CardSkinExceptions.textureAtlasGenerationError("Lỗi chuyển đổi dữ liệu cấu hình bộ bài sang JSON.");
         }
 
-        // 8. Dọn dẹp phiên bản cũ trên S3 trong background (nếu có)
+        // 8. Dọn dẹp phiên bản cũ trên S3 trong background 
         if (oldVersionPath != null && !oldVersionPath.equals(currentVersionPath)) {
             CompletableFuture.runAsync(() -> s3StorageService.deleteFolder(oldVersionPath));
         }

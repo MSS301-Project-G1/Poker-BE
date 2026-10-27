@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Builder
@@ -35,5 +36,9 @@ public record UpdateProductRequest(
         @Size(max = 500, message = "URL video review không được vượt quá 500 ký tự")
         String previewVideoUrl,
 
-        boolean isExclusive
+        boolean isExclusive,
+
+        Instant saleExpiresAt,
+
+        String metadata
 ) {}

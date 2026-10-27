@@ -12,7 +12,7 @@ import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.OrderStatus;
 import com.msspoker.shopservice.enums.PaymentProvider;
-import com.msspoker.shopservice.event.VipCoinTopupSuccessEvent;
+import com.msspoker.shopservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.shopservice.exception.OrderExceptions;
 import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.mapper.OrderMapper;

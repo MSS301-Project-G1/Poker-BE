@@ -1,4 +1,4 @@
-package com.msspoker.shopservice.event;
+package com.msspoker.shopservice.dto.event;
 
 import lombok.Builder;
 

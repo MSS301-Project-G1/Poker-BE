@@ -49,4 +49,12 @@ public final class ProductExceptions {
                 "Sản phẩm này không hỗ trợ mua bằng VIP Coin."
         );
     }
+
+    public static AppException invalidSoundFile(String reason) {
+        return AppException.of(
+                HttpStatus.BAD_REQUEST,
+                "SHOP_INVALID_SOUND_FILE",
+                reason != null ? reason : "Tệp âm thanh không hợp lệ."
+        );
+    }
 }

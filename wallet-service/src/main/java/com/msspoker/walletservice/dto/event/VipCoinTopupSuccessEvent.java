@@ -1,4 +1,4 @@
-package com.msspoker.walletservice.event;
+package com.msspoker.walletservice.dto.event;
 
 import lombok.Builder;
 
