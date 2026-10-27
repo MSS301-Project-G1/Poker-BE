@@ -81,6 +81,9 @@ public class Product {
     @Builder.Default
     private boolean isDeleted = false;
 
+    @Column(name = "sale_expires_at")
+    private Instant saleExpiresAt;
+
     @JsonProperty("exclusive")
     public void setExclusiveAlias(Boolean exclusive) {
         if (exclusive != null) {

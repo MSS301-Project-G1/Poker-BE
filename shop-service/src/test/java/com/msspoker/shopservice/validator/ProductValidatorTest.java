@@ -118,4 +118,16 @@ class ProductValidatorTest {
         assertThatThrownBy(() -> productValidator.validateForPurchase(accountId, activeProduct))
                 .isInstanceOf(AppException.class);
     }
+
+    @Test
+    @DisplayName("validateForPurchase: ném lỗi khi sản phẩm flash sale đã quá hạn")
+    void validateForPurchase_ExpiredSaleThrows() {
+        UUID accountId = UUID.randomUUID();
+        activeProduct.setExclusive(false);
+        activeProduct.setPriceVipCoin(100L);
+        activeProduct.setSaleExpiresAt(java.time.Instant.now().minusSeconds(10));
+
+        assertThatThrownBy(() -> productValidator.validateForPurchase(accountId, activeProduct))
+                .isInstanceOf(AppException.class);
+    }
 }

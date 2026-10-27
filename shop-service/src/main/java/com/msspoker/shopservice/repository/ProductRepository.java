@@ -31,5 +31,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> findAvailableProducts(@Param("categoryCode") String categoryCode,
                                         @Param("tier") ProductTier tier,
                                         Pageable pageable);
+
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false " +
+           "AND p.isExclusive = false AND p.saleExpiresAt IS NOT NULL AND p.saleExpiresAt <= :now")
+    java.util.List<Product> findExpiredSaleProducts(@Param("now") java.time.Instant now);
 }
 

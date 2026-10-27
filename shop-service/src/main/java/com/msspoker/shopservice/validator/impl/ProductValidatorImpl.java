@@ -52,7 +52,7 @@ public class ProductValidatorImpl implements ProductValidator {
     @Override
     public void validateForPurchase(UUID accountId, Product product) {
         validateExists(product != null ? product.getId() : null, product);
-        if (product.isExclusive()) {
+        if (product.isExclusive() || (product.getSaleExpiresAt() != null && !product.getSaleExpiresAt().isAfter(java.time.Instant.now()))) {
             throw ProductExceptions.productNotPurchasable();
         }
         if (product.getPriceVipCoin() <= 0) {
