@@ -1,5 +1,6 @@
 package com.msspoker.shopservice.service;
 
+import com.msspoker.shopservice.dto.request.ApplyBatchRequest;
 import com.msspoker.shopservice.dto.request.AssetPromptOptions;
 import com.msspoker.shopservice.dto.response.AssetGenerationBatchResponse;
 import com.msspoker.shopservice.dto.response.ProductResponse;
@@ -21,37 +22,7 @@ public interface AssetGeneratorService {
 
     AssetGenerationBatchResponse refineBatch(UUID batchId, String feedback);
 
-    default ProductResponse applyBatchToProduct(
-            UUID batchId,
-            UUID targetProductId,
-            String productName,
-            Long priceVipCoin,
-            Long priceVnd
-    ) {
-        return applyBatchToProduct(batchId, targetProductId, null, productName, null, null, priceVipCoin, priceVnd);
-    }
-
-    default ProductResponse applyBatchToProduct(
-            UUID batchId,
-            UUID targetProductId,
-            UUID categoryId,
-            String productName,
-            Long priceVipCoin,
-            Long priceVnd
-    ) {
-        return applyBatchToProduct(batchId, targetProductId, categoryId, productName, null, null, priceVipCoin, priceVnd);
-    }
-
-    ProductResponse applyBatchToProduct(
-            UUID batchId,
-            UUID targetProductId,
-            UUID categoryId,
-            String productName,
-            String tier,
-            String description,
-            Long priceVipCoin,
-            Long priceVnd
-    );
+    ProductResponse applyBatchToProduct(UUID batchId, ApplyBatchRequest request);
 
     void deleteBatch(UUID batchId);
 

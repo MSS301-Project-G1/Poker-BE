@@ -1,6 +1,7 @@
 package com.msspoker.shopservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msspoker.shopservice.dto.request.ApplyBatchRequest;
 import com.msspoker.shopservice.dto.request.AssetPromptOptions;
 import com.msspoker.shopservice.dto.response.ApiResponse;
 import com.msspoker.shopservice.dto.response.AssetGenerationBatchResponse;
@@ -81,18 +82,7 @@ public class AdminAssetGeneratorController {
             @PathVariable UUID batchId,
             @RequestBody(required = false) ApplyBatchRequest request
     ) {
-        UUID targetProductId = request != null ? request.targetProductId() : null;
-        UUID categoryId = request != null ? request.categoryId() : null;
-        String productName = request != null ? request.productName() : null;
-        String tier = request != null ? request.tier() : null;
-        String description = request != null ? request.description() : null;
-        Long priceVipCoin = request != null ? request.priceVipCoin() : null;
-        Long priceVnd = request != null ? request.priceVnd() : null;
-
-        ProductResponse response = generatorService.applyBatchToProduct(
-                batchId, targetProductId, categoryId, productName, tier, description, priceVipCoin, priceVnd
-        );
-
+        ProductResponse response = generatorService.applyBatchToProduct(batchId, request);
         return ResponseEntity.ok(ApiResponse.success("Đã áp dụng gói tài nguyên thành công vào Shop", response));
     }
 
@@ -163,15 +153,4 @@ public class AdminAssetGeneratorController {
             return AssetPromptOptions.builder().build();
         }
     }
-
-    @Builder
-    public record ApplyBatchRequest(
-            UUID targetProductId,
-            UUID categoryId,
-            String productName,
-            String tier,
-            String description,
-            Long priceVipCoin,
-            Long priceVnd
-    ) {}
 }

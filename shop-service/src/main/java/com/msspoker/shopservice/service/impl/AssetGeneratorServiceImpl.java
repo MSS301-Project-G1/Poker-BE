@@ -5,6 +5,7 @@ import com.msspoker.shopservice.ai.RenderScriptPromptBuilder;
 import com.msspoker.shopservice.ai.client.AssetSandboxClient;
 import com.msspoker.shopservice.ai.provider.AiModelProvider;
 import com.msspoker.shopservice.ai.provider.AiProviderRegistry;
+import com.msspoker.shopservice.dto.request.ApplyBatchRequest;
 import com.msspoker.shopservice.dto.request.AssetPromptOptions;
 import com.msspoker.shopservice.dto.request.CreateProductRequest;
 import com.msspoker.shopservice.dto.response.AssetGenerationBatchResponse;
@@ -197,16 +198,15 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
 
     @Override
     @Transactional
-    public ProductResponse applyBatchToProduct(
-            UUID batchId,
-            UUID targetProductId,
-            UUID categoryId,
-            String productName,
-            String tier,
-            String description,
-            Long priceVipCoin,
-            Long priceVnd
-    ) {
+    public ProductResponse applyBatchToProduct(UUID batchId, ApplyBatchRequest request) {
+        UUID targetProductId = request != null ? request.targetProductId() : null;
+        UUID categoryId = request != null ? request.categoryId() : null;
+        String productName = request != null ? request.productName() : null;
+        String tier = request != null ? request.tier() : null;
+        String description = request != null ? request.description() : null;
+        Long priceVipCoin = request != null ? request.priceVipCoin() : null;
+        Long priceVnd = request != null ? request.priceVnd() : null;
+
         AssetGenerationBatch batch = batchRepository.findById(batchId).orElse(null);
         generatorValidator.validateBatchExists(batchId, batch);
 
@@ -349,7 +349,33 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
 
     private List<AiPromptPreset> seedDefaultPresetsForCategory(String cat) {
         List<AiPromptPreset> seeded = new java.util.ArrayList<>();
-        if ("TABLE".equals(cat)) {
+        if ("CARD_SKIN".equals(cat)) {
+            seeded.add(savePromptPreset(AiPromptPreset.builder()
+                    .presetName("Bộ Bài Hoàng Gia Dát Vàng 24K")
+                    .categoryCode("CARD_SKIN")
+                    .description("Bộ bài tây viền dát vàng 24K sang trọng, hoa văn hoàng gia cổ điển.")
+                    .styleGuideJson("{\"theme\":\"GOLD_LUXURY\",\"border\":\"24K_GOLD\",\"finish\":\"METALLIC_GLOSS\"}")
+                    .build()));
+            seeded.add(savePromptPreset(AiPromptPreset.builder()
+                    .presetName("Bộ Bài Cyberpunk Dạ Quang")
+                    .categoryCode("CARD_SKIN")
+                    .description("Bộ bài công nghệ tương lai viền đèn neon xanh tím phát sáng trong đêm.")
+                    .styleGuideJson("{\"theme\":\"CYBERPUNK\",\"glow\":\"NEON_PURPLE_CYAN\",\"finish\":\"MATTE_BLACK\"}")
+                    .build()));
+        } else if ("COIN_SKIN".equals(cat)) {
+            seeded.add(savePromptPreset(AiPromptPreset.builder()
+                    .presetName("Chip Sứ VIP Monte Carlo")
+                    .categoryCode("COIN_SKIN")
+                    .description("Chip poker sứ cao cấp với dải vân màu sắc tinh tế chuẩn sòng bạc châu Âu.")
+                    .styleGuideJson("{\"material\":\"CLAY_COMPOSITE\",\"edge\":\"INLAY_STRIPES\",\"sound\":\"HEAVY_CHIP\"}")
+                    .build()));
+            seeded.add(savePromptPreset(AiPromptPreset.builder()
+                    .presetName("Đồng Xu Rồng Thần Hoàng Kim")
+                    .categoryCode("COIN_SKIN")
+                    .description("Đồng xu vàng rực chạm khắc hình rồng thiêng phương Đông oai phong.")
+                    .styleGuideJson("{\"material\":\"GOLD_COIN\",\"emblem\":\"DRAGON\",\"finish\":\"ANTIQUE_GOLD\"}")
+                    .build()));
+        } else if ("TABLE".equals(cat)) {
             seeded.add(savePromptPreset(AiPromptPreset.builder()
                     .presetName("Bàn Nỉ Classic Las Vegas")
                     .categoryCode("TABLE")
@@ -361,52 +387,6 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
                     .categoryCode("TABLE")
                     .description("Bàn poker phong cách tương lai viền đèn led neon dạ quang cyan và tím.")
                     .styleGuideJson("{\"felt_color\":\"#0A192F\",\"border_material\":\"CARBON_FIBER\",\"led_color\":\"#00FFCC\"}")
-                    .build()));
-        } else if ("ALL_IN_EFFECT".equals(cat)) {
-            seeded.add(savePromptPreset(AiPromptPreset.builder()
-                    .presetName("Bão Lửa Rồng Thiêng (All-In)")
-                    .categoryCode("ALL_IN_EFFECT")
-                    .description("Hiệu ứng rồng lửa bốc cháy cuồn cuộn xung quanh bàn cược khi người chơi tất tay.")
-                    .styleGuideJson("{\"element\":\"FIRE\",\"intensity\":\"MAX\",\"sound_fx\":\"DRAGON_ROAR\"}")
-                    .build()));
-            seeded.add(savePromptPreset(AiPromptPreset.builder()
-                    .presetName("Mưa Tiền Vàng Jackpot (All-In)")
-                    .categoryCode("ALL_IN_EFFECT")
-                    .description("Hiệu ứng mưa đồng tiền vàng VIP và kim cương rơi lấp lánh ngập tràn màn hình.")
-                    .styleGuideJson("{\"element\":\"GOLD_RAIN\",\"particles\":\"DIAMOND_SPARKLE\"}")
-                    .build()));
-        } else if ("SOUND".equals(cat)) {
-            seeded.add(savePromptPreset(AiPromptPreset.builder()
-                    .presetName("Âm Thanh Casino Cổ Điển")
-                    .categoryCode("SOUND")
-                    .description("Tiếng lách cách chia bài tây và va chạm chip sứ chân thực.")
-                    .styleGuideJson("{\"sound_type\":\"CASINO_REALISTIC\",\"tempo\":\"NORMAL\"}")
-                    .build()));
-            seeded.add(savePromptPreset(AiPromptPreset.builder()
-                    .presetName("Hi-Tech EDM Hồi Hộp")
-                    .categoryCode("SOUND")
-                    .description("Giai điệu điện tử dồn dập kịch tính khi pot tăng cao.")
-                    .styleGuideJson("{\"sound_type\":\"EDM_SYNTH\",\"tempo\":\"FAST\"}")
-                    .build()));
-        } else if ("FRAME".equals(cat)) {
-            seeded.add(savePromptPreset(AiPromptPreset.builder()
-                    .presetName("Khung Rồng Vàng Hoàng Gia")
-                    .categoryCode("FRAME")
-                    .description("Khung avatar rồng vàng uốn lượn phong cách đế vương mạ vàng 24K.")
-                    .styleGuideJson("{\"border\":\"GOLDEN_DRAGON\",\"aura\":\"GOLD\"}")
-                    .build()));
-            seeded.add(savePromptPreset(AiPromptPreset.builder()
-                    .presetName("Khung Băng Tuyết Cyber")
-                    .categoryCode("FRAME")
-                    .description("Khung avatar tinh thể băng lấp lánh viền ánh sáng xanh lam huyền ảo.")
-                    .styleGuideJson("{\"border\":\"ICE_CRYSTAL\",\"aura\":\"CYAN\"}")
-                    .build()));
-        } else {
-            seeded.add(savePromptPreset(AiPromptPreset.builder()
-                    .presetName("Phong Cách Quý Tộc Sang Trọng")
-                    .categoryCode(cat)
-                    .description("Thiết kế tinh xảo với các chi tiết vàng kim và hiệu ứng ánh sáng cao cấp.")
-                    .styleGuideJson("{\"theme\":\"ROYAL_LUXURY\"}")
                     .build()));
         }
         return seeded;
