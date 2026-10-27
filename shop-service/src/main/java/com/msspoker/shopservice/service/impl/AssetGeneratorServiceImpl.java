@@ -1,7 +1,5 @@
 package com.msspoker.shopservice.service.impl;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.msspoker.shopservice.ai.RenderScriptPromptBuilder;
 import com.msspoker.shopservice.ai.client.AssetSandboxClient;
@@ -17,6 +15,8 @@ import com.msspoker.shopservice.entity.AssetGenerationBatch;
 import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ProductTier;
+import com.msspoker.shopservice.exception.AssetGeneratorExceptions;
+import com.msspoker.shopservice.mapper.AssetGeneratorMapper;
 import com.msspoker.shopservice.repository.AiModelConfigRepository;
 import com.msspoker.shopservice.repository.AiPromptPresetRepository;
 import com.msspoker.shopservice.repository.AssetGenerationBatchRepository;
@@ -25,10 +25,10 @@ import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.service.AssetGeneratorService;
 import com.msspoker.shopservice.service.CardDeckSkinService;
 import com.msspoker.shopservice.service.ProductService;
-import com.msspoker.shopservice.service.ProductSoundService;
 import com.msspoker.shopservice.service.S3StorageService;
 import com.msspoker.shopservice.util.InMemoryMultipartFile;
 import com.msspoker.shopservice.util.MetadataJsonMerger;
+import com.msspoker.shopservice.validator.AssetGeneratorValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -58,10 +57,10 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
     private final ProductService productService;
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
-    private final ProductSoundService productSoundService;
     private final CardDeckSkinService cardDeckSkinService;
     private final MetadataJsonMerger metadataJsonMerger;
-    private final ObjectMapper objectMapper;
+    private final AssetGeneratorMapper generatorMapper;
+    private final AssetGeneratorValidator generatorValidator;
 
     @Override
     @Transactional
@@ -74,6 +73,8 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
     ) {
         String effectiveCategory = (categoryCode != null && !categoryCode.isBlank()) ? categoryCode.toUpperCase() : "CARD_SKIN";
         log.info("Generating assets for category='{}', requested by='{}'", effectiveCategory, createdBy);
+
+        generatorValidator.validateGenerateRequest(effectiveCategory, options, referenceImage);
 
         // 1. Resolve Prompt Preset
         AiPromptPreset preset = resolvePreset(effectiveCategory, options);
@@ -108,7 +109,7 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
         // 5. Render Package via Python Sandbox (or resilient fallback)
         AssetSandboxClient.RenderResult renderResult = sandboxClient.render(effectiveCategory, styleSpec, refBytes, posesMap);
         if (!renderResult.success() || renderResult.zipBytes() == null || renderResult.zipBytes().length == 0) {
-            throw new IllegalStateException("Quá trình kết xuất tài nguyên đồ họa thất bại. Vui lòng kiểm tra tham số!");
+            throw AssetGeneratorExceptions.renderFailed("Quá trình kết xuất tài nguyên đồ họa thất bại. Vui lòng kiểm tra tham số!");
         }
 
         // 6. Upload Generated Package & Preview to S3
@@ -136,18 +137,14 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
 
         AssetGenerationBatch saved = batchRepository.save(batch);
 
-        return toBatchResponse(saved, renderResult.fileCount());
+        return generatorMapper.toResponse(saved, renderResult.fileCount());
     }
 
     @Override
     @Transactional
     public AssetGenerationBatchResponse refineBatch(UUID batchId, String feedback) {
-        AssetGenerationBatch batch = batchRepository.findById(batchId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Batch sinh tài nguyên id=" + batchId));
-
-        if (!"GENERATED".equalsIgnoreCase(batch.getStatus())) {
-            throw new IllegalStateException("Chỉ có thể tinh chỉnh các batch chưa áp dụng (status=GENERATED)");
-        }
+        AssetGenerationBatch batch = batchRepository.findById(batchId).orElse(null);
+        generatorValidator.validateForRefine(batch, feedback);
 
         AiModelConfig modelConfig = batch.getModelConfig() != null
                 ? batch.getModelConfig()
@@ -169,7 +166,7 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
         batch.setS3PreviewUrl(s3PreviewUrl);
         batch.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
 
-        return toBatchResponse(batchRepository.save(batch), renderResult.fileCount());
+        return generatorMapper.toResponse(batchRepository.save(batch), renderResult.fileCount());
     }
 
     @Override
@@ -181,15 +178,16 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
             Long priceVipCoin,
             Long priceVnd
     ) {
-        AssetGenerationBatch batch = batchRepository.findById(batchId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Batch sinh tài nguyên id=" + batchId));
+        AssetGenerationBatch batch = batchRepository.findById(batchId).orElse(null);
+        generatorValidator.validateBatchExists(batchId, batch);
 
-        Product product;
+        Product product = null;
         if (targetProductId != null) {
-            product = productRepository.findByIdAndIsDeletedFalse(targetProductId)
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm đích id=" + targetProductId));
-        } else {
-            // Find category
+            product = productRepository.findByIdAndIsDeletedFalse(targetProductId).orElse(null);
+        }
+        generatorValidator.validateForApply(batch, targetProductId, product);
+
+        if (product == null) {
             Category category = categoryRepository.findByCode(batch.getCategoryCode())
                     .orElseGet(() -> categoryRepository.findAll().stream().findFirst()
                             .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục cho mã: " + batch.getCategoryCode())));
@@ -219,7 +217,6 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
 
         // Apply assets
         if ("CARD_SKIN".equalsIgnoreCase(batch.getCategoryCode())) {
-            // Re-render / download zip to pass into cardDeckSkinService
             AssetSandboxClient.RenderResult res = sandboxClient.render(batch.getCategoryCode(), batch.getStyleSpec(), null, null);
             InMemoryMultipartFile zipFile = new InMemoryMultipartFile(
                     "file", "deck_" + batch.getId() + ".zip", "application/zip", res.zipBytes()
@@ -245,8 +242,8 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
     @Override
     @Transactional
     public void deleteBatch(UUID batchId) {
-        AssetGenerationBatch batch = batchRepository.findById(batchId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Batch sinh tài nguyên id=" + batchId));
+        AssetGenerationBatch batch = batchRepository.findById(batchId).orElse(null);
+        generatorValidator.validateForDelete(batchId, batch);
 
         try {
             storageService.deleteFolder("generated/" + batchId + "/");
@@ -260,9 +257,7 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
 
     @Override
     public List<AssetGenerationBatchResponse> getRecentBatches() {
-        return batchRepository.findTop20ByOrderByCreatedAtDesc().stream()
-                .map(b -> toBatchResponse(b, 0))
-                .toList();
+        return generatorMapper.toResponseList(batchRepository.findTop20ByOrderByCreatedAtDesc());
     }
 
     @Override
@@ -305,21 +300,5 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
         return modelConfigRepository.findByIsDefaultTrue()
                 .or(() -> modelConfigRepository.findByIsActiveTrue().stream().findFirst())
                 .orElse(null);
-    }
-
-    private AssetGenerationBatchResponse toBatchResponse(AssetGenerationBatch batch, int fileCount) {
-        return AssetGenerationBatchResponse.builder()
-                .batchId(batch.getId())
-                .categoryCode(batch.getCategoryCode())
-                .productId(batch.getProductId())
-                .modelName(batch.getModelConfig() != null ? batch.getModelConfig().getDisplayName() : "Standard")
-                .s3ZipUrl(batch.getS3ZipUrl())
-                .s3PreviewUrl(batch.getS3PreviewUrl())
-                .styleSpec(batch.getStyleSpec())
-                .status(batch.getStatus())
-                .fileCount(fileCount)
-                .createdAt(batch.getCreatedAt())
-                .expiresAt(batch.getExpiresAt())
-                .build();
     }
 }

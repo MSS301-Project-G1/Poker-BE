@@ -12,11 +12,14 @@ import com.msspoker.shopservice.enums.AiModelCapability;
 import com.msspoker.shopservice.enums.AiProviderType;
 import com.msspoker.shopservice.repository.AiModelConfigRepository;
 import com.msspoker.shopservice.service.impl.AiModelConfigServiceImpl;
+import org.mapstruct.factory.Mappers;
+import com.msspoker.shopservice.mapper.AiModelConfigMapper;
+import com.msspoker.shopservice.validator.AiModelConfigValidator;
+import com.msspoker.shopservice.validator.impl.AiModelConfigValidatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -44,9 +47,9 @@ class AiModelConfigServiceImplTest {
     private AiModelProvider geminiProvider;
 
     @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private AiModelConfigMapper modelConfigMapper = Mappers.getMapper(AiModelConfigMapper.class);
 
-    @InjectMocks
+    private AiModelConfigValidator modelConfigValidator;
     private AiModelConfigServiceImpl service;
 
     private UUID configId;
@@ -54,6 +57,14 @@ class AiModelConfigServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        modelConfigValidator = new AiModelConfigValidatorImpl(configRepository);
+        service = new AiModelConfigServiceImpl(
+                configRepository,
+                providerRegistry,
+                modelConfigMapper,
+                modelConfigValidator
+        );
+
         configId = UUID.randomUUID();
         activeConfig = AiModelConfig.builder()
                 .id(configId)
@@ -118,7 +129,7 @@ class AiModelConfigServiceImplTest {
                 .thenReturn(Optional.of(activeConfig));
 
         assertThatThrownBy(() -> service.createConfig(req))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(com.msspoker.shopservice.exception.AppException.class)
                 .hasMessageContaining("đã tồn tại");
     }
 

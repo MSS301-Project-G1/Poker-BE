@@ -205,7 +205,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
             throw CardSkinExceptions.textureAtlasGenerationError("Lỗi chuyển đổi dữ liệu cấu hình bộ bài sang JSON.");
         }
 
-        // 8. Dọn dẹp phiên bản cũ trên S3 trong background (nếu có)
+        // 8. Dọn dẹp phiên bản cũ trên S3 trong background 
         if (oldVersionPath != null && !oldVersionPath.equals(currentVersionPath)) {
             CompletableFuture.runAsync(() -> s3StorageService.deleteFolder(oldVersionPath));
         }

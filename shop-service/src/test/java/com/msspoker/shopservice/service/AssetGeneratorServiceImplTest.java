@@ -15,8 +15,10 @@ import com.msspoker.shopservice.repository.AiPromptPresetRepository;
 import com.msspoker.shopservice.repository.AssetGenerationBatchRepository;
 import com.msspoker.shopservice.repository.CategoryRepository;
 import com.msspoker.shopservice.repository.ProductRepository;
+import com.msspoker.shopservice.mapper.AssetGeneratorMapper;
 import com.msspoker.shopservice.service.impl.AssetGeneratorServiceImpl;
 import com.msspoker.shopservice.util.MetadataJsonMerger;
+import com.msspoker.shopservice.validator.AssetGeneratorValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -79,11 +81,14 @@ class AssetGeneratorServiceImplTest {
     @Mock
     private MetadataJsonMerger metadataJsonMerger;
 
-    @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
-
     @Mock
     private AiModelProvider aiProvider;
+
+    @Spy
+    private AssetGeneratorMapper generatorMapper = org.mapstruct.factory.Mappers.getMapper(AssetGeneratorMapper.class);
+
+    @Spy
+    private AssetGeneratorValidator generatorValidator = new com.msspoker.shopservice.validator.impl.AssetGeneratorValidatorImpl();
 
     @InjectMocks
     private AssetGeneratorServiceImpl service;

@@ -32,6 +32,9 @@ services:
       EUREKA_SERVICE_URL: ${EUREKA_SERVICE_URL:-http://discovery-service:8761/eureka/}
       EUREKA_INSTANCE_HOSTNAME: shop-service
       ASSET_SANDBOX_URL: ${ASSET_SANDBOX_URL:-http://asset-sandbox:8095}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_PROJECT_NAME: ${GEMINI_PROJECT_NAME:-PockerGemini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     networks:
       - default
       - shop-net
