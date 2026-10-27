@@ -157,6 +157,20 @@ public class MinioStorageServiceImpl implements S3StorageService {
         return base + objectKey;
     }
 
+    @Override
+    public byte[] downloadFile(String objectKey) {
+        try (java.io.InputStream stream = minioClient.getObject(
+                io.minio.GetObjectArgs.builder()
+                        .bucket(s3Properties.getBucket())
+                        .object(objectKey)
+                        .build())) {
+            return stream.readAllBytes();
+        } catch (Exception e) {
+            log.error("Failed to download file from S3 key={}: {}", objectKey, e.getMessage(), e);
+            throw CardSkinExceptions.s3UploadError("Không thể tải tệp từ S3: " + e.getMessage());
+        }
+    }
+
     private String resolveContentType(String key, String fallback) {
         String lower = key.toLowerCase();
         if (lower.endsWith(".png")) return "image/png";

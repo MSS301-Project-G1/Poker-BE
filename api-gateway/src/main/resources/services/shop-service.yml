@@ -14,9 +14,6 @@ gateway:
           - /api/admin/products/**
           - /api/admin/bundles/**
           - /api/admin/payments/**
-          - /api/admin/ai-models/**
-          - /api/admin/asset-generator/**
-          - /api/sandbox/**
         public-endpoints:
         - method: POST
           paths:
