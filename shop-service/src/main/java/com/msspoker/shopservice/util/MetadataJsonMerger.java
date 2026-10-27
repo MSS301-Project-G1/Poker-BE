@@ -27,6 +27,10 @@ public class MetadataJsonMerger {
      * Merge fields from incomingJson into existingJson.
      * Any existing keys not present in incomingJson are preserved.
      */
+    public String mergeManifestWithExistingMetadata(String existingJson, String incomingJson) {
+        return merge(existingJson, incomingJson);
+    }
+
     public String merge(String existingJson, String incomingJson) {
         if (existingJson == null || existingJson.isBlank()) {
             return incomingJson;
