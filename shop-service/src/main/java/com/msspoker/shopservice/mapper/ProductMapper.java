@@ -20,6 +20,7 @@ public interface ProductMapper {
     @Mapping(target = "createdAt", ignore = true)
     Category toCategory(CreateCategoryRequest request);
 
+    @Mapping(target = "categoryId", source = "category.id")
     @Mapping(target = "categoryCode", source = "category.code")
     @Mapping(target = "categoryName", source = "category.name")
     @Mapping(target = "isExclusive", source = "exclusive")
@@ -50,6 +51,9 @@ public interface ProductMapper {
                     ? request.priceVipCoin()
                     : Math.max(1, request.priceVnd() / 1000);
             product.setPriceVipCoin(vipCoin);
+            if (request.metadata() != null && !request.metadata().isBlank()) {
+                product.setMetadata(request.metadata());
+            }
         }
         return product;
     }
@@ -73,6 +77,9 @@ public interface ProductMapper {
                 product.setPriceVipCoin(request.priceVipCoin());
             } else if (request.priceVnd() > 0) {
                 product.setPriceVipCoin(Math.max(1, request.priceVnd() / 1000));
+            }
+            if (request.metadata() != null && !request.metadata().isBlank()) {
+                product.setMetadata(request.metadata());
             }
         }
     }

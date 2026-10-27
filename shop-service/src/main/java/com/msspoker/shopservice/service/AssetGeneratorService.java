@@ -28,7 +28,18 @@ public interface AssetGeneratorService {
             Long priceVipCoin,
             Long priceVnd
     ) {
-        return applyBatchToProduct(batchId, targetProductId, null, productName, priceVipCoin, priceVnd);
+        return applyBatchToProduct(batchId, targetProductId, null, productName, null, null, priceVipCoin, priceVnd);
+    }
+
+    default ProductResponse applyBatchToProduct(
+            UUID batchId,
+            UUID targetProductId,
+            UUID categoryId,
+            String productName,
+            Long priceVipCoin,
+            Long priceVnd
+    ) {
+        return applyBatchToProduct(batchId, targetProductId, categoryId, productName, null, null, priceVipCoin, priceVnd);
     }
 
     ProductResponse applyBatchToProduct(
@@ -36,6 +47,8 @@ public interface AssetGeneratorService {
             UUID targetProductId,
             UUID categoryId,
             String productName,
+            String tier,
+            String description,
             Long priceVipCoin,
             Long priceVnd
     );
@@ -47,4 +60,10 @@ public interface AssetGeneratorService {
     String previewPrompt(String categoryCode, AssetPromptOptions options);
 
     List<AiPromptPreset> getPromptPresets(String categoryCode);
+
+    AiPromptPreset savePromptPreset(AiPromptPreset preset);
+
+    AiPromptPreset updatePromptPreset(UUID id, AiPromptPreset preset);
+
+    void deletePromptPreset(UUID id);
 }

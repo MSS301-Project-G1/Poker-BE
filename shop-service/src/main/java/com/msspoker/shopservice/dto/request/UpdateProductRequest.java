@@ -38,5 +38,7 @@ public record UpdateProductRequest(
 
         boolean isExclusive,
 
-        Instant saleExpiresAt
+        Instant saleExpiresAt,
+
+        String metadata
 ) {}

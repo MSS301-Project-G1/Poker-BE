@@ -9,6 +9,7 @@ import java.util.UUID;
 @Builder
 public record ProductResponse(
         UUID id,
+        UUID categoryId,
         String categoryCode,
         String categoryName,
         String name,
@@ -26,7 +27,7 @@ public record ProductResponse(
 ) {
     public ProductResponse withOwned(boolean owned) {
         return new ProductResponse(
-                id, categoryCode, categoryName, name, description, tier,
+                id, categoryId, categoryCode, categoryName, name, description, tier,
                 priceVnd, priceVipCoin, assetUrl, previewUrl, previewVideoUrl, metadata, isExclusive, owned,
                 saleExpiresAt
         );

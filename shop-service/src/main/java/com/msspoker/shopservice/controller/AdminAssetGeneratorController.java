@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -83,11 +84,13 @@ public class AdminAssetGeneratorController {
         UUID targetProductId = request != null ? request.targetProductId() : null;
         UUID categoryId = request != null ? request.categoryId() : null;
         String productName = request != null ? request.productName() : null;
+        String tier = request != null ? request.tier() : null;
+        String description = request != null ? request.description() : null;
         Long priceVipCoin = request != null ? request.priceVipCoin() : null;
         Long priceVnd = request != null ? request.priceVnd() : null;
 
         ProductResponse response = generatorService.applyBatchToProduct(
-                batchId, targetProductId, categoryId, productName, priceVipCoin, priceVnd
+                batchId, targetProductId, categoryId, productName, tier, description, priceVipCoin, priceVnd
         );
 
         return ResponseEntity.ok(ApiResponse.success("Đã áp dụng gói tài nguyên thành công vào Shop", response));
@@ -124,6 +127,31 @@ public class AdminAssetGeneratorController {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách Presets thành công", generatorService.getPromptPresets(categoryCode)));
     }
 
+    @PostMapping("/prompt-presets")
+    @Operation(summary = "Tạo mới Mẫu Phong Cách (Preset)")
+    public ResponseEntity<ApiResponse<AiPromptPreset>> createPromptPreset(@RequestBody AiPromptPreset preset) {
+        AiPromptPreset created = generatorService.savePromptPreset(preset);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tạo Mẫu Phong Cách thành công", created));
+    }
+
+    @PutMapping("/prompt-presets/{id}")
+    @Operation(summary = "Cập nhật Mẫu Phong Cách (Preset)")
+    public ResponseEntity<ApiResponse<AiPromptPreset>> updatePromptPreset(
+            @PathVariable UUID id,
+            @RequestBody AiPromptPreset preset
+    ) {
+        AiPromptPreset updated = generatorService.updatePromptPreset(id, preset);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật Mẫu Phong Cách thành công", updated));
+    }
+
+    @DeleteMapping("/prompt-presets/{id}")
+    @Operation(summary = "Xóa Mẫu Phong Cách (Preset)")
+    public ResponseEntity<ApiResponse<Void>> deletePromptPreset(@PathVariable UUID id) {
+        generatorService.deletePromptPreset(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa Mẫu Phong Cách thành công", null));
+    }
+
     private AssetPromptOptions parseOptions(String json) {
         if (json == null || json.isBlank()) {
             return AssetPromptOptions.builder().build();
@@ -141,6 +169,8 @@ public class AdminAssetGeneratorController {
             UUID targetProductId,
             UUID categoryId,
             String productName,
+            String tier,
+            String description,
             Long priceVipCoin,
             Long priceVnd
     ) {}
