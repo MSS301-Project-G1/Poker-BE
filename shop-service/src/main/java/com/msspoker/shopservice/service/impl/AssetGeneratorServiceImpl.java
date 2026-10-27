@@ -62,6 +62,7 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
     private final MetadataJsonMerger metadataJsonMerger;
     private final AssetGeneratorMapper generatorMapper;
     private final AssetGeneratorValidator generatorValidator;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -258,6 +259,25 @@ public class AssetGeneratorServiceImpl implements AssetGeneratorService {
             product.setAssetUrl(batch.getS3PreviewUrl());
             product.setPreviewUrl(batch.getS3PreviewUrl());
             String merged = metadataJsonMerger.mergeManifestWithExistingMetadata(product.getMetadata(), batch.getStyleSpec());
+
+            // If DEALER, ensure poses map is embedded in metadata for client playback
+            if ("DEALER".equalsIgnoreCase(batch.getCategoryCode())) {
+                try {
+                    Map<String, String> poses = new HashMap<>();
+                    poses.put("idle", storageService.getPublicUrl("generated/" + batch.getId() + "/poses/idle.png"));
+                    poses.put("deal", storageService.getPublicUrl("generated/" + batch.getId() + "/poses/deal.png"));
+                    poses.put("flip", storageService.getPublicUrl("generated/" + batch.getId() + "/poses/flip.png"));
+                    poses.put("win", storageService.getPublicUrl("generated/" + batch.getId() + "/poses/win.png"));
+                    poses.put("avatar", batch.getS3PreviewUrl());
+
+                    Map<String, Object> extra = Map.of("poses", poses);
+                    String extraJson = objectMapper.writeValueAsString(extra);
+                    merged = metadataJsonMerger.merge(merged, extraJson);
+                } catch (Exception e) {
+                    log.warn("Failed to embed poses map into metadata for batch id={}: {}", batch.getId(), e.getMessage());
+                }
+            }
+
             product.setMetadata(merged);
             productRepository.save(product);
         }

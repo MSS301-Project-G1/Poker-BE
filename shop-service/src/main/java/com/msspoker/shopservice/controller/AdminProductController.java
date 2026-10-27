@@ -28,6 +28,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
+import com.msspoker.shopservice.service.S3StorageService;
+
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/admin/products")
 @PreAuthorize("hasRole('ADMIN')")
@@ -36,10 +40,39 @@ public class AdminProductController {
 
     private final ProductService productService;
     private final CardDeckSkinService cardDeckSkinService;
+    private final S3StorageService storageService;
 
-    public AdminProductController(ProductService productService, CardDeckSkinService cardDeckSkinService) {
+    public AdminProductController(
+            ProductService productService,
+            CardDeckSkinService cardDeckSkinService,
+            S3StorageService storageService
+    ) {
         this.productService = productService;
         this.cardDeckSkinService = cardDeckSkinService;
+        this.storageService = storageService;
+    }
+
+    @PostMapping(value = "/upload-asset", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải file tài nguyên / video lên S3", description = "Upload file ảnh preview, video mp4 hoặc sprite lên S3/MinIO và trả về URL")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadAsset(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "folder", defaultValue = "assets") String folder
+    ) {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("File không được để trống");
+        }
+        try {
+            String originalFilename = file.getOriginalFilename();
+            String ext = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String objectKey = folder + "/" + UUID.randomUUID() + ext;
+            String url = storageService.uploadFile(objectKey, file.getBytes(), file.getContentType());
+            return ResponseEntity.ok(ApiResponse.success("Tải lên file thành công", Map.of("url", url, "key", objectKey)));
+        } catch (Exception e) {
+            throw new RuntimeException("Tải lên file thất bại: " + e.getMessage(), e);
+        }
     }
 
     @PostMapping
