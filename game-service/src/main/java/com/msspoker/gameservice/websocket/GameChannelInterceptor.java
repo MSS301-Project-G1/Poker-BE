@@ -22,8 +22,8 @@ import java.util.regex.Pattern;
 @Component
 @RequiredArgsConstructor
 public class GameChannelInterceptor implements ChannelInterceptor {
-    private static final Pattern SEND = Pattern.compile("^/app/tables/([0-9a-fA-F-]{36})/(action|sync)$");
-    private static final Pattern SUBSCRIBE = Pattern.compile("^/user/queue/tables/([0-9a-fA-F-]{36})$");
+    private static final Pattern SEND = Pattern.compile("^/app/tables/([0-9a-fA-F-]{36})/(action|sync|taunt)$");
+    private static final Pattern SUBSCRIBE = Pattern.compile("^/user/queue/tables/([0-9a-fA-F-]{36})(/taunts)?$");
     private final GameIdentity identity;
     private final TableRegistry registry;
     private final TableMembershipValidator membership;

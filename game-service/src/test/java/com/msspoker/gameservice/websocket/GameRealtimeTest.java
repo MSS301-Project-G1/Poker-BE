@@ -1,5 +1,6 @@
 package com.msspoker.gameservice.websocket;
 
+import com.msspoker.gameservice.client.ShopSoundClient;
 import com.msspoker.gameservice.dto.request.ActionRequest;
 import com.msspoker.gameservice.enums.ActionType;
 import com.msspoker.gameservice.exception.GameApiException;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -24,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 @ActiveProfiles("dev")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -34,6 +37,7 @@ class GameRealtimeTest {
     @Autowired GameplayService gameplay;
     @Autowired TableRegistry registry;
     @Autowired JsonMapper json;
+    @MockitoBean ShopSoundClient shop;
 
     @Test
     void personalSnapshotsHideOpponentsAndReconnectKeepsTheSameCards() {
@@ -68,6 +72,35 @@ class GameRealtimeTest {
             assertEquals(sequence + 1, next.get("actionSequence").asLong());
             socket.send("SEND\ndestination:/app/tables/" + table.tableId() + "/sync\n\n");
             assertEquals(sequence + 1, socket.body().get("actionSequence").asLong());
+        }
+    }
+
+    @Test
+    void tauntReachesEverySeatAndARepeatInsideTheCooldownGoesToTheSenderOnly() throws Exception {
+        var table = dev.create(2, 0);
+        UUID sender = table.humanIds().getFirst();
+        UUID sound = UUID.randomUUID();
+        when(shop.soundUrl(sender, sound)).thenReturn("https://bucket.example/sound.mp3");
+        try (StompSocket first = connect(sender); StompSocket second = connect(table.humanIds().get(1))) {
+            for (StompSocket socket : new StompSocket[] {first, second}) {
+                socket.send("SUBSCRIBE\nid:taunts\ndestination:/user/queue/tables/" + table.tableId() + "/taunts\n\n");
+                socket.send("SUBSCRIBE\nid:errors\ndestination:/user/queue/game-errors\n\n");
+                socket.send("SUBSCRIBE\nid:table\ndestination:/user/queue/tables/" + table.tableId() + "\n\n");
+                // Frames of one session are handled in order, so this snapshot proves the subscriptions above are live.
+                socket.send("SEND\ndestination:/app/tables/" + table.tableId() + "/sync\n\n");
+                assertEquals(table.tableId().toString(), socket.body().get("tableId").asString());
+            }
+            String taunt = "SEND\ndestination:/app/tables/" + table.tableId() + "/taunt\ncontent-type:application/json\n\n"
+                    + "{\"productId\":\"" + sound + "\"}";
+            first.send(taunt);
+            for (StompSocket socket : new StompSocket[] {first, second}) {
+                JsonNode event = socket.body();
+                assertEquals(sender.toString(), event.get("accountId").asString());
+                assertEquals("https://bucket.example/sound.mp3", event.get("soundUrl").asString());
+            }
+            first.send(taunt);
+            assertEquals("GAME_TAUNT_COOLDOWN", first.body().get("code").asString());
+            assertNull(second.frames.poll(500, TimeUnit.MILLISECONDS));
         }
     }
 

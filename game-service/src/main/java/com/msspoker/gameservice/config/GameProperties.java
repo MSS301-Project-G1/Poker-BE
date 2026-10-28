@@ -22,5 +22,7 @@ public class GameProperties {
     private long showdownPauseMillis = 7000;
     private int afkTurns = 3;
     private long tableRetentionSeconds = 300;
+    /** Minimum gap between two taunt sounds from the same player at one table. */
+    private long tauntCooldownMillis = 5000;
     private String[] allowedOrigins = {"http://localhost:5173"};
 }

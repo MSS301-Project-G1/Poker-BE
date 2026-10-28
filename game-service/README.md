@@ -138,6 +138,14 @@ action reaches the private error queue; unauthorized destinations terminate
 the socket with a STOMP ERROR frame. REST errors use Vietnamese messages and the shared
 `com.msspoker.common.response.ErrorResponse`; events use the shared `EventEnvelope`.
 
+SEND `/app/tables/{tableId}/taunt` with `{ "productId": "<owned SOUND product>" }`
+to play a taunt sound for the whole table. Every seat except one that left may
+taunt, folded or not, once per `game.taunt-cooldown-millis` (5 s). The file
+URL comes from shop-service (`SHOP_SERVICE_URL`), never from the client, and
+reaches every seat on `/user/queue/tables/{tableId}/taunts` as
+`{ accountId, productId, soundUrl }`. Refusals reach the error queue with
+`GAME_TAUNT_COOLDOWN` or `GAME_TAUNT_UNAVAILABLE`.
+
 ## Production configuration and dependencies
 
 - PostgreSQL: `GAME_DB_URL`, `GAME_DB_USER`, `GAME_DB_PASSWORD`.
