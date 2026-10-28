@@ -1,5 +1,6 @@
 package com.msspoker.shopservice.service.impl;
 
+import com.msspoker.shopservice.constant.StorageKeyConstants;
 import com.msspoker.shopservice.dto.response.ProductSoundResponse;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.exception.ProductExceptions;
@@ -65,7 +66,7 @@ public class ProductSoundServiceImpl implements ProductSoundService {
         String oldSoundUrl = metadataJsonMerger.getStringField(product.getMetadata(), "soundUrl");
 
         String version = "v" + Instant.now().toEpochMilli();
-        String objectKey = "poker/sounds/" + productId + "/" + version + "." + extension;
+        String objectKey = StorageKeyConstants.SOUNDS + productId + "/" + version + "." + extension;
         String contentType = resolveAudioContentType(extension);
 
         String soundUrl = s3StorageService.uploadFile(objectKey, bytes, contentType);
@@ -120,7 +121,7 @@ public class ProductSoundServiceImpl implements ProductSoundService {
     private void cleanUpOldSoundFile(String oldUrl, String newKey) {
         CompletableFuture.runAsync(() -> {
             try {
-                int soundIdx = oldUrl.indexOf("poker/sounds/");
+                int soundIdx = oldUrl.indexOf(StorageKeyConstants.SOUNDS);
                 if (soundIdx >= 0) {
                     String oldKey = oldUrl.substring(soundIdx);
                     if (newKey == null || !oldKey.equals(newKey)) {

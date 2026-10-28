@@ -50,6 +50,22 @@ public final class ProductExceptions {
         );
     }
 
+    public static AppException emptyUploadFile() {
+        return AppException.of(
+                HttpStatus.BAD_REQUEST,
+                "SHOP_EMPTY_UPLOAD_FILE",
+                "Tệp tải lên không được để trống."
+        );
+    }
+
+    public static AppException invalidUploadFolder() {
+        return AppException.of(
+                HttpStatus.BAD_REQUEST,
+                "SHOP_INVALID_UPLOAD_FOLDER",
+                "Thư mục tải lên không hợp lệ. Vui lòng tải lại trang quản trị và thử lại."
+        );
+    }
+
     public static AppException invalidSoundFile(String reason) {
         return AppException.of(
                 HttpStatus.BAD_REQUEST,

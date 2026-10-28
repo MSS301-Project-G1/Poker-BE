@@ -11,6 +11,7 @@ import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.InventoryMapper;
+import com.msspoker.shopservice.mapper.TestMappers;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
 import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.service.impl.InventoryServiceImpl;
@@ -18,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -49,7 +49,7 @@ class InventoryServiceImplTest {
     private ProductRepository productRepository;
 
     @Spy
-    private InventoryMapper inventoryMapper = Mappers.getMapper(InventoryMapper.class);
+    private InventoryMapper inventoryMapper = TestMappers.withUnsignedLinks(InventoryMapper.class);
 
     private InventoryServiceImpl inventoryService;
 

@@ -3,6 +3,7 @@ package com.msspoker.shopservice.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msspoker.shopservice.constant.StorageKeyConstants;
 import com.msspoker.shopservice.dto.response.CardDeckManifest;
 import com.msspoker.shopservice.dto.response.CardSkinUploadResponse;
 import com.msspoker.shopservice.entity.Product;
@@ -138,7 +139,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
 
         // 2. Tạo version định danh theo timestamp (Cache busting)
         String version = "v" + Instant.now().toEpochMilli();
-        String basePath = "poker/skins/cards/" + product.getId() + "/";
+        String basePath = StorageKeyConstants.CARD_SKINS + product.getId() + "/";
         String currentVersionPath = basePath + version + "/";
 
         // Ghi nhận version cũ để dọn dẹp sau khi lưu thành công
@@ -230,7 +231,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
             JsonNode root = objectMapper.readTree(metadataJson);
             if (root.has("version") && root.has("card_back_url")) {
                 String cardBack = root.get("card_back_url").asText("");
-                int pokerIdx = cardBack.indexOf("poker/skins/cards/");
+                int pokerIdx = cardBack.indexOf(StorageKeyConstants.CARD_SKINS);
                 if (pokerIdx >= 0) {
                     String sub = cardBack.substring(pokerIdx);
                     int vIdx = sub.indexOf("/v");

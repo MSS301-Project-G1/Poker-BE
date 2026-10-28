@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -100,14 +101,15 @@ class ProductSoundServiceImplTest {
 
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(s3StorageService.uploadFile(anyString(), any(byte[].class), eq("audio/mpeg")))
-                .thenReturn("http://s3/poker/sounds/" + productId + "/v123.mp3");
+                .thenReturn("http://s3/poker/shop/sounds/" + productId + "/v123.mp3");
 
         ProductSoundResponse response = soundService.uploadSound(productId, file);
 
-        assertThat(response.soundUrl()).isEqualTo("http://s3/poker/sounds/" + productId + "/v123.mp3");
+        assertThat(response.soundUrl()).isEqualTo("http://s3/poker/shop/sounds/" + productId + "/v123.mp3");
+        verify(s3StorageService).uploadFile(startsWith("poker/shop/sounds/" + productId + "/v"), any(byte[].class), eq("audio/mpeg"));
         verify(productRepository).save(product);
         assertThat(metadataJsonMerger.getStringField(product.getMetadata(), "soundUrl"))
-                .isEqualTo("http://s3/poker/sounds/" + productId + "/v123.mp3");
+                .isEqualTo("http://s3/poker/shop/sounds/" + productId + "/v123.mp3");
         // Kiểm tra metadata cũ không bị mất
         assertThat(metadataJsonMerger.getStringField(product.getMetadata(), "cardBackUrl"))
                 .isEqualTo("http://s3/back.png");
@@ -116,7 +118,7 @@ class ProductSoundServiceImplTest {
     @Test
     @DisplayName("Gỡ tệp âm thanh khỏi sản phẩm thành công")
     void testDeleteSound() {
-        product.setMetadata("{\"soundUrl\":\"http://s3/poker/sounds/" + productId + "/v100.mp3\",\"cardBackUrl\":\"http://s3/back.png\"}");
+        product.setMetadata("{\"soundUrl\":\"http://s3/poker/shop/sounds/" + productId + "/v100.mp3\",\"cardBackUrl\":\"http://s3/back.png\"}");
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
 
         ProductSoundResponse response = soundService.deleteSound(productId);

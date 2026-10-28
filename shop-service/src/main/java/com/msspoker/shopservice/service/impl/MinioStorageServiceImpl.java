@@ -1,7 +1,11 @@
 package com.msspoker.shopservice.service.impl;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import com.msspoker.shopservice.config.S3Properties;
+import com.msspoker.shopservice.constant.StorageKeyConstants;
+import com.msspoker.shopservice.dto.response.UploadedAssetResponse;
 import com.msspoker.shopservice.exception.CardSkinExceptions;
+import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.service.S3StorageService;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
@@ -13,21 +17,29 @@ import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class MinioStorageServiceImpl implements S3StorageService {
+
+    private static final Pattern SAFE_EXTENSION = Pattern.compile("\\.[A-Za-z0-9]{1,10}$");
 
     private final MinioClient minioClient;
     private final S3Properties s3Properties;
@@ -49,6 +61,7 @@ public class MinioStorageServiceImpl implements S3StorageService {
                             .object(objectKey)
                             .stream(stream, content.length, -1)
                             .contentType(contentType != null ? contentType : "application/octet-stream")
+                            .headers(Map.of(HttpHeaders.CACHE_CONTROL, StorageKeyConstants.CACHE_CONTROL))
                             .build()
             );
             return getPublicUrl(objectKey);
@@ -56,6 +69,35 @@ public class MinioStorageServiceImpl implements S3StorageService {
             log.error("Failed to upload file to S3 key={}: {}", objectKey, e.getMessage(), e);
             throw CardSkinExceptions.s3UploadError("Không thể tải tệp lên S3: " + e.getMessage());
         }
+    }
+
+    @Override
+    public UploadedAssetResponse uploadAsset(String folder, MultipartFile file) {
+        if (!StorageKeyConstants.UPLOAD_FOLDERS.contains(folder)) {
+            throw ProductExceptions.invalidUploadFolder();
+        }
+        if (file.isEmpty()) {
+            throw ProductExceptions.emptyUploadFile();
+        }
+        byte[] content;
+        try {
+            content = file.getBytes();
+        } catch (IOException e) {
+            log.error("Failed to read uploaded asset {}: {}", file.getOriginalFilename(), e.getMessage(), e);
+            throw CardSkinExceptions.s3UploadError("Không thể đọc tệp tải lên.");
+        }
+        String key = StorageKeyConstants.UPLOADS + folder + "/" + UuidCreator.getTimeOrderedEpoch()
+                + extensionOf(file.getOriginalFilename());
+        return new UploadedAssetResponse(uploadFile(key, content, file.getContentType()), key);
+    }
+
+    /** The name's extension when it is a plain one like ".png", else none, so a file name cannot steer the key. */
+    private String extensionOf(String filename) {
+        if (filename == null) {
+            return "";
+        }
+        Matcher matcher = SAFE_EXTENSION.matcher(filename);
+        return matcher.find() ? matcher.group().toLowerCase(Locale.ROOT) : "";
     }
 
     @Override
@@ -131,22 +173,12 @@ public class MinioStorageServiceImpl implements S3StorageService {
         }
     }
 
+    /**
+     * The plain link, which is what products store. A presigned link would stop working once it expires;
+     * AssetUrlSigner signs links in responses for as long as the bucket folder stays private.
+     */
     @Override
     public String getPublicUrl(String objectKey) {
-        if (s3Properties.getEndpoint() != null && s3Properties.getEndpoint().contains("amazonaws.com")) {
-            try {
-                return minioClient.getPresignedObjectUrl(
-                        io.minio.GetPresignedObjectUrlArgs.builder()
-                                .method(io.minio.http.Method.GET)
-                                .bucket(s3Properties.getBucket())
-                                .object(objectKey)
-                                .expiry(7, java.util.concurrent.TimeUnit.DAYS)
-                                .build()
-                );
-            } catch (Exception e) {
-                log.warn("Failed to generate presigned S3 URL for key {}: {}", objectKey, e.getMessage());
-            }
-        }
         String base = s3Properties.getPublicUrl();
         if (base == null) {
             base = "";

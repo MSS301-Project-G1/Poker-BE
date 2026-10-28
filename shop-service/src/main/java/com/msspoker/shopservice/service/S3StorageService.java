@@ -1,5 +1,8 @@
 package com.msspoker.shopservice.service;
 
+import com.msspoker.shopservice.dto.response.UploadedAssetResponse;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.Map;
 
 public interface S3StorageService {
@@ -13,6 +16,13 @@ public interface S3StorageService {
      * @return URL công khai của file
      */
     String uploadFile(String objectKey, byte[] content, String contentType);
+
+    /**
+     * Tải lên một tệp của form sản phẩm (ảnh, video, tư thế dealer) vào thư mục uploads công khai.
+     *
+     * @param folder một trong StorageKeyConstants.UPLOAD_FOLDERS
+     */
+    UploadedAssetResponse uploadAsset(String folder, MultipartFile file);
 
     /**
      * Tải lên song song một loạt tệp tin lên S3 bằng CompletableFuture.

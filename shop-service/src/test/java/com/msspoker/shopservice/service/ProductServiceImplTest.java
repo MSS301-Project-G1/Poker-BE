@@ -11,6 +11,7 @@ import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.InventoryMapper;
+import com.msspoker.shopservice.mapper.TestMappers;
 import com.msspoker.shopservice.mapper.ProductMapper;
 import com.msspoker.shopservice.repository.CategoryRepository;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
@@ -21,7 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -58,10 +58,10 @@ class ProductServiceImplTest {
     private InventoryItemRepository inventoryItemRepository;
 
     @Spy
-    private ProductMapper productMapper = Mappers.getMapper(ProductMapper.class);
+    private ProductMapper productMapper = TestMappers.withUnsignedLinks(ProductMapper.class);
 
     @Spy
-    private InventoryMapper inventoryMapper = Mappers.getMapper(InventoryMapper.class);
+    private InventoryMapper inventoryMapper = TestMappers.withUnsignedLinks(InventoryMapper.class);
 
     @Mock
     private WalletClient walletClient;
