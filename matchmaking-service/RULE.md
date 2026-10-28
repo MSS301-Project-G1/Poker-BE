@@ -151,7 +151,7 @@ Không thêm Eureka hoặc Config Server trong MVP.
 - RabbitMQ dùng chung duy nhất nằm trong `docker/compose.infra.yml` với service name
   `rabbitmq`. Không tạo RabbitMQ riêng trong compose của Matchmaking.
 - Khi chạy trong Docker, kết nối broker bằng `rabbitmq:5672`; cổng
-  `127.0.0.1:56729` chỉ dành cho chương trình chạy trực tiếp từ máy host.
+  `127.0.0.1:5679` chỉ dành cho chương trình chạy trực tiếp từ máy host.
 - `matchmaking-service/compose.yml` tự khai báo PostgreSQL và Redis của Matchmaking.
 - Container Matchmaking nối cả `default` network để gọi RabbitMQ/service khác và
   `matchmaking-net` để truy cập database/Redis riêng.

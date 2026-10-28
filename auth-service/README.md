@@ -146,7 +146,7 @@ Root `docker-compose.yml` include infra và auth nên dùng được cấu hình
 Các lệnh auth riêng bên dưới ghép file bằng `-f`, không dùng root làm base.
 
 Auth ở `http://localhost:8090`. Cấu hình chính không publish port PostgreSQL;
-RabbitMQ kế thừa port AMQP `127.0.0.1:56729` và UI `http://localhost:15679` từ infra.
+RabbitMQ kế thừa port AMQP `127.0.0.1:5679` và UI `http://localhost:15679` từ infra.
 Auth mặc định dùng `guest`/`guest` để khớp broker chung. Auth trong Docker luôn
 kết nối `rabbitmq:5672`. Nếu `.env` đang đặt `AUTH_RABBIT_USERNAME=poker` và
 `AUTH_RABBIT_PASSWORD=poker_dev`, khi chạy root/cấu hình chung cần đổi thành
@@ -157,7 +157,7 @@ kết nối `rabbitmq:5672`. Nếu `.env` đang đặt `AUTH_RABBIT_USERNAME=pok
 `auth-service/compose.dev.yml` chỉ chứa các khác biệt dành cho dev:
 
 - `auth-service`: bind API vào localhost và đổi credential RabbitMQ mặc định thành `poker`/`poker_dev`.
-- `auth-postgres`: mở PostgreSQL ở `127.0.0.1:54330` để dùng DBeaver/IDE.
+- `auth-postgres`: mở PostgreSQL ở `127.0.0.1:15430` để dùng DBeaver/IDE.
 - `auth-mailpit`: mở SMTP ở `127.0.0.1:1026` khi bật profile `mailpit`.
 - `rabbitmq`: ghi đè broker infra bằng image `4.1-management-alpine`, credential mặc định `poker`/`poker_dev`, volume `auth-rabbit`; port AMQP `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
 

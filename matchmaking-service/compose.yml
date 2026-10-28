@@ -51,7 +51,7 @@ services:
       POSTGRES_USER: ${MATCHMAKING_DB_USER:-poker}
       POSTGRES_PASSWORD: ${MATCHMAKING_DB_PASSWORD:-poker_dev}
     ports:
-      - "127.0.0.1:${MATCHMAKING_DB_PORT:-54333}:5432"
+      - "127.0.0.1:${MATCHMAKING_DB_PORT:-15433}:5432"
     volumes:
       - matchmaking-db-data:/var/lib/postgresql/data
     networks:

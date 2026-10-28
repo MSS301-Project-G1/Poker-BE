@@ -39,7 +39,7 @@ services:
       POSTGRES_USER: ${WALLET_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${WALLET_DB_PASSWORD:-123456}
     ports:
-      - "127.0.0.1:${WALLET_DB_PORT:-54335}:5432"
+      - "127.0.0.1:${WALLET_DB_PORT:-15435}:5432"
     volumes:
       - wallet-postgres-data:/var/lib/postgresql/data
     networks:

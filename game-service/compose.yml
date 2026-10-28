@@ -37,7 +37,7 @@ services:
       POSTGRES_USER: ${GAME_DB_USER:-poker}
       POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:-poker_dev}
     ports:
-      - "127.0.0.1:54329:5432"
+      - "127.0.0.1:15429:5432"
     volumes:
       - game-db-data:/var/lib/postgresql/data
     networks:

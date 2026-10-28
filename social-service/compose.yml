@@ -36,7 +36,7 @@ services:
       POSTGRES_USER: ${SOCIAL_DB_USER:-poker}
       POSTGRES_PASSWORD: ${SOCIAL_DB_PASSWORD:-poker_dev}
     ports:
-      - "127.0.0.1:${SOCIAL_DB_PORT:-54336}:5432"
+      - "127.0.0.1:${SOCIAL_DB_PORT:-15436}:5432"
     volumes:
       - social-db-data:/var/lib/postgresql/data
     networks:

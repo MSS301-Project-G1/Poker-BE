@@ -30,7 +30,7 @@ services:
       POSTGRES_USER: ${RANKING_DB_USER:-poker}
       POSTGRES_PASSWORD: ${RANKING_DB_PASSWORD:-poker_dev}
     ports:
-      - "127.0.0.1:54331:5432"
+      - "127.0.0.1:15431:5432"
     volumes:
       - ranking-db-data:/var/lib/postgresql/data
     networks:

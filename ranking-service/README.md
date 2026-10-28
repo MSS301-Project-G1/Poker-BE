@@ -47,8 +47,8 @@ docker compose up -d ranking-db rabbitmq
 java -jar ranking-service/target/ranking-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
 ```
 
-Dev uses PostgreSQL `127.0.0.1:54331/ranking_db` (user `poker`, local password
-`poker_dev`) and RabbitMQ `127.0.0.1:56729` (`guest`/`guest`, management UI
+Dev uses PostgreSQL `127.0.0.1:15431/ranking_db` (user `poker`, local password
+`poker_dev`) and RabbitMQ `127.0.0.1:5679` (`guest`/`guest`, management UI
 `http://localhost:15679`). When changing the local password, set
 `RANKING_DB_PASSWORD` for Compose and `RANKING_DEV_DB_PASSWORD` to the same value
 for the Java process. Flyway creates the schema and seeds one ACTIVE season;

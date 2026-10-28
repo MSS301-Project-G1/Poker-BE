@@ -64,8 +64,8 @@ The game owns its PostgreSQL container `game-db`, declared in
 `game-service/compose.yml` on the private `game-net` network, so other services
 cannot reach it. The same file points JWT validation and restrictions at
 `auth-service:8090`. RabbitMQ is shared infrastructure in `docker/compose.infra.yml`.
-Dev uses PostgreSQL `127.0.0.1:54329/game_db` (user `poker`, local password
-`poker_dev`) and RabbitMQ `127.0.0.1:56729`; management UI is at
+Dev uses PostgreSQL `127.0.0.1:15429/game_db` (user `poker`, local password
+`poker_dev`) and RabbitMQ `127.0.0.1:5679`; management UI is at
 `http://localhost:15679` (`guest`/`guest`). When changing the local password,
 set `GAME_DB_PASSWORD` for Compose and `GAME_DEV_DB_PASSWORD` to the same value
 for the Java process. Flyway creates the schema; Hibernate validates it. The

@@ -45,8 +45,8 @@ docker compose up -d competition-db rabbitmq
 java -jar competition-service/target/competition-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
 ```
 
-Dev uses PostgreSQL `127.0.0.1:54332/competition_db` (user `poker`, password
-`poker_dev`), RabbitMQ `127.0.0.1:56729` and game-service at
+Dev uses PostgreSQL `127.0.0.1:15432/competition_db` (user `poker`, password
+`poker_dev`), RabbitMQ `127.0.0.1:5679` and game-service at
 `http://localhost:8082` (run it with its `dev` profile to start tables).
 Container with the `dev` profile:
 

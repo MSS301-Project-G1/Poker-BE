@@ -50,7 +50,7 @@ services:
       POSTGRES_USER: ${SHOP_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${SHOP_DB_PASSWORD:-123456}
     ports:
-      - "127.0.0.1:${SHOP_DB_PORT:-54334}:5432"
+      - "127.0.0.1:${SHOP_DB_PORT:-15434}:5432"
     volumes:
       - shop-postgres-data:/var/lib/postgresql/data
     networks:

@@ -43,8 +43,8 @@ scope `ranking`/`competition`, không push main.
 ## Các lựa chọn được áp dụng
 
 - Tham số §8 nằm trong `ranking.*` của `application.properties`, chỉnh không sửa code.
-- Mặc định dev giống game: PostgreSQL `127.0.0.1:54331/ranking_db`, RabbitMQ dùng
-  chung `docker/compose.infra.yml` (`127.0.0.1:56729`).
+- Mặc định dev giống game: PostgreSQL `127.0.0.1:15431/ranking_db`, RabbitMQ dùng
+  chung `docker/compose.infra.yml` (`127.0.0.1:5679`).
 
 ## Quyết định đã chốt với Hoài Anh
 
