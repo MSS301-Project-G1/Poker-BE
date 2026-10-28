@@ -356,3 +356,11 @@ proposal và saga lên cùng nền.
 
 Quy ước trạng thái: có dependency/config/migration chỉ được tính là **khung chuẩn bị**. Một mục chỉ
 được đánh dấu hoàn thành khi có business code, persistence/publish path và test tương ứng.
+
+### Cập nhật 2026-10-24 — Chia package service theo chức năng
+
+- Chuyển interface và implementation vào các nhóm `normal`, `rank`, `party`, `proposal`, `store`, `client` dưới `service`.
+- Worker nằm trong `normal/worker` hoặc `rank/worker`; HTTP client ở `client/http`, stub ở `client/stub`, Redis implementation ở `store/redis`.
+- Di chuyển test theo package tương ứng; cập nhật import, README, RULE và các đường dẫn tham khảo.
+- Cấu trúc này thay thế cây `service/impl/worker` trong snapshot ngày 2026-10-14 ở trên.
+- Kiểm tra: `mvn -pl matchmaking-service -am clean test` — 95 test, 0 failure, 0 error, 0 skipped.

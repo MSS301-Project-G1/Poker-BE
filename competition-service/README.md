@@ -45,14 +45,27 @@ docker compose up -d competition-db rabbitmq
 java -jar competition-service/target/competition-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
 ```
 
-Dev uses PostgreSQL `127.0.0.1:54332/competition_db` (user `poker`, password
-`poker_dev`), RabbitMQ `127.0.0.1:56729` and game-service at
+Dev uses PostgreSQL `127.0.0.1:15432/competition_db` (user `poker`, password
+`poker_dev`), RabbitMQ `127.0.0.1:5679` and game-service at
 `http://localhost:8082` (run it with its `dev` profile to start tables).
 Container with the `dev` profile:
 
 ```powershell
 docker compose -f docker-compose.yml -f competition-service/compose.dev.yml up -d --build competition-service
 ```
+
+## Service discovery and gateway
+
+The service registers in Eureka (`discovery-service`, 8761) as `competition-service` and the
+API gateway routes `/api/rooms`, `/api/tournaments` and `/api/admin/tournaments` to it (`lb://competition-service`). Calls to other services use the
+`@LoadBalanced RestClient.Builder` from `config/RestClientConfig`: base URLs are
+service names such as `http://wallet-service`, resolved through Eureka. The `dev`
+profile runs the jar on the host without Eureka (like game-service) and resolves
+the names from `spring.cloud.discovery.client.simple.instances` to the local
+ports (game 8082, ranking 8086, shop 8088, social 8084, wallet 8089); with `EUREKA_CLIENT_ENABLED=true` Eureka is asked first.
+`compose.dev.yml` turns Eureka on because the container shares the stack with
+discovery-service. To check the route, follow `api-gateway/ONBOARDING.md` with
+`-f competition-service/compose.yml`.
 
 ## Integration contract
 
@@ -99,7 +112,7 @@ before the call, so a retry after a timeout returns the same table.
 | POST | `/api/admin/tournaments` | `X-User-Role: ADMIN`; `{ name, type, startAt (future), entryFee, slots?, rewardCoins?, rewardProductId? }`; ELITE is free and starts at least 30 minutes later |
 | POST | `/api/admin/tournaments/{id}/start` | Starts early: seats registered/confirmed players and opens the tables |
 | POST | `/api/admin/tournaments/{id}/cancel` | Before start only; refunds every entry fee |
-| GET | `/api/tournaments?page=0&size=20` | Tournaments by `startAt` with `entryCount` and `prizePool` |
+| GET | `/api/tournaments?past=false&page=0&size=20` | Scheduled and running tournaments soonest first; `past=true` lists finished and cancelled ones latest first. Each has `entryCount` and `prizePool` |
 | GET | `/api/tournaments/{id}` | Detail with `prizePool`, `prizes[]` (places 1–3), `entries[] { accountId, status, finalPlace, registeredAt, confirmBy }` and the bracket `tables[]` |
 | POST | `/api/tournaments/{id}/register` | OPEN only, until `startAt`; debits the fee once |
 | POST | `/api/tournaments/{id}/confirm` | ELITE invitee accepts before `confirmBy`; repeating is a no-op |
@@ -169,8 +182,10 @@ for non-admins, ELITE registration and confirming without an invitation, and
 
 - PostgreSQL: `COMPETITION_DB_URL`, `COMPETITION_DB_USER`, `COMPETITION_DB_PASSWORD`.
 - RabbitMQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
+- Eureka: `EUREKA_CLIENT_ENABLED` (`true`), `EUREKA_SERVICE_URL`, `EUREKA_INSTANCE_HOSTNAME`.
 - `GAME_SERVICE_URL`, `GAME_SERVICE_KEY`, `SOCIAL_SERVICE_URL`, `WALLET_SERVICE_URL`,
-  `RANKING_SERVICE_URL`, `SHOP_SERVICE_URL`. `GAME_SERVICE_KEY` must equal game-service's
+  `RANKING_SERVICE_URL`, `SHOP_SERVICE_URL` (defaults: the service names, such as
+  `http://game-service`). `GAME_SERVICE_KEY` must equal game-service's
   key; `compose.yml` defaults it to `poker_game_dev` like game-service and matchmaking-service.
 - Room defaults: `competition.room.min-players`, `max-players`, `starting-chips`,
   `turn-time-seconds`, `code-length`.

@@ -9,6 +9,7 @@ import com.msspoker.competitionservice.exception.CompetitionExceptions;
 import com.msspoker.competitionservice.service.client.GameClient;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -24,13 +25,14 @@ public class GameClientImpl implements GameClient {
     private final RestClient game;
     private final String serviceKey;
 
-    public GameClientImpl(@Value("${competition.game-url:http://localhost:8082}") String url,
+    public GameClientImpl(@LoadBalanced RestClient.Builder restClients,
+            @Value("${competition.game-url:http://game-service}") String url,
             @Value("${competition.game-service-key:}") String serviceKey,
             @Value("${competition.game-timeout-millis:5000}") long timeoutMillis) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
-        game = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        game = restClients.clone().baseUrl(url).requestFactory(factory).build();
         this.serviceKey = serviceKey;
     }
 
@@ -49,7 +51,8 @@ public class GameClientImpl implements GameClient {
             if (CompetitionConstants.GAME_PLAYER_BUSY.equals(code)) throw CompetitionExceptions.playerBusy();
             if (CompetitionConstants.GAME_FORBIDDEN.equals(code)) throw CompetitionExceptions.playerRestricted();
             throw CompetitionExceptions.gameUnavailable();
-        } catch (RestClientException ex) {
+        } catch (RestClientException | IllegalStateException ex) {
+            // IllegalStateException: no registered instance of the service.
             throw CompetitionExceptions.gameUnavailable();
         }
     }

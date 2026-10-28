@@ -43,8 +43,8 @@ scope `ranking`/`competition`, không push main.
 ## Các lựa chọn được áp dụng
 
 - Tham số §8 nằm trong `ranking.*` của `application.properties`, chỉnh không sửa code.
-- Mặc định dev giống game: PostgreSQL `127.0.0.1:54331/ranking_db`, RabbitMQ dùng
-  chung `docker/compose.infra.yml` (`127.0.0.1:56729`).
+- Mặc định dev giống game: PostgreSQL `127.0.0.1:15431/ranking_db`, RabbitMQ dùng
+  chung `docker/compose.infra.yml` (`127.0.0.1:5679`).
 
 ## Quyết định đã chốt với Hoài Anh
 
@@ -97,8 +97,10 @@ scope `ranking`/`competition`, không push main.
       (`/ranking?view=friends`); màn `/seasons` (mùa hiện tại, thang quà theo bậc, quà
       mùa đã kết thúc và nhận quà). Kiểm tra trên trình duyệt với PostgreSQL DB tạm:
       tạo/đóng mùa qua API admin, nhận quà, 6 khoản xu được gửi; mobile 390 px.
-    - [ ] Đợt B: FE giải đấu (`competition-service/IMPLEMENTATION_PLAN.md`).
-    - [ ] Đợt C: Admin mùa giải (`features/admin/seasons`) và Admin giải đấu.
+    - [x] Đợt B: FE giải đấu (`competition-service/IMPLEMENTATION_PLAN.md`).
+    - [x] Đợt C: `/admin/seasons` (danh sách mùa, tạo mùa kế tiếp có chép quà, sửa xu/skin
+      theo bậc, đóng mùa có hỏi lại) và `/admin/tournaments`. Kiểm tra qua gateway trong
+      Docker: tạo Mùa 2 chép quà Mùa 1, sửa quà, hộp thoại đóng mùa; mobile 375 px.
     - [ ] Đợt D: FE Tutorial (cần component bàn chơi của Bảo).
 
 ## Phụ thuộc và review trước khi merge

@@ -79,6 +79,25 @@ class ChatServiceApplicationTests extends TestSupport {
   }
 
   @Test
+  void typedListsKeepMatchHistoryOutOfDirectChatAndPaginateAfterFiltering() {
+    UUID a = UUID.randomUUID(), b = UUID.randomUUID(), outsider = UUID.randomUUID();
+    var direct = chat.direct(a, b);
+    for (int i = 0; i < 3; i++) {
+      UUID match = UUID.randomUUID();
+      lifecycle.started(match, List.of(a, b));
+      lifecycle.finished(match, Instant.now());
+    }
+    var filtered = chat.list(a, 0, 1, "DIRECT");
+    assertThat(filtered.items()).extracting(r -> r.id()).containsExactly(direct.id());
+    assertThat(filtered.totalElements()).isEqualTo(1);
+    assertThat(filtered.totalPages()).isEqualTo(1);
+    assertThat(chat.list(a, 0, 20, "MATCH").items()).hasSize(3);
+    assertThat(chat.list(a, 0, 20).items()).hasSize(4);
+    assertThat(chat.list(outsider, 0, 20, "DIRECT").items()).isEmpty();
+    assertThatThrownBy(() -> chat.list(a, 0, 20, "INVALID")).isInstanceOf(ServiceException.class);
+  }
+
+  @Test
   void permissionRecheckedOnEveryDirectSendButHistoryRemainsReadable() {
     UUID a = UUID.randomUUID(), b = UUID.randomUUID();
     var room = chat.direct(a, b);

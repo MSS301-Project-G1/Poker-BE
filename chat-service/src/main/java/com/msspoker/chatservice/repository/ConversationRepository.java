@@ -19,4 +19,8 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
       "select c from Conversation c where c.isDeleted=false and c.id in (select m.conversationId"
           + " from ConversationMember m where m.accountId=:actor)")
   Page<Conversation> mine(UUID actor, Pageable page);
+
+  @Query("select c from Conversation c where c.isDeleted=false and c.type=:type"
+      + " and c.id in (select m.conversationId from ConversationMember m where m.accountId=:actor)")
+  Page<Conversation> mineByType(UUID actor, String type, Pageable page);
 }

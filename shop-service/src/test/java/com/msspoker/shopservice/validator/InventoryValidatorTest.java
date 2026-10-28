@@ -1,6 +1,7 @@
 package com.msspoker.shopservice.validator;
 
 import com.msspoker.shopservice.dto.request.GrantItemRequest;
+import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.entity.InventoryItem;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.exception.AppException;
@@ -42,5 +43,30 @@ class InventoryValidatorTest {
         Product deleted = Product.builder().id(UUID.randomUUID()).isDeleted(true).build();
         assertThatThrownBy(() -> inventoryValidator.validateForGrant(request, deleted))
                 .isInstanceOf(AppException.class);
+    }
+
+    @Test
+    @DisplayName("validatePlayableSound: thành công khi vật phẩm SOUND có soundUrl")
+    void validatePlayableSound_Success() {
+        Product sound = productIn("SOUND");
+        assertThatCode(() -> inventoryValidator.validatePlayableSound(sound, "https://cdn.test/taunt.mp3"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("validatePlayableSound: ném lỗi khi sai danh mục hoặc thiếu soundUrl")
+    void validatePlayableSound_Throws() {
+        assertThatThrownBy(() -> inventoryValidator.validatePlayableSound(productIn("CARD_SKIN"), "https://cdn.test/taunt.mp3"))
+                .isInstanceOf(AppException.class);
+        assertThatThrownBy(() -> inventoryValidator.validatePlayableSound(productIn("SOUND"), " "))
+                .isInstanceOf(AppException.class);
+        assertThatThrownBy(() -> inventoryValidator.validatePlayableSound(productIn("SOUND"), null))
+                .isInstanceOf(AppException.class);
+    }
+
+    private Product productIn(String categoryCode) {
+        return Product.builder().id(UUID.randomUUID())
+                .category(Category.builder().id(UUID.randomUUID()).code(categoryCode).build())
+                .build();
     }
 }

@@ -31,8 +31,9 @@ public class ChatController {
   public PageResponse<ConversationResponse> list(
       @RequestHeader(ChatHeaders.USER_ID) UUID actor,
       @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "20") int size) {
-    return chat.list(actor, page, size);
+      @RequestParam(defaultValue = "20") int size,
+      @RequestParam(required = false) String type) {
+    return chat.list(actor, page, size, type);
   }
 
   /** Lấy hội thoại sau khi service kiểm tra quyền truy cập của actor. */

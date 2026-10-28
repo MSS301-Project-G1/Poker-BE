@@ -592,24 +592,28 @@ public class OrderServiceImpl implements OrderService {
                     .timestamp(Instant.now())
                     .build();
 
+            // 1. Đồng bộ cộng VIP Coin tức thì qua HTTP để số dư hiển thị ngay lập tức trên FE mà không cần F5
+            try {
+                walletClient.creditVipCoin(
+                        order.getAccountId(),
+                        vipCoinAmount,
+                        "TOPUP_BUNDLE_PAYOS",
+                        String.valueOf(order.getPayosOrderCode()),
+                        "ORDER:" + order.getId()
+                );
+                log.info("Đã đồng bộ cộng {} VIP Coin tức thì cho accountId={}, orderId={}",
+                        vipCoinAmount, order.getAccountId(), order.getId());
+            } catch (Exception httpEx) {
+                log.warn("Đồng bộ HTTP tức thì sang wallet-service chưa hoàn tất (sẽ xử lý qua RabbitMQ): {}", httpEx.getMessage());
+            }
+
+            // 2. Phát sự kiện RabbitMQ đảm bảo tính nhất quán bất đồng bộ (Idempotent theo key ORDER:{orderId})
             try {
                 topupEventProducer.sendTopupSuccessEvent(event);
                 log.info("Đã phát sự kiện nạp VIP Coin cho bundle orderId={}, accountId={}, vipCoin={}",
                         order.getId(), order.getAccountId(), vipCoinAmount);
             } catch (Exception ex) {
-                log.warn("Không thể gửi event RabbitMQ: {}. Kích hoạt HTTP fallback sang wallet-service.", ex.getMessage());
-                try {
-                    walletClient.creditVipCoin(
-                            order.getAccountId(),
-                            vipCoinAmount,
-                            "TOPUP_BUNDLE_PAYOS",
-                            String.valueOf(order.getPayosOrderCode()),
-                            "ORDER:" + order.getId()
-                    );
-                    log.info("HTTP Fallback: Đã cộng {} VIP Coin thành công cho accountId={}", vipCoinAmount, order.getAccountId());
-                } catch (Exception httpEx) {
-                    log.error("HTTP Fallback sang wallet-service cũng thất bại: {}", httpEx.getMessage(), httpEx);
-                }
+                log.warn("Không thể gửi event RabbitMQ cho orderId={}: {}", order.getId(), ex.getMessage());
             }
         } else if (order.getProduct() != null) {
             String grantKey = "ORDER:" + order.getId();

@@ -117,6 +117,22 @@ public final class GameExceptions {
         return new GameApiException(GameError.GAME_DEPENDENCY_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ tài khoản tạm thời không khả dụng. Vui lòng thử lại.");
     }
 
+    public static GameApiException tauntCooldown() {
+        return new GameApiException(GameError.GAME_TAUNT_COOLDOWN, HttpStatus.TOO_MANY_REQUESTS, "Bạn vừa phát âm thanh. Vui lòng chờ vài giây rồi thử lại.");
+    }
+
+    public static GameApiException tauntAfterLeaving() {
+        return new GameApiException(GameError.GAME_TAUNT_UNAVAILABLE, HttpStatus.FORBIDDEN, "Bạn đã rời bàn nên không thể phát âm thanh.");
+    }
+
+    public static GameApiException tauntSoundNotOwned() {
+        return new GameApiException(GameError.GAME_TAUNT_UNAVAILABLE, HttpStatus.FORBIDDEN, "Bạn chưa sở hữu âm thanh này.");
+    }
+
+    public static GameApiException tauntSoundUnavailable() {
+        return new GameApiException(GameError.GAME_TAUNT_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Không tải được âm thanh lúc này. Vui lòng thử lại sau.");
+    }
+
     public static GameApiException internalError() {
         return new GameApiException(GameError.GAME_INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR, "Không thể xử lý yêu cầu lúc này. Vui lòng thử lại.");
     }

@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
@@ -77,6 +78,6 @@ class SocialClientImplTest {
     }
 
     private SocialClient client() {
-        return new SocialClientImpl("http://127.0.0.1:" + server.getAddress().getPort(), 2000, false, null, null);
+        return new SocialClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000, false, null, null);
     }
 }

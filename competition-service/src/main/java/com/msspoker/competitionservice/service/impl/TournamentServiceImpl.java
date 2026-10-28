@@ -62,6 +62,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TournamentServiceImpl implements TournamentService {
     private static final Sort UPCOMING_FIRST = Sort.by(Sort.Order.asc("startAt"), Sort.Order.asc("id"));
+    private static final Sort LATEST_FIRST = Sort.by(Sort.Order.desc("startAt"), Sort.Order.desc("id"));
+    private static final Set<TournamentStatus> ENDED = EnumSet.of(TournamentStatus.FINISHED, TournamentStatus.CANCELLED);
+    private static final Set<TournamentStatus> NOT_ENDED = EnumSet.complementOf(EnumSet.copyOf(ENDED));
     private static final Set<EntryStatus> SEATED = EnumSet.of(EntryStatus.REGISTERED, EntryStatus.CONFIRMED);
 
     private final TournamentRepository tournaments;
@@ -93,8 +96,9 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Transactional(readOnly = true)
     @Override
-    public PageResponse<TournamentSummaryResponse> list(int page, int size) {
-        Page<TournamentEntity> result = tournaments.findByIsDeletedFalse(PageRequest.of(page, size, UPCOMING_FIRST));
+    public PageResponse<TournamentSummaryResponse> list(boolean past, int page, int size) {
+        Page<TournamentEntity> result = tournaments.findByStatusInAndIsDeletedFalse(past ? ENDED : NOT_ENDED,
+                PageRequest.of(page, size, past ? LATEST_FIRST : UPCOMING_FIRST));
         List<TournamentSummaryResponse> content = result.getContent().stream()
                 .map(t -> {
                     long held = heldPlaces(t.getId());

@@ -30,6 +30,15 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-poker123456}
       S3_BUCKET: ${S3_BUCKET:-poker-assets}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/poker-assets}
+      AUTH_S3_BUCKET: ${AUTH_S3_BUCKET:-the-one-bucket-vippro}
+      AUTH_S3_REGION: ${AUTH_S3_REGION:-ap-southeast-1}
+      AUTH_S3_ACCESS_KEY: ${AUTH_S3_ACCESS_KEY:-}
+      AUTH_S3_SECRET_KEY: ${AUTH_S3_SECRET_KEY:-}
+      SHOP_ASSETS_PUBLIC_READ: ${SHOP_ASSETS_PUBLIC_READ:-false}
+      DATA_INIT_ENABLED: ${DATA_INIT_ENABLED:-false}
+      SHOP_SEED_ASSET_BASE_URL: ${SHOP_SEED_ASSET_BASE_URL:-https://the-one-bucket-vippro.s3.ap-southeast-1.amazonaws.com/poker/shop/seed}
+      SHOP_AUTH_SERVICE_URL: ${SHOP_AUTH_SERVICE_DOCKER_URL:-http://auth-service:8090}
+      DATA_INIT_USER_EMAIL: ${DATA_INIT_USER_EMAIL:-}
       EUREKA_CLIENT_ENABLED: ${EUREKA_CLIENT_ENABLED:-true}
       EUREKA_SERVICE_URL: ${EUREKA_SERVICE_URL:-http://discovery-service:8761/eureka/}
       EUREKA_INSTANCE_HOSTNAME: shop-service
@@ -45,14 +54,14 @@ services:
         condition: service_healthy
 
   shop-postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: shop-postgres
     environment:
       POSTGRES_DB: shop_db
       POSTGRES_USER: ${SHOP_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${SHOP_DB_PASSWORD:-123456}
     ports:
-      - "127.0.0.1:${SHOP_DB_PORT:-54334}:5432"
+      - "127.0.0.1:${SHOP_DB_PORT:-15434}:5432"
     volumes:
       - shop-postgres-data:/var/lib/postgresql/data
     networks:

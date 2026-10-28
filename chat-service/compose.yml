@@ -38,7 +38,7 @@ services:
       POSTGRES_USER: ${CHAT_DB_USER:-poker}
       POSTGRES_PASSWORD: ${CHAT_DB_PASSWORD:-poker_dev}
     ports:
-      - "127.0.0.1:${CHAT_DB_PORT:-54337}:5432"
+      - "127.0.0.1:${CHAT_DB_PORT:-15437}:5432"
     volumes:
       - chat-db-data:/var/lib/postgresql/data
     networks:

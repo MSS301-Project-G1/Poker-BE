@@ -3,6 +3,7 @@ package com.msspoker.authservice.controller;
 import com.msspoker.authservice.dto.profile.request.UpdateProfileRequest;
 import com.msspoker.authservice.dto.profile.response.MyProfileResponse;
 import com.msspoker.authservice.dto.profile.response.ProfileResponse;
+import com.msspoker.authservice.dto.profile.response.PlayerResponse;
 import com.msspoker.authservice.service.ProfileService;
 import com.msspoker.authservice.shared.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +33,26 @@ import java.util.UUID;
 @Tag(name = "Hồ sơ", description = "Hồ sơ cá nhân và tên/avatar công khai; yêu cầu access cookie.")
 public class ProfileController {
     private final ProfileService profileService;
+
+    @GetMapping("/players/me")
+    @Operation(summary = "Mã người chơi của tôi", description = "Mã cố định để chia sẻ và kết bạn; không phải token đăng nhập.")
+    public ApiResponse<PlayerResponse> myPlayer(
+            @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.<PlayerResponse>builder()
+                .code(ApiResponse.SUCCESS_CODE).message("Lấy mã người chơi thành công.")
+                .result(profileService.getMyPlayer(UUID.fromString(jwt.getSubject())))
+                .path("/api/profiles/players/me").timestamp(Instant.now()).build();
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Tìm người chơi", description = "Tìm theo tên (2–100 ký tự) hoặc mã người chơi. Tối đa 20 kết quả; không trả email hay thông tin riêng.")
+    public ApiResponse<List<PlayerResponse>> searchPlayers(
+            @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt, @RequestParam String q) {
+        return ApiResponse.<List<PlayerResponse>>builder()
+                .code(ApiResponse.SUCCESS_CODE).message("Tìm người chơi thành công.")
+                .result(profileService.searchPlayers(UUID.fromString(jwt.getSubject()), q))
+                .path("/api/profiles/search").timestamp(Instant.now()).build();
+    }
 
     @GetMapping("/me")
     @Operation(summary = "Xem hồ sơ của mình", description = "Lấy account ID từ JWT trong access cookie, "

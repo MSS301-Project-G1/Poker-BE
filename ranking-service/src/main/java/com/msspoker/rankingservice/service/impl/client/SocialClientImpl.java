@@ -8,6 +8,7 @@ import com.msspoker.rankingservice.service.SeasonService;
 import com.msspoker.rankingservice.service.client.SocialClient;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -31,13 +32,14 @@ public class SocialClientImpl implements SocialClient {
     private final SeasonService seasons;
     private final PlayerEloRepository players;
 
-    public SocialClientImpl(@Value("${ranking.social-url:http://localhost:8084}") String url,
+    public SocialClientImpl(@LoadBalanced RestClient.Builder restClients,
+            @Value("${ranking.social-url:http://social-service}") String url,
             @Value("${ranking.social-timeout-millis:3000}") long timeoutMillis,
             @Value("${ranking.social.mock:false}") boolean mock, SeasonService seasons, PlayerEloRepository players) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
-        social = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        social = restClients.clone().baseUrl(url).requestFactory(factory).build();
         this.mock = mock;
         this.seasons = seasons;
         this.players = players;
@@ -51,7 +53,8 @@ public class SocialClientImpl implements SocialClient {
             UUID[] friends = social.get().uri("/internal/friends/{accountId}", accountId).retrieve().body(UUID[].class);
             if (friends == null) throw RankingExceptions.socialUnavailable();
             return Arrays.asList(friends);
-        } catch (RestClientException ex) {
+        } catch (RestClientException | IllegalStateException ex) {
+            // IllegalStateException: no registered instance of the service.
             throw RankingExceptions.socialUnavailable();
         }
     }

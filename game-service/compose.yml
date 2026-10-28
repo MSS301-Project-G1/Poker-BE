@@ -20,6 +20,7 @@ services:
       # Browser origins allowed to open /ws/game: Vite dev server and the FE container.
       GAME_ALLOWED_ORIGINS: ${GAME_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
       IDENTITY_SERVICE_URL: http://auth-service:8090
+      SHOP_SERVICE_URL: ${SHOP_SERVICE_DOCKER_URL:-http://shop-service:8088}
       # auth-service has no /internal/accounts/{id}/restrictions yet; set true once Khanh ships it.
       GAME_RESTRICTIONS_ENABLED: ${GAME_RESTRICTIONS_ENABLED:-false}
     networks:
@@ -37,7 +38,7 @@ services:
       POSTGRES_USER: ${GAME_DB_USER:-poker}
       POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:-poker_dev}
     ports:
-      - "127.0.0.1:54329:5432"
+      - "127.0.0.1:15429:5432"
     volumes:
       - game-db-data:/var/lib/postgresql/data
     networks:

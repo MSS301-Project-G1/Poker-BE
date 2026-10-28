@@ -15,6 +15,18 @@ import java.util.UUID;
 
 @Repository
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
+    @Query("""
+            SELECT p FROM Profile p WHERE p.account.deleted = false
+            AND p.account.emailVerified = true AND p.account.accountStatus = :status
+            AND p.accountId <> :actor
+            AND (p.playerCode = :code OR LOCATE(LOWER(:term), LOWER(p.displayName)) > 0)
+            ORDER BY p.displayName, p.playerCode
+            """)
+    List<Profile> searchPlayers(@Param("actor") UUID actor, @Param("term") String term,
+            @Param("code") String code,
+            @Param("status") com.msspoker.authservice.enums.AccountStatus status,
+            org.springframework.data.domain.Pageable pageable);
+
     Optional<Profile> findByAccountId(UUID accountId);
 
     Optional<Profile> findByAccountIdAndAccount_DeletedFalse(UUID accountId);

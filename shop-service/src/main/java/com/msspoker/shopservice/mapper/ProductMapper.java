@@ -7,11 +7,12 @@ import com.msspoker.shopservice.dto.response.CategoryResponse;
 import com.msspoker.shopservice.dto.response.ProductResponse;
 import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.entity.Product;
+import com.msspoker.shopservice.util.AssetUrlSigner;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = AssetUrlSigner.class)
 public interface ProductMapper {
 
     CategoryResponse toCategoryResponse(Category category);
@@ -25,6 +26,10 @@ public interface ProductMapper {
     @Mapping(target = "categoryName", source = "category.name")
     @Mapping(target = "isExclusive", source = "exclusive")
     @Mapping(target = "isOwned", ignore = true)
+    @Mapping(target = "assetUrl", qualifiedByName = AssetUrlSigner.SIGN_URL)
+    @Mapping(target = "previewUrl", qualifiedByName = AssetUrlSigner.SIGN_URL)
+    @Mapping(target = "previewVideoUrl", qualifiedByName = AssetUrlSigner.SIGN_URL)
+    @Mapping(target = "metadata", qualifiedByName = AssetUrlSigner.SIGN_METADATA)
     ProductResponse toProductResponse(Product product);
 
     default ProductResponse toProductResponse(Product product, boolean isOwned) {

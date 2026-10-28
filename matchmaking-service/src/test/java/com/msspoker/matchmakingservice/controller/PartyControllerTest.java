@@ -2,7 +2,7 @@ package com.msspoker.matchmakingservice.controller;
 
 import com.msspoker.matchmakingservice.dto.response.PartyResponse;
 import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
-import com.msspoker.matchmakingservice.service.PartyService;
+import com.msspoker.matchmakingservice.service.party.PartyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;

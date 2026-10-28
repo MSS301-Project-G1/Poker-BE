@@ -1,8 +1,10 @@
 package com.msspoker.shopservice.service.impl;
 
+import com.msspoker.shopservice.constant.ProductAssetConstants;
 import com.msspoker.shopservice.dto.request.GrantItemRequest;
 import com.msspoker.shopservice.dto.response.GrantItemResponse;
 import com.msspoker.shopservice.dto.response.InventoryItemResponse;
+import com.msspoker.shopservice.dto.response.OwnedSoundResponse;
 import com.msspoker.shopservice.dto.response.OwnershipResponse;
 import com.msspoker.shopservice.entity.InventoryItem;
 import com.msspoker.shopservice.entity.Product;
@@ -11,6 +13,7 @@ import com.msspoker.shopservice.mapper.InventoryMapper;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
 import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.service.InventoryService;
+import com.msspoker.shopservice.util.MetadataJsonMerger;
 import com.msspoker.shopservice.validator.InventoryValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +34,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final ProductRepository productRepository;
     private final InventoryMapper inventoryMapper;
     private final InventoryValidator inventoryValidator;
+    private final MetadataJsonMerger metadataJsonMerger;
 
     @Override
     public List<InventoryItemResponse> getMyInventory(UUID accountId) {
@@ -88,6 +92,18 @@ public class InventoryServiceImpl implements InventoryService {
         log.debug("Checking ownership for accountId={}, productId={}", accountId, productId);
         boolean owned = inventoryItemRepository.existsByAccountIdAndProductId(accountId, productId);
         return inventoryMapper.toOwnershipResponse(owned);
+    }
+
+    @Override
+    public OwnedSoundResponse getOwnedSound(UUID accountId, UUID productId) {
+        log.debug("Resolving owned sound for accountId={}, productId={}", accountId, productId);
+        InventoryItem item = inventoryItemRepository.findByAccountIdAndProductId(accountId, productId).orElse(null);
+        inventoryValidator.validateOwned(accountId, productId, item);
+
+        Product product = item.getProduct();
+        String soundUrl = metadataJsonMerger.getStringField(product.getMetadata(), ProductAssetConstants.SOUND_URL_KEY);
+        inventoryValidator.validatePlayableSound(product, soundUrl);
+        return inventoryMapper.toOwnedSoundResponse(productId, soundUrl);
     }
 
     @Override

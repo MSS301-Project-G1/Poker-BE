@@ -1,8 +1,10 @@
 package com.msspoker.matchmakingservice.controller;
 
+import com.msspoker.matchmakingservice.service.normal.NormalProposalService;
+
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
-import com.msspoker.matchmakingservice.service.RankProposalService;
+import com.msspoker.matchmakingservice.service.rank.RankProposalService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,7 +30,7 @@ class RankProposalControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(RankProposalService.class);
-        mvc = standaloneSetup(new RankProposalController(service, mock(com.msspoker.matchmakingservice.service.NormalProposalService.class)))
+        mvc = standaloneSetup(new RankProposalController(service, mock(com.msspoker.matchmakingservice.service.normal.NormalProposalService.class)))
                 .setControllerAdvice(new MatchmakingExceptionHandler())
                 .build();
     }
