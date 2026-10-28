@@ -17,4 +17,12 @@ public final class InventoryExceptions {
                 "Bạn chưa sở hữu vật phẩm này trong túi đồ."
         );
     }
+
+    public static AppException soundNotPlayable() {
+        return AppException.of(
+                HttpStatus.BAD_REQUEST,
+                "SHOP_SOUND_NOT_PLAYABLE",
+                "Vật phẩm này không phải âm thanh có thể phát trong bàn chơi."
+        );
+    }
 }

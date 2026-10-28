@@ -3,12 +3,13 @@ package com.msspoker.shopservice.mapper;
 import com.msspoker.shopservice.dto.request.GrantItemRequest;
 import com.msspoker.shopservice.dto.response.GrantItemResponse;
 import com.msspoker.shopservice.dto.response.InventoryItemResponse;
+import com.msspoker.shopservice.dto.response.OwnedSoundResponse;
 import com.msspoker.shopservice.dto.response.OwnershipResponse;
 import com.msspoker.shopservice.entity.InventoryItem;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
-import org.mapstruct.Mapper;
 import com.msspoker.shopservice.util.AssetUrlSigner;
+import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import java.util.UUID;
@@ -58,4 +59,7 @@ public interface InventoryMapper {
     default OwnershipResponse toOwnershipResponse(boolean owned) {
         return new OwnershipResponse(owned);
     }
+
+    @Mapping(target = "soundUrl", source = "soundUrl", qualifiedByName = AssetUrlSigner.SIGN_URL)
+    OwnedSoundResponse toOwnedSoundResponse(UUID productId, String soundUrl);
 }

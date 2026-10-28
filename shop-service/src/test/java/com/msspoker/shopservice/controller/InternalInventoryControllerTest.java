@@ -4,6 +4,7 @@ import com.msspoker.shopservice.dto.request.GrantItemRequest;
 import com.msspoker.shopservice.dto.response.ApiResponse;
 import com.msspoker.shopservice.dto.response.GrantItemResponse;
 import com.msspoker.shopservice.dto.response.InventoryItemResponse;
+import com.msspoker.shopservice.dto.response.OwnedSoundResponse;
 import com.msspoker.shopservice.dto.response.OwnershipResponse;
 import com.msspoker.shopservice.service.InventoryService;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,23 @@ class InternalInventoryControllerTest {
         assertThat(result.getBody().getData()).isEqualTo(response);
         assertThat(result.getBody().getData().owned()).isTrue();
         verify(inventoryService).checkOwnership(accountId, productId);
+    }
+
+    @Test
+    @DisplayName("getOwnedSound gọi InventoryService và trả về soundUrl")
+    void getOwnedSound() {
+        UUID accountId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        OwnedSoundResponse response = new OwnedSoundResponse(productId, "https://cdn.test/taunt.mp3");
+
+        when(inventoryService.getOwnedSound(accountId, productId)).thenReturn(response);
+
+        ResponseEntity<ApiResponse<OwnedSoundResponse>> result = controller.getOwnedSound(accountId, productId);
+
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().getData()).isEqualTo(response);
+        verify(inventoryService).getOwnedSound(accountId, productId);
     }
 
     @Test
