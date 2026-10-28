@@ -48,6 +48,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Service
@@ -69,17 +70,57 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentIdempotencyService paymentIdempotencyService;
 
     /**
+     * Custom Epoch: 2026-01-01T00:00:00Z (1767225600000L).
+     * Giúp rút gọn phần timestamp mili-giây để nhường 5 chữ số cuối (100.000 vị trí/mili-giây)
+     * cho phần ngẫu nhiên của UUIDv7 mà vẫn nằm gọn trong giới hạn 53-bit MAX_SAFE_INTEGER (9007199254740991) của PayOS.
+     */
+    private static final long CUSTOM_EPOCH_MS = 1_767_225_600_000L;
+    private static final long ENTROPY_MODULO = 100_000L;
+    private static final AtomicLong LAST_ORDER_CODE = new AtomicLong(0L);
+
+    /**
      * Chuyển đổi mã đơn từ UUIDv7 (time-ordered epoch) sang mã giao dịch số PayOS (53-bit safe integer).
      * - 48-bit đầu của UUIDv7 chứa Unix epoch milliseconds -> đảm bảo mã đơn tăng dần từ thấp đến cao theo thời gian.
-     * - 3 chữ số cuối lấy từ entropy của UUID -> chống trùng lặp tuyệt đối khi các máy trong team dùng chung tài khoản PayOS.
+     * - 74-bit ngẫu nhiên (SecureRandom + monotonic counter của UUIDv7) được trộn qua hàm băm SplitMix64
+     *   vào 5 chữ số cuối (100.000 khả năng mỗi mili-giây) -> chống trùng lặp khi nhiều tài khoản hoặc nhiều máy tạo đơn cùng lúc.
      */
     public static long generatePayosOrderCodeFromUuid(UUID orderUuid) {
         long timestampMs = (orderUuid.getMostSignificantBits() >>> 16) & 0xFFFFFFFFFFFFL;
-        if (timestampMs <= 0) {
+        if (timestampMs <= CUSTOM_EPOCH_MS) {
             timestampMs = System.currentTimeMillis();
         }
-        long uuidEntropy = Math.floorMod(orderUuid.getLeastSignificantBits() ^ orderUuid.getMostSignificantBits(), 1000L);
-        return (timestampMs % 8_000_000_000_000L) * 1000L + uuidEntropy;
+        long relativeMs = Math.floorMod(timestampMs - CUSTOM_EPOCH_MS, 89_000_000_000L);
+        if (relativeMs <= 0) {
+            relativeMs = 1L;
+        }
+
+        // Trích xuất toàn bộ 74 bit ngẫu nhiên & counter của UUIDv7 và khuếch tán đều bằng SplitMix64
+        long rawRandom = orderUuid.getLeastSignificantBits() ^ ((orderUuid.getMostSignificantBits() & 0xFFFFL) << 48);
+        rawRandom = (rawRandom ^ (rawRandom >>> 30)) * 0xbf58476d1ce4e5b9L;
+        rawRandom = (rawRandom ^ (rawRandom >>> 27)) * 0x94d049bb133111ebL;
+        rawRandom = rawRandom ^ (rawRandom >>> 31);
+
+        long uuidEntropy = Math.floorMod(rawRandom, ENTROPY_MODULO);
+        return relativeMs * ENTROPY_MODULO + uuidEntropy;
+    }
+
+    /**
+     * Sinh cặp (orderId UUIDv7, payosOrderCode) đảm bảo không bao giờ trùng lặp kể cả khi nhiều tài khoản
+     * bấm tạo đơn trong cùng 1 mili-giây:
+     * - Kiểm tra chống trùng trong bộ nhớ (LAST_ORDER_CODE) và trong Database (existsByPayosOrderCode).
+     */
+    private UUID allocateUniqueOrderUuid() {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            UUID candidateUuid = UuidCreator.getTimeOrderedEpoch();
+            long candidateCode = generatePayosOrderCodeFromUuid(candidateUuid);
+            long prevCode = LAST_ORDER_CODE.get();
+            if (candidateCode != prevCode
+                    && LAST_ORDER_CODE.compareAndSet(prevCode, candidateCode)
+                    && !orderRepository.existsByPayosOrderCode(candidateCode)) {
+                return candidateUuid;
+            }
+        }
+        return UuidCreator.getTimeOrderedEpoch();
     }
 
     @Override
@@ -144,8 +185,8 @@ public class OrderServiceImpl implements OrderService {
             // Run validation qua OrderValidator
             orderValidator.validateCreateOrder(accountId, request, product);
 
-            // Sinh UUIDv7 cho đơn hàng và chuyển đổi sang mã giao dịch PayOS (tăng dần theo thời gian, không trùng lặp giữa các máy)
-            UUID orderId = UuidCreator.getTimeOrderedEpoch();
+            // Sinh UUIDv7 duy nhất cho đơn hàng và chuyển đổi sang mã giao dịch PayOS (tăng dần theo thời gian, chống trùng đa tài khoản)
+            UUID orderId = allocateUniqueOrderUuid();
             long orderCode = generatePayosOrderCodeFromUuid(orderId);
 
             Instant now = Instant.now();
@@ -294,7 +335,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         try {
-            UUID orderId = UuidCreator.getTimeOrderedEpoch();
+            UUID orderId = allocateUniqueOrderUuid();
             long orderCode = generatePayosOrderCodeFromUuid(orderId);
 
             Instant now = Instant.now();

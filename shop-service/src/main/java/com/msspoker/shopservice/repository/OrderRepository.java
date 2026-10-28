@@ -25,6 +25,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     @Query("SELECT o FROM Order o WHERE o.payosOrderCode = :payosOrderCode")
     Optional<Order> findByPayosOrderCodeForUpdate(@Param("payosOrderCode") long payosOrderCode);
 
+    boolean existsByPayosOrderCode(long payosOrderCode);
+
 
     Optional<Order> findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
             UUID accountId, UUID productId, OrderStatus status);
