@@ -29,14 +29,21 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
             UUID accountId, UUID productId, OrderStatus status);
 
+    List<Order> findByAccountIdAndProductIdAndStatusOrderByPayosOrderCodeAsc(
+            UUID accountId, UUID productId, OrderStatus status);
+
     Optional<Order> findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
             UUID accountId, UUID bundleId, OrderStatus status);
 
     Optional<Order> findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
             UUID accountId, OrderStatus status, Instant now);
 
+    List<Order> findByAccountIdAndStatusAndExpiresAtAfterOrderByPayosOrderCodeAsc(
+            UUID accountId, OrderStatus status, Instant now);
+
     List<Order> findByAccountIdOrderByCreatedAtDesc(UUID accountId);
 
-
     List<Order> findByStatus(OrderStatus status);
+
+    List<Order> findByStatusOrderByPayosOrderCodeAsc(OrderStatus status);
 }
