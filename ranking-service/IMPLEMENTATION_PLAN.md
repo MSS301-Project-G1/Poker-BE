@@ -48,9 +48,13 @@ scope `ranking`/`competition`, không push main.
 
 ## Quyết định đã chốt với Hoài Anh
 
-- Elo và thưởng dùng nguyên bảng §8 theo thứ hạng, kể cả bàn ít hơn 6 người:
-  hạng 1..6 nhận +20/+10/+5/−5/−10/−15 (hạng sau 6 dùng giá trị cuối), top 3
-  nhận 3×/2×/1× phí. Bàn 2 người: +20/+10, thưởng 3×/2× phí.
+- Elo theo thứ hạng và số người (đổi 2026-10-29, thay cho "dùng nguyên bảng bàn 6"
+  khi bàn 2 người làm người thua vẫn +10): bàn 6 giữ +20/+10/+5/−5/−10/−15; bàn
+  nhỏ hơn chia đôi, nửa trên lấy các mức đầu, nửa dưới lấy các mức cuối, người giữa
+  bàn lẻ giữ Elo (bàn 2: +20/−15, 3: +20/0/−15, 4: +20/+10/−10/−15, 5: +20/+10/0/
+  −10/−15). Thưởng 3×/2×/1× phí từ trên xuống, tổng không vượt phí cả bàn (2: 2×,
+  3: 3×, 4: 3×/1×, 5: 3×/2×). Chuỗi thắng: lọt top 3 và được cộng Elo. SPEC §8
+  được sửa theo (Hoài Anh đồng ý).
 - Không thêm khóa ingress riêng: chỉ tin `X-User-Id`/`X-User-Role` do gateway gắn
   (§5.1); `/internal/**` không mở qua gateway.
 - Root `docker-compose.yml` (Khanh) được đưa lại về dạng include ngay trên
@@ -76,7 +80,7 @@ scope `ranking`/`competition`, không push main.
   Đã chuyển sang kiến trúc FE mới của `develop` (`docs/ARCHITECTURE.md`): route trong
   `app/router.jsx` + `paths.js`, API qua `httpClient`, CSS Module + token. Ở profile
   `dev`, service nhận `X-Dev-User` thay `X-User-Id` (như game-service).
-- [ ] Đợt 7: GĐ2.
+- [x] Đợt 7: GĐ2.
   - [x] Mùa giải BE: V3 (`season_tier_rewards`, `season_reward_claims`,
     `reward_grants`, `ranking_outbox`, `player_elo.final_tier`); Admin tạo mùa/quà,
     đóng mùa tay hoặc tự động khi qua `endAt` và đã có mùa kế tiếp; bậc cuối mùa
@@ -90,6 +94,8 @@ scope `ranking`/`competition`, không push main.
     `/internal/friends/{accountId}` của Duy (dev: top mùa là bạn của mọi người).
     39 test H2; chạy thật trên PostgreSQL: V4, 6 request hoàn thành song song chỉ
     thưởng một lần, vị trí bạn bè khớp BXH toàn server.
+  - [x] Bàn Rank 2–5 người (2026-10-29): Elo, thưởng xu và chuỗi thắng theo số người
+    (xem "Quyết định đã chốt"), SPEC §8 sửa theo. 44 test H2.
   - FE GĐ2 chia đợt (mỗi đợt dừng để review):
     - [x] Đợt A: đồng bộ nhánh FE với `develop` (merge shop/wallet của Tùng, proxy admin
       đặt trước `/api/admin` của shop); filter dev: `X-Dev-User` thắng `X-User-Id` mặc
@@ -101,7 +107,13 @@ scope `ranking`/`competition`, không push main.
     - [x] Đợt C: `/admin/seasons` (danh sách mùa, tạo mùa kế tiếp có chép quà, sửa xu/skin
       theo bậc, đóng mùa có hỏi lại) và `/admin/tournaments`. Kiểm tra qua gateway trong
       Docker: tạo Mùa 2 chép quà Mùa 1, sửa quà, hộp thoại đóng mùa; mobile 375 px.
-    - [ ] Đợt D: FE Tutorial (cần component bàn chơi của Bảo).
+    - [x] Đợt D: FE Tutorial `/tutorial` (2 ván dựng sẵn với 2 bot, dạy blind, nút D,
+      RAISE/CHECK/CALL/FOLD và so bài bằng `Board`, `PlayerSeat`, `ActionDock`, `HandGuide`
+      của game-table; hoàn thành gọi `POST /api/tutorial/complete`).
+    - [x] Đợt E: lối vào (Khanh nhờ): header có Rooms/Tournaments/Leaderboard và icon admin
+      cho mùa giải và giải đấu; Lobby có ô "Chế độ khác" (phòng riêng, giải đấu, hướng dẫn
+      kèm thưởng chưa nhận) và banner giải đấu thật. BXH bạn bè gửi `X-Social-Internal-Key`
+      (`SOCIAL_INTERNAL_KEY`); kiểm tra với social-service thật trả đúng bạn bè.
 
 ## Phụ thuộc và review trước khi merge
 
@@ -111,4 +123,5 @@ scope `ranking`/`competition`, không push main.
 - Tùng: `credit` (nhánh `feature/wallet-shop-service` chưa merge; body đã đối chiếu
   khớp, có `TUTORIAL_REWARD`, thiếu `currencyType` thì ví mặc định `COIN`).
 - Duy: matchmaking gọi `/internal/ranking/{id}` (đã đối chiếu khớp);
-  `/internal/friends/{accountId}` trả mảng id thô cho BXH bạn bè (chưa có code).
+  `/internal/friends/{accountId}` trả mảng id thô cho BXH bạn bè (đã có, cần
+  `X-Social-Internal-Key` giống nhau ở hai bên).

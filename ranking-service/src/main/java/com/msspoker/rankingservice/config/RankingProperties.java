@@ -15,11 +15,11 @@ import java.util.List;
 public class RankingProperties {
     private int startingElo = 0;
     private int minElo = 0;
-    /** Elo change for place 1, 2, ...; places beyond the list use the last value. */
+    /** Elo change for place 1, 2, ... at a full table; smaller tables split it in half (EloCalculator#delta). */
     private List<Integer> eloByPlace = List.of(20, 10, 5, -5, -10, -15);
-    /** A finish at or above this place extends the win streak. */
+    /** A finish at or above this place extends the win streak, if it also gains Elo. */
     private int winStreakPlaces = 3;
-    /** Coin reward as a multiple of the entry fee for place 1, 2, ... */
+    /** Coin reward as a multiple of the entry fee for place 1, 2, ..., capped by the fees of the table. */
     private List<Long> rewardMultipliers = List.of(3L, 2L, 1L);
     /** Minimum Elo for NEWBIE through GRAND_CHAMPION, in Tier order. */
     private List<Integer> tierThresholds = List.of(0, 100, 200, 350, 500, 700, 950, 1250, 1600);

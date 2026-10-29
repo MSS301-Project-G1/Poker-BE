@@ -187,6 +187,9 @@ for non-admins, ELITE registration and confirming without an invitation, and
   `RANKING_SERVICE_URL`, `SHOP_SERVICE_URL` (defaults: the service names, such as
   `http://game-service`). `GAME_SERVICE_KEY` must equal game-service's
   key; `compose.yml` defaults it to `poker_game_dev` like game-service and matchmaking-service.
+- `SOCIAL_INTERNAL_KEY`: sent as `X-Social-Internal-Key` on the friendship check and must
+  equal social-service's `SOCIAL_INTERNAL_KEY`. social-service answers 403 without it, so
+  room invitations fail with `COMP_DEPENDENCY_UNAVAILABLE` until both sides set it.
 - Room defaults: `competition.room.min-players`, `max-players`, `starting-chips`,
   `turn-time-seconds`, `code-length`.
 - Tournament format: `competition.tournament.slots`, `table-size`,

@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Exercises the real HTTP client against a stub social-service returning the SPEC §6.1 raw array. */
 class SocialClientImplTest {
     final AtomicReference<String> path = new AtomicReference<>();
+    final AtomicReference<String> sentKey = new AtomicReference<>();
     HttpServer server;
     volatile int status;
     volatile String response;
@@ -32,6 +33,7 @@ class SocialClientImplTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/internal/friends/", exchange -> {
             path.set(exchange.getRequestURI().getPath());
+            sentKey.set(exchange.getRequestHeaders().getFirst("X-Social-Internal-Key"));
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, bytes.length);
@@ -47,19 +49,23 @@ class SocialClientImplTest {
     }
 
     @Test
-    void readsTheFriendIds() {
+    void readsTheFriendIdsWithTheInternalKey() {
         UUID player = UUID.randomUUID();
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
         reply(200, "[\"" + first + "\",\"" + second + "\"]");
         assertEquals(List.of(first, second), client().friends(player));
         assertEquals("/internal/friends/" + player, path.get());
+        assertEquals("social-key", sentKey.get());
         reply(200, "[]");
-        assertTrue(client().friends(player).isEmpty());
+        assertTrue(client("").friends(player).isEmpty());
+        assertNull(sentKey.get());
     }
 
     @Test
     void errorsAndOutagesBecomeDependencyErrors() {
+        reply(403, "{\"code\":\"SOCIAL_FORBIDDEN\",\"message\":\"Untrusted ingress\"}");
+        assertDependencyError(() -> client().friends(UUID.randomUUID()));
         reply(500, "{\"code\":\"SOCIAL_INTERNAL_ERROR\"}");
         assertDependencyError(() -> client().friends(UUID.randomUUID()));
         reply(200, "{\"code\":\"SOCIAL_SUCCESS\",\"data\":[]}");
@@ -78,6 +84,11 @@ class SocialClientImplTest {
     }
 
     private SocialClient client() {
-        return new SocialClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000, false, null, null);
+        return client("social-key");
+    }
+
+    private SocialClient client(String internalKey) {
+        return new SocialClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), internalKey,
+                2000, false, null, null);
     }
 }
