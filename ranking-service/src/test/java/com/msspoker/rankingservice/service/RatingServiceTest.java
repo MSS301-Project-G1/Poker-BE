@@ -97,17 +97,42 @@ class RatingServiceTest {
 
         assertEquals(20, player(accounts.getFirst()).getCurrentElo());
         assertEquals(3, history.findByMatchIdOrderByPlace(event.matchId()).size());
-        assertEquals(3, rewards.count());
+        assertEquals(1, rewards.count());
     }
 
     @Test
-    void twoPlayerTableUsesSpecTableByPlace() {
+    void twoPlayerTableOnlyRewardsTheWinner() {
         List<UUID> accounts = accounts(2);
-        rating.matchFinished(rank(accounts, 100));
+        accounts.forEach(id -> rating.accountRegistered(new AccountRegisteredEvent(id)));
+        PlayerEloEntity loser = player(accounts.get(1));
+        loser.setCurrentElo(100);
+        loser.setPeakElo(100);
+        players.save(loser);
+
+        var event = rank(accounts, 100);
+        rating.matchFinished(event);
 
         assertEquals(20, player(accounts.get(0)).getCurrentElo());
-        assertEquals(10, player(accounts.get(1)).getCurrentElo());
-        assertEquals(List.of(300L, 200L), rewards.findAll().stream().map(RewardCreditEntity::getAmount).sorted((a, b) -> Long.compare(b, a)).toList());
+        assertEquals(85, player(accounts.get(1)).getCurrentElo());
+        assertEquals(1, player(accounts.get(0)).getWinStreak());
+        assertEquals(1, player(accounts.get(1)).getLossStreak());
+        // The two entry fees are the whole pool: the winner gets 2x the fee, the loser nothing.
+        assertEquals(List.of(200L), rewards.findByMatchIdOrderByPlace(event.matchId()).stream().map(RewardCreditEntity::getAmount).toList());
+    }
+
+    @Test
+    void middleSeatOfAnOddTableKeepsEloAndEndsBothStreaks() {
+        List<UUID> accounts = accounts(3);
+        UUID middle = accounts.get(1);
+        rating.matchFinished(rank(List.of(middle, accounts.get(0), accounts.get(2)), 0));
+        assertEquals(1, player(middle).getWinStreak());
+
+        rating.matchFinished(rank(accounts, 0));
+        PlayerEloEntity after = player(middle);
+        assertEquals(20, after.getCurrentElo());
+        assertEquals(0, after.getWinStreak());
+        assertEquals(0, after.getLossStreak());
+        assertEquals(2, after.getMatchesPlayed());
     }
 
     @Test
@@ -160,7 +185,7 @@ class RatingServiceTest {
 
     @Test
     void dispatcherCreditsPendingRewardsOnce() {
-        rating.matchFinished(rank(accounts(3), 100));
+        rating.matchFinished(rank(accounts(6), 100));
         dispatcher.dispatchPending();
         dispatcher.dispatchPending();
 

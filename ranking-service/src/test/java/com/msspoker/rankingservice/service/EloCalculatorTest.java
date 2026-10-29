@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -15,10 +16,21 @@ class EloCalculatorTest {
     private final EloCalculator calculator = new EloCalculatorImpl(new RankingProperties());
 
     @Test
-    void placesFollowSpecTableAndReuseLastValueBeyondSix() {
-        assertArrayEquals(new int[]{20, 10, 5, -5, -10, -15, -15, -15},
-                IntStream.rangeClosed(1, 8).map(calculator::delta).toArray());
-        assertThrows(IllegalArgumentException.class, () -> calculator.delta(0));
+    void fullTableFollowsSpecAndLargerTablesReuseTheLastValue() {
+        assertArrayEquals(new int[]{20, 10, 5, -5, -10, -15}, deltas(6));
+        assertArrayEquals(new int[]{20, 10, 5, -5, -10, -15, -15, -15}, deltas(8));
+        assertThrows(IllegalArgumentException.class, () -> calculator.delta(0, 6));
+        assertThrows(IllegalArgumentException.class, () -> calculator.delta(3, 2));
+    }
+
+    @Test
+    void smallTablesSplitIntoGainersAndLosers() {
+        assertArrayEquals(new int[]{20, -15}, deltas(2));
+        assertArrayEquals(new int[]{20, 0, -15}, deltas(3));
+        assertArrayEquals(new int[]{20, 10, -10, -15}, deltas(4));
+        assertArrayEquals(new int[]{20, 10, 0, -10, -15}, deltas(5));
+        // Every table size adds the same +5 to the pool as the full SPEC table.
+        IntStream.rangeClosed(2, 6).forEach(players -> assertEquals(5, IntStream.of(deltas(players)).sum(), players + " players"));
     }
 
     @Test
@@ -53,13 +65,32 @@ class EloCalculatorTest {
     }
 
     @Test
-    void topThreeExtendWinStreakAndEarnFeeMultiples() {
-        assertTrue(calculator.extendsWinStreak(3));
-        assertFalse(calculator.extendsWinStreak(4));
-        assertEquals(300, calculator.reward(1, 100));
-        assertEquals(200, calculator.reward(2, 100));
-        assertEquals(100, calculator.reward(3, 100));
-        assertEquals(0, calculator.reward(4, 100));
-        assertEquals(0, calculator.reward(1, 0));
+    void placesThatGainEloExtendTheWinStreak() {
+        assertTrue(calculator.extendsWinStreak(3, 6));
+        assertFalse(calculator.extendsWinStreak(4, 6));
+        assertTrue(calculator.extendsWinStreak(1, 2));
+        assertFalse(calculator.extendsWinStreak(2, 2));
+        assertFalse(calculator.extendsWinStreak(2, 3));
+        assertTrue(calculator.extendsWinStreak(2, 5));
+        assertFalse(calculator.extendsWinStreak(3, 5));
+    }
+
+    @Test
+    void rewardsPayFeeMultiplesWithinTheFeesOfTheTable() {
+        assertArrayEquals(new long[]{300, 200, 100, 0, 0, 0}, rewards(6));
+        assertArrayEquals(new long[]{200, 0}, rewards(2));
+        assertArrayEquals(new long[]{300, 0, 0}, rewards(3));
+        assertArrayEquals(new long[]{300, 100, 0, 0}, rewards(4));
+        assertArrayEquals(new long[]{300, 200, 0, 0, 0}, rewards(5));
+        IntStream.rangeClosed(2, 6).forEach(players -> assertTrue(LongStream.of(rewards(players)).sum() <= players * 100L));
+        assertEquals(0, calculator.reward(1, 6, 0));
+    }
+
+    private int[] deltas(int players) {
+        return IntStream.rangeClosed(1, players).map(place -> calculator.delta(place, players)).toArray();
+    }
+
+    private long[] rewards(int players) {
+        return IntStream.rangeClosed(1, players).mapToLong(place -> calculator.reward(place, players, 100)).toArray();
     }
 }

@@ -16,6 +16,7 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-${RABBITMQ_USERNAME:-guest}}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       GAME_SERVICE_KEY: ${GAME_SERVICE_KEY:-poker_game_dev}
+      SOCIAL_INTERNAL_KEY: ${SOCIAL_INTERNAL_KEY:-}
     networks:
       - default
       - competition-net

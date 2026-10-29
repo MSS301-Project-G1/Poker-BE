@@ -1,6 +1,7 @@
 package com.msspoker.rankingservice.service.impl.client;
 
 import com.msspoker.rankingservice.constant.RankingConstants;
+import com.msspoker.rankingservice.constant.RankingHeaders;
 import com.msspoker.rankingservice.entity.PlayerEloEntity;
 import com.msspoker.rankingservice.exception.RankingExceptions;
 import com.msspoker.rankingservice.repository.PlayerEloRepository;
@@ -28,18 +29,21 @@ import java.util.UUID;
 @Component
 public class SocialClientImpl implements SocialClient {
     private final RestClient social;
+    private final String internalKey;
     private final boolean mock;
     private final SeasonService seasons;
     private final PlayerEloRepository players;
 
     public SocialClientImpl(@LoadBalanced RestClient.Builder restClients,
             @Value("${ranking.social-url:http://social-service}") String url,
+            @Value("${ranking.social-internal-key:}") String internalKey,
             @Value("${ranking.social-timeout-millis:3000}") long timeoutMillis,
             @Value("${ranking.social.mock:false}") boolean mock, SeasonService seasons, PlayerEloRepository players) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
         social = restClients.clone().baseUrl(url).requestFactory(factory).build();
+        this.internalKey = internalKey;
         this.mock = mock;
         this.seasons = seasons;
         this.players = players;
@@ -50,7 +54,9 @@ public class SocialClientImpl implements SocialClient {
     public List<UUID> friends(UUID accountId) {
         if (mock) return seasonTop(accountId);
         try {
-            UUID[] friends = social.get().uri("/internal/friends/{accountId}", accountId).retrieve().body(UUID[].class);
+            RestClient.RequestHeadersSpec<?> call = social.get().uri("/internal/friends/{accountId}", accountId);
+            if (!internalKey.isBlank()) call = call.header(RankingHeaders.SOCIAL_INTERNAL_KEY, internalKey);
+            UUID[] friends = call.retrieve().body(UUID[].class);
             if (friends == null) throw RankingExceptions.socialUnavailable();
             return Arrays.asList(friends);
         } catch (RestClientException | IllegalStateException ex) {

@@ -15,6 +15,7 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER:-${RABBITMQ_USERNAME:-guest}}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      SOCIAL_INTERNAL_KEY: ${SOCIAL_INTERNAL_KEY:-}
     networks:
       - default
       - ranking-net
