@@ -2,13 +2,12 @@ package com.msspoker.matchmakingservice.controller;
 
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
-import com.msspoker.matchmakingservice.service.NormalProposalService;
-import com.msspoker.matchmakingservice.service.RankProposalService;
+import com.msspoker.matchmakingservice.service.rank.RankProposalService;
+import com.msspoker.matchmakingservice.service.normal.NormalProposalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 /** API phản hồi đề xuất trận Rank; service kiểm tra thành viên, deadline và tiến trình tạo bàn. */
 @RestController

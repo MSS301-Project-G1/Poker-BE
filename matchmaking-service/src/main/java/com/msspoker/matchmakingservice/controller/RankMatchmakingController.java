@@ -1,18 +1,19 @@
 package com.msspoker.matchmakingservice.controller;
 
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
-import com.msspoker.matchmakingservice.service.RankMatchmakingService;
+import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
+import com.msspoker.matchmakingservice.service.rank.RankMatchmakingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 /** API ghép Rank cho người chơi solo; service kiểm tra điều kiện và trạng thái tham gia. */
 @RestController

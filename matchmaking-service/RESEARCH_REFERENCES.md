@@ -22,7 +22,7 @@ không được dùng trực tiếp vì Normal cho phép bắt đầu với số
 
 Code liên quan:
 
-- [`NormalMatchWorker.find()`](src/main/java/com/msspoker/matchmakingservice/scheduler/NormalMatchWorker.java): đọc số người đang chờ, kiểm tra `minPlayers`, `maxPlayers` và quyết định thời điểm tạo trận.
+- [`NormalMatchWorker.find()`](src/main/java/com/msspoker/matchmakingservice/service/normal/worker/NormalMatchWorker.java): đọc số người đang chờ, kiểm tra `minPlayers`, `maxPlayers` và quyết định thời điểm tạo trận.
 - [`MatchmakingProperties.Normal`](src/main/java/com/msspoker/matchmakingservice/config/MatchmakingProperties.java): cấu hình số người tối thiểu, tối đa và thời gian chờ lấp bàn.
 
 #### Mục III-A — Central Queue or Two Queues?
@@ -33,8 +33,8 @@ worker chọn các đơn vị phù hợp để lấp bàn. Cách này cho phép 
 
 Code liên quan:
 
-- [`RedisQueueStore`](src/main/java/com/msspoker/matchmakingservice/service/impl/redis/RedisQueueStore.java): lưu solo và thành viên Party trong cùng Redis Sorted Set của mode `NORMAL`.
-- [`NormalMatchWorker.queueUnits()`](src/main/java/com/msspoker/matchmakingservice/scheduler/NormalMatchWorker.java): chuyển queue chung thành các đơn vị solo hoặc Party trước khi chọn bàn.
+- [`RedisQueueStore`](src/main/java/com/msspoker/matchmakingservice/service/store/redis/RedisQueueStore.java): lưu solo và thành viên Party trong cùng Redis Sorted Set của mode `NORMAL`.
+- [`NormalMatchWorker.queueUnits()`](src/main/java/com/msspoker/matchmakingservice/service/normal/worker/NormalMatchWorker.java): chuyển queue chung thành các đơn vị solo hoặc Party trước khi chọn bàn.
 
 #### Mục III-B — Service Order for Central Queue
 
@@ -46,9 +46,9 @@ Paper phân tích ba thứ tự phục vụ: FIFO, Packing và LIFO. Dự án á
 
 Code liên quan:
 
-- [`RedisQueueStore.oldest()`](src/main/java/com/msspoker/matchmakingservice/service/impl/redis/RedisQueueStore.java): đọc Redis Sorted Set từ score nhỏ đến lớn, tương ứng `joinedAt` cũ đến mới.
-- [`NormalMatchWorker.selectPack()`](src/main/java/com/msspoker/matchmakingservice/scheduler/NormalMatchWorker.java): lấp bàn nhưng không vượt quá `maxPlayers`.
-- [`NormalMatchWorker.queueUnits()`](src/main/java/com/msspoker/matchmakingservice/scheduler/NormalMatchWorker.java): giữ Party nguyên khối và không đưa Party thiếu thành viên vào trận.
+- [`RedisQueueStore.oldest()`](src/main/java/com/msspoker/matchmakingservice/service/store/redis/RedisQueueStore.java): đọc Redis Sorted Set từ score nhỏ đến lớn, tương ứng `joinedAt` cũ đến mới.
+- [`NormalMatchWorker.selectPack()`](src/main/java/com/msspoker/matchmakingservice/service/normal/worker/NormalMatchWorker.java): lấp bàn nhưng không vượt quá `maxPlayers`.
+- [`NormalMatchWorker.queueUnits()`](src/main/java/com/msspoker/matchmakingservice/service/normal/worker/NormalMatchWorker.java): giữ Party nguyên khối và không đưa Party thiếu thành viên vào trận.
 
 #### Mục III-C — Performance Assessment and Rule Design
 
@@ -97,18 +97,18 @@ Party là một đơn vị không thể tách khi đưa vào queue và khi chọ
 Code quản lý Party:
 
 - [`PartyController`](src/main/java/com/msspoker/matchmakingservice/controller/PartyController.java): API tạo, mời, tham gia, kick và rời Party.
-- [`PartyServiceImpl`](src/main/java/com/msspoker/matchmakingservice/service/impl/PartyServiceImpl.java): kiểm tra leader, thành viên, giới hạn số người và trạng thái đang tìm trận.
-- [`RedisPartyStore`](src/main/java/com/msspoker/matchmakingservice/service/impl/redis/RedisPartyStore.java): lưu Party, leader, mã mời và thành viên trong Redis.
+- [`PartyServiceImpl`](src/main/java/com/msspoker/matchmakingservice/service/party/impl/PartyServiceImpl.java): kiểm tra leader, thành viên, giới hạn số người và trạng thái đang tìm trận.
+- [`RedisPartyStore`](src/main/java/com/msspoker/matchmakingservice/service/store/redis/RedisPartyStore.java): lưu Party, leader, mã mời và thành viên trong Redis.
 - [`redis/party-create.lua`](src/main/resources/redis/party-create.lua), [`party-invite.lua`](src/main/resources/redis/party-invite.lua), [`party-join.lua`](src/main/resources/redis/party-join.lua), [`party-kick.lua`](src/main/resources/redis/party-kick.lua) và [`party-leave.lua`](src/main/resources/redis/party-leave.lua): thay đổi Party nguyên tử.
 
 Code tích hợp Party vào Normal:
 
-- [`NormalMatchmakingServiceImpl.join()`](src/main/java/com/msspoker/matchmakingservice/service/impl/NormalMatchmakingServiceImpl.java): chỉ leader được đưa toàn bộ Party vào Normal queue.
-- [`NormalMatchmakingServiceImpl.leave()`](src/main/java/com/msspoker/matchmakingservice/service/impl/NormalMatchmakingServiceImpl.java): chỉ leader được hủy tìm trận cho toàn bộ Party.
-- [`RedisQueueStore.enqueueParty()`](src/main/java/com/msspoker/matchmakingservice/service/impl/redis/RedisQueueStore.java) và [`redis/enqueue-party.lua`](src/main/resources/redis/enqueue-party.lua): kiểm tra đúng toàn bộ thành viên rồi enqueue nguyên tử.
-- [`RedisQueueStore.cancelParty()`](src/main/java/com/msspoker/matchmakingservice/service/impl/redis/RedisQueueStore.java) và [`redis/cancel-party.lua`](src/main/resources/redis/cancel-party.lua): xóa toàn bộ Party khỏi queue nguyên tử và không cho xóa một phần khi đã reserve.
-- [`NormalMatchWorker.queueUnits()`](src/main/java/com/msspoker/matchmakingservice/scheduler/NormalMatchWorker.java): tạo một unit chứa toàn bộ thành viên Party; Party thiếu thành viên trong queue sẽ không được chọn.
-- [`NormalMatchWorker.selectPack()`](src/main/java/com/msspoker/matchmakingservice/scheduler/NormalMatchWorker.java): ghép Party với solo hoặc Party khác nếu tổng số người không vượt quá `maxPlayers`.
+- [`NormalMatchmakingServiceImpl.join()`](src/main/java/com/msspoker/matchmakingservice/service/normal/impl/NormalMatchmakingServiceImpl.java): chỉ leader được đưa toàn bộ Party vào Normal queue.
+- [`NormalMatchmakingServiceImpl.leave()`](src/main/java/com/msspoker/matchmakingservice/service/normal/impl/NormalMatchmakingServiceImpl.java): chỉ leader được hủy tìm trận cho toàn bộ Party.
+- [`RedisQueueStore.enqueueParty()`](src/main/java/com/msspoker/matchmakingservice/service/store/redis/RedisQueueStore.java) và [`redis/enqueue-party.lua`](src/main/resources/redis/enqueue-party.lua): kiểm tra đúng toàn bộ thành viên rồi enqueue nguyên tử.
+- [`RedisQueueStore.cancelParty()`](src/main/java/com/msspoker/matchmakingservice/service/store/redis/RedisQueueStore.java) và [`redis/cancel-party.lua`](src/main/resources/redis/cancel-party.lua): xóa toàn bộ Party khỏi queue nguyên tử và không cho xóa một phần khi đã reserve.
+- [`NormalMatchWorker.queueUnits()`](src/main/java/com/msspoker/matchmakingservice/service/normal/worker/NormalMatchWorker.java): tạo một unit chứa toàn bộ thành viên Party; Party thiếu thành viên trong queue sẽ không được chọn.
+- [`NormalMatchWorker.selectPack()`](src/main/java/com/msspoker/matchmakingservice/service/normal/worker/NormalMatchWorker.java): ghép Party với solo hoặc Party khác nếu tổng số người không vượt quá `maxPlayers`.
 
 ### Phần paper chưa áp dụng
 

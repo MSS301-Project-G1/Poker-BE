@@ -220,12 +220,13 @@ matchmaking-service/
     │   │   │   ├── MatchProposalPlayerRepository.java
     │   │   │   ├── WalletOperationRepository.java
     │   │   │   └── OutboxRepository.java
-    │   │   ├── client/           # interface + http/ + stub/
-    │   │   ├── validator/        # Điều kiện join và quyền leader Party
-    │   │   ├── scheduler/        # Worker Normal/Rank
-    │   │   ├── service/          # Interface nghiệp vụ, QueueStore, PartyStore
-    │   │   │   └── impl/         # Nghiệp vụ, proposal và persistence
-    │   │   │       └── redis/    # RedisQueueStore, RedisPartyStore
+    │   │   ├── service/
+    │   │   │   ├── normal/       # interface + impl/ + worker/
+    │   │   │   ├── rank/         # interface + impl/ + worker/
+    │   │   │   ├── party/        # interface + impl/
+    │   │   │   ├── proposal/     # interface + impl/
+    │   │   │   ├── store/        # interface + redis/
+    │   │   │   └── client/       # interface + http/ + stub/
     │   │   └── util/MatchmakingIds.java
     │   └── resources/
     │       ├── application.properties
