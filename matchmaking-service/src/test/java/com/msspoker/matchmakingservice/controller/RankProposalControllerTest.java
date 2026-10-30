@@ -1,15 +1,12 @@
 package com.msspoker.matchmakingservice.controller;
 
-import com.msspoker.matchmakingservice.service.normal.NormalProposalService;
-
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
-import com.msspoker.matchmakingservice.service.rank.RankProposalService;
+import com.msspoker.matchmakingservice.service.RankProposalService;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.UUID;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -30,7 +27,7 @@ class RankProposalControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(RankProposalService.class);
-        mvc = standaloneSetup(new RankProposalController(service, mock(com.msspoker.matchmakingservice.service.normal.NormalProposalService.class)))
+        mvc = standaloneSetup(new RankProposalController(service, mock(com.msspoker.matchmakingservice.service.NormalProposalService.class)))
                 .setControllerAdvice(new MatchmakingExceptionHandler())
                 .build();
     }

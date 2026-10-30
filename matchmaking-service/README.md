@@ -21,26 +21,21 @@ kiểm thử E2E qua Gateway.
 ## Cấu trúc service
 
 ```text
-service/
-├── normal/       # Interface nghiệp vụ Normal
-│   ├── impl/     # Ghép trận, proposal, coordinator Normal
-│   └── worker/   # Ghép và phục hồi trận Normal
-├── rank/         # Interface nghiệp vụ Rank
-│   ├── impl/     # Ghép Elo, xác nhận, trạng thái và coordinator Rank
-│   └── worker/   # Ghép trận, hết hạn proposal và phục hồi Rank
-├── party/
-│   └── impl/     # Tạo, vào, kick và rời nhóm
-├── proposal/
-│   └── impl/     # Lưu proposal dùng chung trong PostgreSQL
-├── store/        # Interface QueueStore, PartyStore
-│   └── redis/    # RedisQueueStore, RedisPartyStore
-└── client/       # Interface gọi Game, Ranking, Restriction, Wallet
-    ├── http/     # Client HTTP thực tế
-    └── stub/     # Client giả lập
+client/           # Interface gọi Game, Ranking, Restriction, Wallet
+├── http/         # Client HTTP thực tế
+└── stub/         # Client giả lập
+validator/        # Kiểm tra điều kiện join queue và quyền leader Party
+scheduler/        # Worker ghép trận, hết hạn và phục hồi Normal/Rank
+service/          # Interface nghiệp vụ và QueueStore, PartyStore
+└── impl/         # Normal/Rank matchmaking, proposal, Party và persistence
+    └── redis/    # RedisQueueStore, RedisPartyStore
 ```
 
-Test phản chiếu cùng cấu trúc package trong `src/test/java`. Controller gọi interface;
-worker nằm cùng nhóm Normal/Rank và gọi service của nhóm đó.
+Test phản chiếu cùng cấu trúc package trong `src/test/java`. Controller và worker gọi
+interface service. `NormalProposalServiceImpl` và `RankProposalServiceImpl` xử lý
+accept/decline và tạo bàn; Rank còn xử lý thu phí, hoàn phí. `ProposalPersistenceServiceImpl`
+giữ các transaction PostgreSQL ngắn và commit trước khi gọi Game hoặc Wallet.
+Queue, Redis Lua, idempotency key và các lịch phục hồi được giữ nguyên.
 
 ## API Party
 
