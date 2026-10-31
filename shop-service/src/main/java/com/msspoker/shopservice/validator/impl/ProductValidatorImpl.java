@@ -11,6 +11,7 @@ import com.msspoker.shopservice.validator.ProductValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -52,7 +53,7 @@ public class ProductValidatorImpl implements ProductValidator {
     @Override
     public void validateForPurchase(UUID accountId, Product product) {
         validateExists(product != null ? product.getId() : null, product);
-        if (product.isExclusive() || (product.getSaleExpiresAt() != null && !product.getSaleExpiresAt().isAfter(java.time.Instant.now()))) {
+        if (product.isExclusive() || (product.getSaleExpiresAt() != null && !product.getSaleExpiresAt().isAfter(Instant.now()))) {
             throw ProductExceptions.productNotPurchasable();
         }
         if (product.getPriceVipCoin() <= 0) {
