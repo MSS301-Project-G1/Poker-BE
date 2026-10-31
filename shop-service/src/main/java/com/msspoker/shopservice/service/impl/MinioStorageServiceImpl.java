@@ -7,6 +7,7 @@ import com.msspoker.shopservice.dto.response.UploadedAssetResponse;
 import com.msspoker.shopservice.exception.CardSkinExceptions;
 import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.service.S3StorageService;
+import io.minio.GetObjectArgs;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -23,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -191,8 +193,8 @@ public class MinioStorageServiceImpl implements S3StorageService {
 
     @Override
     public byte[] downloadFile(String objectKey) {
-        try (java.io.InputStream stream = minioClient.getObject(
-                io.minio.GetObjectArgs.builder()
+        try (InputStream stream = minioClient.getObject(
+                GetObjectArgs.builder()
                         .bucket(s3Properties.getBucket())
                         .object(objectKey)
                         .build())) {

@@ -20,6 +20,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -67,7 +69,7 @@ public class Product {
     @Column(name = "preview_video_url", length = 500)
     private String previewVideoUrl;
 
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "json")
     private String metadata;
 

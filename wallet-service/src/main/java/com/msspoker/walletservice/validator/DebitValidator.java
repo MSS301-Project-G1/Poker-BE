@@ -1,6 +1,7 @@
 package com.msspoker.walletservice.validator;
 
 import com.msspoker.walletservice.entity.Wallet;
+import com.msspoker.walletservice.exception.AppException;
 
 /**
  * Business validation interface cho debit operations (Rule #15 — Tier 2).
@@ -15,7 +16,7 @@ public interface DebitValidator {
      *
      * @param wallet  Ví hiện tại
      * @param amount  Số xu cần trừ
-     * @throws com.msspoker.walletservice.exception.AppException nếu vi phạm rule
+     * @throws AppException nếu vi phạm rule
      */
     void validate(Wallet wallet, long amount);
 }

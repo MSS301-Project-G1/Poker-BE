@@ -1,5 +1,6 @@
 package com.msspoker.walletservice.dto.response;
 
+import com.msspoker.walletservice.enums.CurrencyType;
 import com.msspoker.walletservice.enums.TransactionReason;
 import lombok.Builder;
 
@@ -11,7 +12,7 @@ public record TransactionResponse(
         UUID id,
         UUID accountId,
         long amount,
-        com.msspoker.walletservice.enums.CurrencyType currencyType,
+        CurrencyType currencyType,
         TransactionReason reason,
         String refId,
         String idempotencyKey,

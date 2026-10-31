@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -25,7 +26,7 @@ public class PageResponse<T> {
     private int totalPages;
     private boolean last;
 
-    public static <T> PageResponse<T> of(org.springframework.data.domain.Page<T> springPage) {
+    public static <T> PageResponse<T> of(Page<T> springPage) {
         return PageResponse.<T>builder()
                 .content(springPage.getContent())
                 .page(springPage.getNumber())

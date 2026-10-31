@@ -3,9 +3,13 @@ package com.msspoker.shopservice.exception;
 import com.msspoker.shopservice.dto.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.http.converter.HttpMessageNotWritableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -66,14 +70,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "SHOP_BAD_REQUEST", ex.getMessage(), request);
     }
 
-    @ExceptionHandler(org.springframework.dao.InvalidDataAccessApiUsageException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidDataAccessApiUsage(org.springframework.dao.InvalidDataAccessApiUsageException ex, HttpServletRequest request) {
+    @ExceptionHandler(InvalidDataAccessApiUsageException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidDataAccessApiUsage(InvalidDataAccessApiUsageException ex, HttpServletRequest request) {
         log.warn("Invalid data access / sort expression: {}", ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, "SHOP_INVALID_SORT", "Thuộc tính sắp xếp (sort) không hợp lệ", request);
     }
 
-    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotWritableException.class)
-    public void handleNotWritable(org.springframework.http.converter.HttpMessageNotWritableException ex, HttpServletRequest request) {
+    @ExceptionHandler(HttpMessageNotWritableException.class)
+    public void handleNotWritable(HttpMessageNotWritableException ex, HttpServletRequest request) {
         String msg = ex.getMessage();
         if (msg != null && (msg.contains("ClientAbortException") || msg.contains("aborted by the software in your host machine"))) {
             log.debug("Client socket closed prematurely while writing response for URI: {}", request.getRequestURI());
@@ -82,14 +86,14 @@ public class GlobalExceptionHandler {
         log.error("Unhandled HttpMessageNotWritableException on URI: {}", request.getRequestURI(), ex);
     }
 
-    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         log.warn("Access denied on URI {}: {}", request.getRequestURI(), ex.getMessage());
         return buildResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền thực hiện hành động này", request);
     }
 
-    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex, HttpServletRequest request) {
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException ex, HttpServletRequest request) {
         log.warn("Authentication error on URI {}: {}", request.getRequestURI(), ex.getMessage());
         return buildResponse(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Yêu cầu đăng nhập để thực hiện hành động này", request);
     }

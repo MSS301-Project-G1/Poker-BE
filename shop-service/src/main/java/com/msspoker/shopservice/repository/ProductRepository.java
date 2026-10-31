@@ -5,11 +5,13 @@ import com.msspoker.shopservice.enums.ProductTier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,7 +24,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     boolean existsByCategoryIdAndIsDeletedFalse(UUID categoryId);
 
-    @org.springframework.data.jpa.repository.Modifying
+    @Modifying
     @Query("DELETE FROM Product p WHERE p.category.id = :categoryId")
     void deleteAllByCategoryId(@Param("categoryId") UUID categoryId);
 
@@ -38,6 +40,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false " +
            "AND p.isExclusive = false AND p.saleExpiresAt IS NOT NULL AND p.saleExpiresAt <= :now")
-    java.util.List<Product> findExpiredSaleProducts(@Param("now") java.time.Instant now);
+    List<Product> findExpiredSaleProducts(@Param("now") Instant now);
 }
 

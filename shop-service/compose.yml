@@ -35,10 +35,6 @@ services:
       AUTH_S3_ACCESS_KEY: ${AUTH_S3_ACCESS_KEY:-}
       AUTH_S3_SECRET_KEY: ${AUTH_S3_SECRET_KEY:-}
       SHOP_ASSETS_PUBLIC_READ: ${SHOP_ASSETS_PUBLIC_READ:-false}
-      DATA_INIT_ENABLED: ${DATA_INIT_ENABLED:-false}
-      SHOP_SEED_ASSET_BASE_URL: ${SHOP_SEED_ASSET_BASE_URL:-https://the-one-bucket-vippro.s3.ap-southeast-1.amazonaws.com/poker/shop/seed}
-      SHOP_AUTH_SERVICE_URL: ${SHOP_AUTH_SERVICE_DOCKER_URL:-http://auth-service:8090}
-      DATA_INIT_USER_EMAIL: ${DATA_INIT_USER_EMAIL:-}
       EUREKA_CLIENT_ENABLED: ${EUREKA_CLIENT_ENABLED:-true}
       EUREKA_SERVICE_URL: ${EUREKA_SERVICE_URL:-http://discovery-service:8761/eureka/}
       EUREKA_INSTANCE_HOSTNAME: shop-service

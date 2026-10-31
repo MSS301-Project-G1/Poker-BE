@@ -12,6 +12,7 @@ import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.engine.TextureAtlasGenerator;
 import com.msspoker.shopservice.service.CardDeckSkinService;
 import com.msspoker.shopservice.service.S3StorageService;
+import com.msspoker.shopservice.util.MetadataJsonMerger;
 import com.msspoker.shopservice.validator.CardDeckValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +45,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
     private final TextureAtlasGenerator textureAtlasGenerator;
     private final CardDeckValidator cardDeckValidator;
     private final ObjectMapper objectMapper;
-    private final com.msspoker.shopservice.util.MetadataJsonMerger metadataJsonMerger;
+    private final MetadataJsonMerger metadataJsonMerger;
 
     @Override
     @Transactional
