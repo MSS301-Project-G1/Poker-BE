@@ -5,10 +5,12 @@ import com.msspoker.shopservice.dto.request.UpdateProductRequest;
 import com.msspoker.shopservice.dto.response.ApiResponse;
 import com.msspoker.shopservice.dto.response.CardSkinUploadResponse;
 import com.msspoker.shopservice.dto.response.ProductResponse;
+import com.msspoker.shopservice.dto.response.ProductSoundResponse;
 import com.msspoker.shopservice.constant.StorageKeyConstants;
 import com.msspoker.shopservice.dto.response.UploadedAssetResponse;
 import com.msspoker.shopservice.service.CardDeckSkinService;
 import com.msspoker.shopservice.service.ProductService;
+import com.msspoker.shopservice.service.ProductSoundService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,15 +43,18 @@ public class AdminProductController {
     private final ProductService productService;
     private final CardDeckSkinService cardDeckSkinService;
     private final S3StorageService storageService;
+    private final ProductSoundService productSoundService;
 
     public AdminProductController(
             ProductService productService,
             CardDeckSkinService cardDeckSkinService,
-            S3StorageService storageService
+            S3StorageService storageService,
+            ProductSoundService productSoundService
     ) {
         this.productService = productService;
         this.cardDeckSkinService = cardDeckSkinService;
         this.storageService = storageService;
+        this.productSoundService = productSoundService;
     }
 
     @PostMapping(value = "/upload-asset", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -112,5 +117,24 @@ public class AdminProductController {
     ) {
         CardSkinUploadResponse response = cardDeckSkinService.uploadDeckSkinFiles(id, files);
         return ResponseEntity.ok(ApiResponse.success("Tải lên danh sách ảnh skin thành công", response));
+    }
+
+    @PostMapping(value = "/{id}/sound", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải lên tệp âm thanh cho sản phẩm", description = "Upload file mp3/ogg/wav (tối đa 2MB) và lưu soundUrl vào metadata của sản phẩm")
+    public ResponseEntity<ApiResponse<ProductSoundResponse>> uploadProductSound(
+            @Parameter(description = "ID sản phẩm cần gắn âm thanh") @PathVariable UUID id,
+            @Parameter(description = "Tệp âm thanh (mp3/ogg/wav, tối đa 2MB)") @RequestParam("file") MultipartFile file
+    ) {
+        ProductSoundResponse response = productSoundService.uploadSound(id, file);
+        return ResponseEntity.ok(ApiResponse.success(response.message(), response));
+    }
+
+    @DeleteMapping("/{id}/sound")
+    @Operation(summary = "Gỡ tệp âm thanh khỏi sản phẩm", description = "Xóa soundUrl trong metadata và xóa file trên S3")
+    public ResponseEntity<ApiResponse<ProductSoundResponse>> deleteProductSound(
+            @Parameter(description = "ID sản phẩm cần gỡ âm thanh") @PathVariable UUID id
+    ) {
+        ProductSoundResponse response = productSoundService.deleteSound(id);
+        return ResponseEntity.ok(ApiResponse.success(response.message(), response));
     }
 }
