@@ -19,7 +19,7 @@ public final class StorageKeyConstants {
 
     /** Folders under UPLOADS that the admin product form uploads to. */
     public static final String DEFAULT_UPLOAD_FOLDER = "assets";
-    public static final Set<String> UPLOAD_FOLDERS = Set.of(DEFAULT_UPLOAD_FOLDER, "videos", "dealers/poses");
+    public static final Set<String> UPLOAD_FOLDERS = Set.of(DEFAULT_UPLOAD_FOLDER, "videos", "dealers/poses", "ticket-evidence");
 
     /** A key is never written twice (new content gets a new key), so browsers may keep each file for a year. */
     public static final String CACHE_CONTROL = "public, max-age=31536000, immutable";

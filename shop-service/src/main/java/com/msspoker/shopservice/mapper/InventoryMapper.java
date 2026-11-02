@@ -27,6 +27,10 @@ public interface InventoryMapper {
     @Mapping(target = "metadata", source = "product.metadata", qualifiedByName = AssetUrlSigner.SIGN_METADATA)
     @Mapping(target = "tier", source = "product.tier")
     @Mapping(target = "isEquipped", source = "equipped")
+    @Mapping(target = "productStatus", source = "product.status")
+    @Mapping(target = "isDeleting", source = "product.deleting")
+    @Mapping(target = "deletionScheduledAt", source = "product.deletionScheduledAt")
+    @Mapping(target = "deletionNotice", source = "product.deletionNotice")
     InventoryItemResponse toInventoryItemResponse(InventoryItem item);
 
     @Mapping(target = "id", ignore = true)

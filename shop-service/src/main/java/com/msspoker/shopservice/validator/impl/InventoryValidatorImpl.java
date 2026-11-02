@@ -25,6 +25,22 @@ public class InventoryValidatorImpl implements InventoryValidator {
     }
 
     @Override
+    public void validateEquippable(InventoryItem item) {
+        if (item == null) {
+            throw InventoryExceptions.itemNotOwned();
+        }
+        Product product = item.getProduct();
+        if (product != null) {
+            if (product.isDeleting()) {
+                throw InventoryExceptions.productInScheduledDeletion();
+            }
+            if (product.getStatus() == com.msspoker.shopservice.enums.ProductStatus.MAINTAIN) {
+                throw InventoryExceptions.productInMaintenance();
+            }
+        }
+    }
+
+    @Override
     public void validateForGrant(GrantItemRequest request, Product product) {
         if (product == null || product.isDeleted()) {
             throw ProductExceptions.productNotFound();

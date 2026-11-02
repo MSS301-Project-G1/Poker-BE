@@ -25,6 +25,7 @@ public interface ProductMapper {
     @Mapping(target = "categoryCode", source = "category.code")
     @Mapping(target = "categoryName", source = "category.name")
     @Mapping(target = "isExclusive", source = "exclusive")
+    @Mapping(target = "isDeleting", source = "deleting")
     @Mapping(target = "isOwned", ignore = true)
     @Mapping(target = "assetUrl", qualifiedByName = AssetUrlSigner.SIGN_URL)
     @Mapping(target = "previewUrl", qualifiedByName = AssetUrlSigner.SIGN_URL)

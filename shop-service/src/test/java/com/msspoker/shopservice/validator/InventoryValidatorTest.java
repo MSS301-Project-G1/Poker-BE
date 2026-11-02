@@ -64,6 +64,34 @@ class InventoryValidatorTest {
                 .isInstanceOf(AppException.class);
     }
 
+    @Test
+    @DisplayName("validateEquippable: ném lỗi khi product ở trạng thái MAINTAIN hoặc isDeleting")
+    void validateEquippable_ThrowsWhenMaintainOrDeleting() {
+        Product maintainProduct = Product.builder()
+                .id(UUID.randomUUID())
+                .status(com.msspoker.shopservice.enums.ProductStatus.MAINTAIN)
+                .build();
+        InventoryItem maintainItem = InventoryItem.builder()
+                .id(UUID.randomUUID())
+                .product(maintainProduct)
+                .build();
+        assertThatThrownBy(() -> inventoryValidator.validateEquippable(maintainItem))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("bảo trì");
+
+        Product deletingProduct = Product.builder()
+                .id(UUID.randomUUID())
+                .isDeleting(true)
+                .build();
+        InventoryItem deletingItem = InventoryItem.builder()
+                .id(UUID.randomUUID())
+                .product(deletingProduct)
+                .build();
+        assertThatThrownBy(() -> inventoryValidator.validateEquippable(deletingItem))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("lên lịch xóa");
+    }
+
     private Product productIn(String categoryCode) {
         return Product.builder().id(UUID.randomUUID())
                 .category(Category.builder().id(UUID.randomUUID()).code(categoryCode).build())

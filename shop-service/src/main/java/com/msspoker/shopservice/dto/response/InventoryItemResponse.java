@@ -1,6 +1,7 @@
 package com.msspoker.shopservice.dto.response;
 
 import com.msspoker.shopservice.enums.ItemSource;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.enums.ProductTier;
 import lombok.Builder;
 
@@ -21,6 +22,9 @@ public record InventoryItemResponse(
         ProductTier tier,
         ItemSource source,
         boolean isEquipped,
-        Instant acquiredAt
+        Instant acquiredAt,
+        ProductStatus productStatus,
+        boolean isDeleting,
+        Instant deletionScheduledAt,
+        String deletionNotice
 ) {}
-
