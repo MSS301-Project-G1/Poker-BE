@@ -17,6 +17,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -43,6 +44,30 @@ public class RestWalletClientImpl implements WalletClient {
     @Override
     public void creditVipCoin(UUID accountId, long amount, String reason, String refId, String idempotencyKey) {
         creditCurrency(accountId, amount, CURRENCY_VIP_COIN, reason, refId, idempotencyKey);
+    }
+
+    @Override
+    public Optional<Long> findDebitAmountByIdempotencyKey(String idempotencyKey) {
+        String url = walletServiceUrl + "/internal/wallet/transactions/by-idempotency-key?key=" + idempotencyKey;
+        try {
+            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map result = (Map) response.getBody().get("result");
+                if (result != null && result.get("amount") != null) {
+                    Number amount = (Number) result.get("amount");
+                    return Optional.of(Math.abs(amount.longValue()));
+                }
+            }
+        } catch (HttpStatusCodeException ex) {
+            if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+                log.debug("No transaction found in wallet for key={}", idempotencyKey);
+                return Optional.empty();
+            }
+            log.warn("Failed to query transaction from wallet for key={}: status={}", idempotencyKey, ex.getStatusCode());
+        } catch (Exception ex) {
+            log.warn("Error querying transaction from wallet for key={}: {}", idempotencyKey, ex.getMessage());
+        }
+        return Optional.empty();
     }
 
     @Override

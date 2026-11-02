@@ -5,9 +5,12 @@ import com.msspoker.shopservice.dto.request.CreateProductRequest;
 import com.msspoker.shopservice.dto.request.UpdateProductRequest;
 import com.msspoker.shopservice.dto.response.InventoryItemResponse;
 import com.msspoker.shopservice.dto.response.PageResponse;
+import com.msspoker.shopservice.dto.response.ProductDeletionResultResponse;
 import com.msspoker.shopservice.dto.response.ProductResponse;
 import com.msspoker.shopservice.entity.Category;
+import com.msspoker.shopservice.entity.InventoryItem;
 import com.msspoker.shopservice.entity.Product;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.InventoryMapper;
@@ -258,11 +261,47 @@ class ProductServiceImplTest {
     @Test
     @DisplayName("deleteProduct thực hiện soft delete (isDeleted = true)")
     void deleteProductSuccess() {
+        product1.setStatus(ProductStatus.MAINTAIN);
         when(productRepository.findByIdAndIsDeletedFalse(product1.getId())).thenReturn(Optional.of(product1));
 
         productService.deleteProduct(product1.getId());
 
         assertThat(product1.isDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("executeProductDeletion tự động hoàn tiền vào ví với reason=REFUND_COIN")
+    void executeProductDeletionAutoRefundsWithReasonRefundCoin() {
+        UUID adminId = UUID.randomUUID();
+        UUID buyerId = UUID.randomUUID();
+        product1.setStatus(ProductStatus.MAINTAIN);
+        product1.setPriceVipCoin(50L);
+
+        InventoryItem item = InventoryItem.builder()
+                .id(UUID.randomUUID())
+                .accountId(buyerId)
+                .product(product1)
+                .pricePaidVipCoin(50L)
+                .build();
+
+        when(productRepository.findByIdAndIsDeletedFalse(product1.getId())).thenReturn(Optional.of(product1));
+        when(inventoryItemRepository.findAllByProductIdWithProduct(product1.getId())).thenReturn(List.of(item));
+
+        ProductDeletionResultResponse result = productService.executeProductDeletion(product1.getId(), adminId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.totalUsersRefunded()).isEqualTo(1);
+        assertThat(result.totalVipCoinRefunded()).isEqualTo(50L);
+        assertThat(product1.isDeleted()).isTrue();
+
+        verify(walletClient).creditVipCoin(
+                eq(buyerId),
+                eq(50L),
+                eq("REFUND_COIN"),
+                eq(product1.getId().toString()),
+                eq("AUTO_REFUND_" + product1.getId() + "_" + buyerId)
+        );
+        verify(inventoryItemRepository).deleteAll(List.of(item));
     }
 
     @Test

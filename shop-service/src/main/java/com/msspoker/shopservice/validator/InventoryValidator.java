@@ -13,6 +13,8 @@ public interface InventoryValidator {
 
     void validateOwned(UUID accountId, UUID productId, InventoryItem item);
 
+    void validateEquippable(InventoryItem item);
+
     void validateForGrant(GrantItemRequest request, Product product);
 
     void validatePlayableSound(Product product, String soundUrl);

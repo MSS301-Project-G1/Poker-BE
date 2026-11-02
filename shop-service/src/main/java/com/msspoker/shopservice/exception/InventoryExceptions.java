@@ -25,4 +25,20 @@ public final class InventoryExceptions {
                 "Vật phẩm này không phải âm thanh có thể phát trong bàn chơi."
         );
     }
+
+    public static AppException productInMaintenance() {
+        return AppException.of(
+                HttpStatus.BAD_REQUEST,
+                "SHOP_PRODUCT_IN_MAINTENANCE",
+                "Vật phẩm này hiện đang trong chế độ bảo trì hệ thống, tạm thời không thể kích hoạt trang bị."
+        );
+    }
+
+    public static AppException productInScheduledDeletion() {
+        return AppException.of(
+                HttpStatus.BAD_REQUEST,
+                "SHOP_PRODUCT_IN_SCHEDULED_DELETION",
+                "Vật phẩm này đã được lên lịch xóa và đang chuẩn bị tự động hoàn tiền, không thể trang bị."
+        );
+    }
 }

@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -56,6 +57,13 @@ public class ProductController {
     ) {
         ProductResponse response = productService.getProductDetail(id, accountId);
         return ResponseEntity.ok(ApiResponse.success("Lấy thông tin sản phẩm thành công", response));
+    }
+
+    @GetMapping("/deleting-announcements")
+    @Operation(summary = "Danh sách sản phẩm sắp xóa", description = "Lấy danh sách các sản phẩm đang trong thời gian đếm ngược lên lịch xóa để hiển thị thông báo toàn server")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getScheduledDeletingAnnouncements() {
+        List<ProductResponse> responses = productService.getScheduledDeletingProducts();
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông báo sản phẩm sắp xóa thành công", responses));
     }
 
     @PostMapping("/{id}/purchase")

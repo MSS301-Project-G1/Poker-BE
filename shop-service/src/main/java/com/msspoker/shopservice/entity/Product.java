@@ -3,6 +3,7 @@ package com.msspoker.shopservice.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.f4b6a3.uuid.UuidCreator;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.enums.ProductTier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,6 +55,11 @@ public class Product {
     @Column(name = "tier", length = 30, nullable = false)
     private ProductTier tier;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 30, nullable = false)
+    @Builder.Default
+    private ProductStatus status = ProductStatus.ACTIVE;
+
     @Column(name = "price_vnd", nullable = false)
     private long priceVnd;
 
@@ -82,6 +88,17 @@ public class Product {
     @Column(name = "is_deleted", nullable = false)
     @Builder.Default
     private boolean isDeleted = false;
+
+    @JsonProperty("isDeleting")
+    @Column(name = "is_deleting", nullable = false)
+    @Builder.Default
+    private boolean isDeleting = false;
+
+    @Column(name = "deletion_scheduled_at")
+    private Instant deletionScheduledAt;
+
+    @Column(name = "deletion_notice", columnDefinition = "TEXT")
+    private String deletionNotice;
 
     @Column(name = "sale_expires_at")
     private Instant saleExpiresAt;
@@ -114,6 +131,9 @@ public class Product {
         Instant now = Instant.now();
         if (this.createdAt == null) {
             this.createdAt = now;
+        }
+        if (this.status == null) {
+            this.status = ProductStatus.ACTIVE;
         }
         this.updatedAt = now;
     }
