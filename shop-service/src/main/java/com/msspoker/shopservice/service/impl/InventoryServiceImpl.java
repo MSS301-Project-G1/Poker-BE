@@ -59,6 +59,7 @@ public class InventoryServiceImpl implements InventoryService {
         InventoryItem itemToEquip = inventoryItemRepository.findByAccountIdAndProductId(accountId, productId).orElse(null);
 
         inventoryValidator.validateOwned(accountId, productId, itemToEquip);
+        inventoryValidator.validateEquippable(itemToEquip);
 
         UUID categoryId = itemToEquip.getProduct().getCategory().getId();
 

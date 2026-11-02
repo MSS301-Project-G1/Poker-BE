@@ -60,6 +60,9 @@ public class InventoryItem {
     @Column(name = "grant_key", length = 255, unique = true)
     private String grantKey;
 
+    @Column(name = "price_paid_vip_coin")
+    private Long pricePaidVipCoin;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {

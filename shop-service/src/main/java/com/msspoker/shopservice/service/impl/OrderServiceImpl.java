@@ -669,6 +669,7 @@ public class OrderServiceImpl implements OrderService {
                         .source(ItemSource.PURCHASE)
                         .isEquipped(false)
                         .grantKey(grantKey)
+                        .pricePaidVipCoin(order.getProduct().getPriceVipCoin())
                         .build();
                 inventoryItemRepository.save(item);
                 log.info("Đã cấp vật phẩm productId={} cho accountId={} từ orderId={}",

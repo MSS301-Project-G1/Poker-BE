@@ -1,5 +1,6 @@
 package com.msspoker.shopservice.dto.response;
 
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.enums.ProductTier;
 import lombok.Builder;
 
@@ -15,6 +16,7 @@ public record ProductResponse(
         String name,
         String description,
         ProductTier tier,
+        ProductStatus status,
         long priceVnd,
         long priceVipCoin,
         String assetUrl,
@@ -23,12 +25,16 @@ public record ProductResponse(
         String metadata,
         boolean isExclusive,
         boolean isOwned,
+        boolean isDeleting,
+        Instant deletionScheduledAt,
+        String deletionNotice,
         Instant saleExpiresAt
 ) {
     public ProductResponse withOwned(boolean owned) {
         return new ProductResponse(
-                id, categoryId, categoryCode, categoryName, name, description, tier,
-                priceVnd, priceVipCoin, assetUrl, previewUrl, previewVideoUrl, metadata, isExclusive, owned,
+                id, categoryId, categoryCode, categoryName, name, description, tier, status,
+                priceVnd, priceVipCoin, assetUrl, previewUrl, previewVideoUrl, metadata,
+                isExclusive, owned, isDeleting, deletionScheduledAt, deletionNotice,
                 saleExpiresAt
         );
     }

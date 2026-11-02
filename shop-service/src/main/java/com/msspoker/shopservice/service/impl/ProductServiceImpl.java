@@ -3,15 +3,19 @@ package com.msspoker.shopservice.service.impl;
 import com.msspoker.shopservice.client.WalletClient;
 import com.msspoker.shopservice.config.RedisConfig;
 import com.msspoker.shopservice.dto.request.CreateProductRequest;
+import com.msspoker.shopservice.dto.request.ScheduleDeletionRequest;
 import com.msspoker.shopservice.dto.request.UpdateProductRequest;
 import com.msspoker.shopservice.dto.response.InventoryItemResponse;
 import com.msspoker.shopservice.dto.response.PageResponse;
+import com.msspoker.shopservice.dto.response.ProductDeletionResultResponse;
 import com.msspoker.shopservice.dto.response.ProductResponse;
 import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.entity.InventoryItem;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.enums.ProductTier;
+import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.mapper.InventoryMapper;
 import com.msspoker.shopservice.mapper.ProductMapper;
@@ -31,9 +35,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -90,6 +98,15 @@ public class ProductServiceImpl implements ProductService {
         );
     }
 
+    @Override
+    public PageResponse<ProductResponse> getAdminProducts(String categoryCode, ProductTier tier, ProductStatus status, Pageable pageable) {
+        log.debug("Fetching admin products with categoryCode={}, tier={}, status={}", categoryCode, tier, status);
+        Pageable safePageable = normalizePageable(pageable);
+        Page<Product> productPage = productRepository.findAdminProducts(categoryCode, tier, status, safePageable);
+        Page<ProductResponse> responsePage = productPage.map(product -> productMapper.toProductResponse(product, false));
+        return PageResponse.of(responsePage);
+    }
+
     @Cacheable(
             value = RedisConfig.CACHE_PRODUCTS_CATALOG,
             key = "(#categoryCode != null ? #categoryCode : 'ALL') + ':' + (#tier != null ? #tier : 'ALL') + ':' + #safePageable.pageNumber + ':' + #safePageable.pageSize + ':' + #safePageable.sort"
@@ -132,33 +149,38 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductResponse getProductDetail(UUID id, UUID accountId) {
         log.debug("Fetching product detail for id={}, accountId={}", id, accountId);
-        Product product = (self != null) ? self.getProductEntityCached(id) : getProductEntityCached(id);
+        Product product = (self != null) ? self.getProductByIdCached(id) : getProductByIdCached(id);
+        if (product == null) {
+            throw ProductExceptions.productNotFound();
+        }
 
-        boolean isOwned = accountId != null && inventoryItemRepository.existsByAccountIdAndProductId(accountId, id);
+        boolean isOwned = false;
+        if (accountId != null) {
+            isOwned = inventoryItemRepository.existsByAccountIdAndProductId(accountId, id);
+        }
 
         return productMapper.toProductResponse(product, isOwned);
     }
 
     @Cacheable(value = RedisConfig.CACHE_PRODUCTS, key = "#id")
-    public Product getProductEntityCached(UUID id) {
-        log.debug("Querying product from database (cache miss): id={}", id);
-        Product product = productRepository.findByIdAndIsDeletedFalse(id).orElse(null);
-        productValidator.validateExists(id, product);
-        return product;
+    public Product getProductByIdCached(UUID id) {
+        return productRepository.findByIdAndIsDeletedFalse(id).orElse(null);
     }
 
     @Override
     @Transactional
     @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
     public ProductResponse createProduct(CreateProductRequest request) {
-        log.info("Creating new product with name={}, categoryId={}", request.name(), request.categoryId());
+        log.info("Creating new product with name={}", request.name());
         Category category = categoryRepository.findById(request.categoryId()).orElse(null);
+
         productValidator.validateForCreate(request, category);
 
         Product product = productMapper.toProduct(request, category);
-        Product saved = productRepository.save(product);
-        log.info("Created product id={} successfully", saved.getId());
-        return productMapper.toProductResponse(saved, false);
+        product.setStatus(ProductStatus.ACTIVE);
+        Product savedProduct = productRepository.save(product);
+        log.info("Created product id={} successfully", savedProduct.getId());
+        return productMapper.toProductResponse(savedProduct, false);
     }
 
     @Override
@@ -185,13 +207,176 @@ public class ProductServiceImpl implements ProductService {
             @CacheEvict(value = RedisConfig.CACHE_PRODUCTS, key = "#id"),
             @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
     })
+    public ProductResponse activateProduct(UUID id) {
+        log.info("Reactivating product id={}", id);
+        Product product = productRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(ProductExceptions::productNotFound);
+
+        if (product.isDeleting()) {
+            throw ProductExceptions.productInScheduledDeletion();
+        }
+
+        product.setStatus(ProductStatus.ACTIVE);
+        log.info("Product id={} status changed to ACTIVE", id);
+        return productMapper.toProductResponse(product, false);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS, key = "#id"),
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
+    })
+    public ProductResponse maintainProduct(UUID id) {
+        log.info("Putting product id={} into MAINTAIN status", id);
+        Product product = productRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(ProductExceptions::productNotFound);
+
+        product.setStatus(ProductStatus.MAINTAIN);
+        inventoryItemRepository.unequipAllByProductId(id);
+        log.info("Product id={} status changed to MAINTAIN (user inventories preserved 100%, unequipped active)", id);
+        return productMapper.toProductResponse(product, false);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS, key = "#id"),
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
+    })
     public void deleteProduct(UUID id) {
-        log.info("Soft-deleting product id={}", id);
-        Product product = productRepository.findByIdAndIsDeletedFalse(id).orElse(null);
+        executeProductDeletion(id, null);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS, key = "#id"),
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
+    })
+    public ProductResponse scheduleDeletion(UUID id, ScheduleDeletionRequest request, UUID adminId) {
+        log.info("Scheduling deletion for product id={} by adminId={}, durationHours={}", id, adminId, request.durationHours());
+        Product product = productRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(ProductExceptions::productNotFound);
+
+        if (product.getStatus() != ProductStatus.MAINTAIN) {
+            throw ProductExceptions.mustBeInMaintainBeforeDelete();
+        }
+
+        product.setDeleting(true);
+        product.setDeletionScheduledAt(Instant.now().plus(request.durationHours(), ChronoUnit.HOURS));
+        product.setDeletionNotice(request.notice().trim());
+        inventoryItemRepository.unequipAllByProductId(id);
+        Product saved = productRepository.save(product);
+
+        log.info("Product id={} scheduled for deletion at {}", id, saved.getDeletionScheduledAt());
+        return productMapper.toProductResponse(saved, false);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS, key = "#id"),
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
+    })
+    public ProductResponse cancelScheduledDeletion(UUID id, UUID adminId) {
+        log.info("Cancelling scheduled deletion for product id={} by adminId={}", id, adminId);
+        Product product = productRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(ProductExceptions::productNotFound);
+
+        product.setDeleting(false);
+        product.setDeletionScheduledAt(null);
+        product.setDeletionNotice(null);
+        Product saved = productRepository.save(product);
+
+        log.info("Product id={} scheduled deletion cancelled", id);
+        return productMapper.toProductResponse(saved, false);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS, key = "#id"),
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
+    })
+    public ProductDeletionResultResponse executeProductDeletion(UUID id, UUID adminId) {
+        log.info("Executing deletion and auto-refund for product id={} by adminId={}", id, adminId);
+        Product product = productRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(ProductExceptions::productNotFound);
+
         productValidator.validateForDelete(id, product);
 
+        List<InventoryItem> items = inventoryItemRepository.findAllByProductIdWithProduct(id);
+        int totalUsers = 0;
+        long totalVipCoin = 0;
+
+        for (InventoryItem item : items) {
+            long priceToRefund = (item.getPricePaidVipCoin() != null && item.getPricePaidVipCoin() > 0)
+                    ? item.getPricePaidVipCoin()
+                    : product.getPriceVipCoin();
+
+            if (priceToRefund > 0) {
+                try {
+                    String idempotencyKey = "AUTO_REFUND_" + product.getId() + "_" + item.getAccountId();
+                    walletClient.creditVipCoin(
+                            item.getAccountId(),
+                            priceToRefund,
+                            "REFUND_COIN",
+                            product.getId().toString(),
+                            idempotencyKey
+                    );
+                    totalVipCoin += priceToRefund;
+                } catch (Exception ex) {
+                    log.error("Failed to auto-refund {} VIP Coin to accountId={} for product id={}: {}",
+                            priceToRefund, item.getAccountId(), id, ex.getMessage(), ex);
+                    throw AppException.of(
+                            HttpStatus.BAD_GATEWAY,
+                            "AUTO_REFUND_FAILED",
+                            "Không thể hoàn tiền tự động vào ví người chơi: " + ex.getMessage()
+                    );
+                }
+            }
+            totalUsers++;
+        }
+
+        inventoryItemRepository.deleteAll(items);
         product.setDeleted(true);
-        log.info("Soft-deleted product id={}", id);
+        product.setDeleting(false);
+        product.setDeletionScheduledAt(null);
+        productRepository.save(product);
+
+        log.info("Successfully deleted product id={}, auto-refunded {} users, total {} VIP Coin",
+                id, totalUsers, totalVipCoin);
+
+        return ProductDeletionResultResponse.builder()
+                .productId(id)
+                .productName(product.getName())
+                .totalUsersRefunded(totalUsers)
+                .totalVipCoinRefunded(totalVipCoin)
+                .message("Đã xóa vĩnh viễn sản phẩm thành công. Hệ thống đã tự động hoàn trả " + totalVipCoin + " VIP Coin vào ví cho " + totalUsers + " người chơi.")
+                .build();
+    }
+
+    @Override
+    public List<ProductResponse> getScheduledDeletingProducts() {
+        List<Product> products = productRepository.findScheduledDeletingProducts();
+        return products.stream()
+                .map(p -> productMapper.toProductResponse(p, false))
+                .toList();
+    }
+
+    @Scheduled(cron = "0 */1 * * * *")
+    public void processScheduledDeletions() {
+        Instant now = Instant.now();
+        List<Product> dueProducts = productRepository.findDueForDeletionProducts(now);
+        for (Product product : dueProducts) {
+            try {
+                log.info("Auto-executing scheduled deletion for expired product id={}", product.getId());
+                executeProductDeletion(product.getId(), null);
+            } catch (Exception e) {
+                log.error("Failed to auto-execute deletion for product id={}: {}", product.getId(), e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -214,6 +399,7 @@ public class ProductServiceImpl implements ProductService {
 
         // MapStruct mapper
         InventoryItem item = inventoryMapper.toInventoryItem(accountId, product, ItemSource.PURCHASE, grantKey);
+        item.setPricePaidVipCoin(product.getPriceVipCoin());
         InventoryItem savedItem = inventoryItemRepository.save(item);
         log.info("Successfully granted productId={} to accountId={} in inventory", productId, accountId);
         return inventoryMapper.toInventoryItemResponse(savedItem);

@@ -2,6 +2,7 @@ package com.msspoker.shopservice.validator.impl;
 
 import com.msspoker.shopservice.dto.request.CreateOrderRequest;
 import com.msspoker.shopservice.entity.Product;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
 import com.msspoker.shopservice.validator.OrderValidator;
@@ -23,7 +24,7 @@ public class OrderValidatorImpl implements OrderValidator {
 
     @Override
     public void validateCreateOrder(UUID accountId, CreateOrderRequest request, Product product) {
-        if (product == null || product.isDeleted()) {
+        if (product == null || product.isDeleted() || product.getStatus() == ProductStatus.MAINTAIN) {
             throw ProductExceptions.productNotFound();
         }
         if (product.isExclusive()) {

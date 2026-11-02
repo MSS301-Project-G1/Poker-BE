@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -49,5 +50,12 @@ public class InternalWalletController {
     public ResponseEntity<ApiResponse<BalanceResponse>> getBalance(@PathVariable UUID accountId) {
         BalanceResponse response = walletService.getBalance(accountId);
         return ResponseEntity.ok(ApiResponse.success("Lấy số dư thành công", response));
+    }
+
+    @GetMapping("/transactions/by-idempotency-key")
+    @Operation(summary = "Tra cứu giao dịch theo idempotency key", description = "Lấy chi tiết giao dịch theo idempotency key")
+    public ResponseEntity<ApiResponse<TransactionResponse>> getByIdempotencyKey(@RequestParam String key) {
+        TransactionResponse response = walletService.getTransactionByIdempotencyKey(key);
+        return ResponseEntity.ok(ApiResponse.success("Lấy giao dịch thành công", response));
     }
 }

@@ -1,5 +1,6 @@
 package com.msspoker.shopservice.client;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -27,4 +28,9 @@ public interface WalletClient {
      * Mở rộng: Cộng bất kỳ loại tiền tệ nào (VIP_COIN, COIN, CHIPS...) với lý do tùy chỉnh.
      */
     void creditCurrency(UUID accountId, long amount, String currencyType, String reason, String refId, String idempotencyKey);
+
+    /**
+     * Tra cứu số tiền của giao dịch ví theo idempotencyKey (phục vụ đối soát hoàn tiền).
+     */
+    Optional<Long> findDebitAmountByIdempotencyKey(String idempotencyKey);
 }

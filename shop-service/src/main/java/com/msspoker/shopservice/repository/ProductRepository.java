@@ -1,6 +1,7 @@
 package com.msspoker.shopservice.repository;
 
 import com.msspoker.shopservice.entity.Product;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.enums.ProductTier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,25 +22,42 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.id = :id AND p.isDeleted = false")
     Optional<Product> findByIdAndIsDeletedFalse(@Param("id") UUID id);
 
-
     boolean existsByCategoryIdAndIsDeletedFalse(UUID categoryId);
 
     @Modifying
     @Query("DELETE FROM Product p WHERE p.category.id = :categoryId")
     void deleteAllByCategoryId(@Param("categoryId") UUID categoryId);
 
-    @Query(value = "SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false " +
+    @Query(value = "SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false AND p.status = 'ACTIVE' " +
            "AND (:categoryCode IS NULL OR p.category.code = :categoryCode) " +
            "AND (:tier IS NULL OR p.tier = :tier)",
-           countQuery = "SELECT count(p) FROM Product p WHERE p.isDeleted = false " +
+           countQuery = "SELECT count(p) FROM Product p WHERE p.isDeleted = false AND p.status = 'ACTIVE' " +
            "AND (:categoryCode IS NULL OR p.category.code = :categoryCode) " +
            "AND (:tier IS NULL OR p.tier = :tier)")
     Page<Product> findAvailableProducts(@Param("categoryCode") String categoryCode,
                                         @Param("tier") ProductTier tier,
                                         Pageable pageable);
 
+    @Query(value = "SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false " +
+           "AND (:categoryCode IS NULL OR p.category.code = :categoryCode) " +
+           "AND (:tier IS NULL OR p.tier = :tier) " +
+           "AND (:status IS NULL OR p.status = :status)",
+           countQuery = "SELECT count(p) FROM Product p WHERE p.isDeleted = false " +
+           "AND (:categoryCode IS NULL OR p.category.code = :categoryCode) " +
+           "AND (:tier IS NULL OR p.tier = :tier) " +
+           "AND (:status IS NULL OR p.status = :status)")
+    Page<Product> findAdminProducts(@Param("categoryCode") String categoryCode,
+                                    @Param("tier") ProductTier tier,
+                                    @Param("status") ProductStatus status,
+                                    Pageable pageable);
+
     @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false " +
            "AND p.isExclusive = false AND p.saleExpiresAt IS NOT NULL AND p.saleExpiresAt <= :now")
     List<Product> findExpiredSaleProducts(@Param("now") Instant now);
-}
 
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false AND p.isDeleting = true")
+    List<Product> findScheduledDeletingProducts();
+
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.isDeleted = false AND p.isDeleting = true AND p.deletionScheduledAt <= :now")
+    List<Product> findDueForDeletionProducts(@Param("now") Instant now);
+}
