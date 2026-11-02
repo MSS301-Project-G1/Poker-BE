@@ -1,6 +1,8 @@
 package com.msspoker.chatservice.websocket;
 
 import java.time.*;
+import com.msspoker.common.security.SessionAccessClient;
+import com.msspoker.common.security.SessionAccessException;
 import java.util.*;
 import java.util.concurrent.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,9 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 @Component
 public class SocketSecurity implements ChannelInterceptor {
   private final JwtDecoder decoder;
+  private final SessionAccessClient authority;
+  private record Credentials(String token, String tabId) {}
+  private final Map<String, Credentials> credentials = new ConcurrentHashMap<>();
   private final Clock clock;
   private final int maxRate;
   private final Map<String, Instant> expiry = new ConcurrentHashMap<>();
@@ -30,7 +35,8 @@ public class SocketSecurity implements ChannelInterceptor {
       @Value("${chat.jwt.issuer}") String issuer,
       @Value("${chat.jwt.audience}") String audience,
       @Value("${chat.ws.messages-per-second:10}") int maxRate,
-      Clock clock) {
+      Clock clock, SessionAccessClient authority) {
+    this.authority = authority;
     var jwt = NimbusJwtDecoder.withJwkSetUri(jwks).jwsAlgorithm(SignatureAlgorithm.RS256).build();
     jwt.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(
@@ -50,6 +56,7 @@ public class SocketSecurity implements ChannelInterceptor {
   public void remove(String id) {
     sockets.remove(id);
     expiry.remove(id);
+    credentials.remove(id);
     rates.remove(id);
   }
 
@@ -62,7 +69,12 @@ public class SocketSecurity implements ChannelInterceptor {
   public void expireSessions() {
     expiry.forEach(
         (id, time) -> {
-          if (!clock.instant().isBefore(time)) reject(id);
+          if (!clock.instant().isBefore(time)) { reject(id); return; }
+          var current = credentials.get(id);
+          if (current != null) {
+            try { authority.verify(current.token(), current.tabId()); }
+            catch (SessionAccessException exception) { if (exception.getStatus() != 503) reject(id); }
+          }
         });
   }
 
@@ -85,11 +97,16 @@ public class SocketSecurity implements ChannelInterceptor {
         String auth = a.getFirstNativeHeader("Authorization");
         if (auth == null || !auth.startsWith("Bearer ")) throw new IllegalArgumentException();
         Jwt token = decoder.decode(auth.substring(7));
+        authority.verify(auth.substring(7), a.getFirstNativeHeader("X-Tab-Id"));
+        credentials.put(a.getSessionId(), new Credentials(auth.substring(7), a.getFirstNativeHeader("X-Tab-Id")));
         String name = UUID.fromString(token.getSubject()).toString();
         if (!name.equals(token.getSubject())) throw new IllegalArgumentException();
         a.setUser(() -> name);
         expiry.put(a.getSessionId(), token.getExpiresAt());
       } else if (a.getCommand() != StompCommand.DISCONNECT) {
+        var current = credentials.get(a.getSessionId());
+        if (current == null) throw new IllegalArgumentException();
+        authority.verify(current.token(), current.tabId());
         Instant end = expiry.get(a.getSessionId());
         if (a.getUser() == null || end == null || !clock.instant().isBefore(end))
           throw new IllegalArgumentException();

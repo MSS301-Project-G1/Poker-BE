@@ -4,6 +4,7 @@ import com.msspoker.apigateway.shared.exception.GatewayErrorCode;
 import com.msspoker.apigateway.shared.exception.GatewayErrorWriter;
 import com.msspoker.apigateway.shared.security.CookieCsrfFilter;
 import com.msspoker.apigateway.shared.security.GatewayEndpointPolicy;
+import com.msspoker.apigateway.shared.security.LiveSessionFilter;
 import io.netty.channel.ChannelOption;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -65,7 +66,7 @@ public class GatewaySecurityConfig {
 
     @Bean
     SecurityWebFilterChain gatewaySecurity(ServerHttpSecurity http, ReactiveJwtDecoder decoder, GatewayErrorWriter errors,
-            GatewayEndpointPolicy policy,
+            GatewayEndpointPolicy policy, LiveSessionFilter liveSessions,
             @Value("${gateway.cors.allowed-origins}") List<String> allowedOrigins) {
         if (allowedOrigins.stream().anyMatch(origin -> origin.contains("*"))) {
             throw new IllegalArgumentException("Cookie CORS requires explicit origins");
@@ -87,7 +88,7 @@ public class GatewaySecurityConfig {
         var cors = new CorsConfiguration();
         cors.setAllowedOrigins(allowedOrigins);
         cors.setAllowedMethods(List.of("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id"));
+        cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id", "X-Tab-Id"));
         cors.setExposedHeaders(List.of("X-Request-Id"));
         cors.setAllowCredentials(true);
         var source = new UrlBasedCorsConfigurationSource();
@@ -108,6 +109,7 @@ public class GatewaySecurityConfig {
                         .authenticationEntryPoint((exchange, exception) -> errors.write(exchange, GatewayErrorCode.GATEWAY_UNAUTHENTICATED))
                         .accessDeniedHandler((exchange, exception) -> errors.write(exchange, GatewayErrorCode.GATEWAY_FORBIDDEN)))
                 .addFilterAt(authentication, SecurityWebFiltersOrder.AUTHENTICATION)
+                .addFilterBefore(liveSessions::filter, SecurityWebFiltersOrder.AUTHORIZATION)
                 .addFilterAfter(new CookieCsrfFilter(errors, policy), SecurityWebFiltersOrder.AUTHORIZATION).build();
     }
 }

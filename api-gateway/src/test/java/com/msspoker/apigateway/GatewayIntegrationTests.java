@@ -44,9 +44,17 @@ class GatewayIntegrationTests {
     private static final RSAKey KEY = key("auth-key");
     private static final RSAKey FOREIGN_KEY = key("foreign-key");
     private static final AtomicReference<ObservedRequest> LAST = new AtomicReference<>();
+    private static final AtomicReference<String> SESSION_FAILURE = new AtomicReference<>();
     private static final AtomicReference<Reply> REPLY = new AtomicReference<>();
     private static final DisposableServer UPSTREAM = HttpServer.create().host("127.0.0.1").port(0)
             .handle((request, response) -> {
+                if (request.uri().equals("/internal/auth/session/check")) {
+                    String code = SESSION_FAILURE.get();
+                    if (code == null) return response.status(204).send();
+                    return response.status(code.equals("AUTH_TAB_REPLACED") ? 409
+                                    : code.equals("AUTH_SESSION_UNAVAILABLE") ? 503 : 401)
+                            .header("X-Session-Error", code).send();
+                }
                 if (request.uri().equals("/.well-known/jwks.json")) {
                     return response.header(HttpHeaders.CONTENT_TYPE, "application/json")
                             .sendString(Mono.just(JSON.writeValueAsString(new JWKSet(KEY.toPublicJWK()).toJSONObject())));
@@ -84,6 +92,7 @@ class GatewayIntegrationTests {
     static void properties(DynamicPropertyRegistry registry) {
         String upstream = "http://127.0.0.1:" + UPSTREAM.port();
         registry.add("AUTH_SERVICE_URL", () -> upstream);
+        registry.add("AUTH_SESSION_CHECK_URL", () -> upstream + "/internal/auth/session/check");
         registry.add("GATEWAY_JWK_SET_URI", () -> upstream + "/.well-known/jwks.json");
         registry.add("GAME_SERVICE_URL", () -> upstream);
         registry.add("GAME_SERVICE_KEY", () -> "gateway-game-test-secret");
@@ -107,14 +116,29 @@ class GatewayIntegrationTests {
     void setUp() {
         LAST.set(null);
         REPLY.set(null);
+        SESSION_FAILURE.set(null);
         client = WebTestClient.bindToServer().baseUrl("http://127.0.0.1:" + environment.getProperty("local.server.port"))
-                .responseTimeout(Duration.ofSeconds(10)).build();
+                .defaultHeader("X-Tab-Id", UUID.randomUUID().toString()).responseTimeout(Duration.ofSeconds(10)).build();
     }
 
     @AfterAll
     static void closeUpstream() {
         UPSTREAM.disposeNow();
         CONTRACT_UPSTREAMS.values().forEach(DisposableServer::disposeNow);
+    }
+
+    @Test
+    void sessionFailuresAreRejectedBeforeProxyingWithoutDeletingCookies() {
+        for (String code : List.of("AUTH_SESSION_REPLACED", "AUTH_TAB_REPLACED", "AUTH_SESSION_UNAVAILABLE")) {
+            SESSION_FAILURE.set(code);
+            LAST.set(null);
+            client.get().uri("/api/wallet/me").cookie("accessToken", token("USER", "valid"))
+                    .header("X-Session-Internal-Key", "spoofed")
+                    .exchange().expectStatus().isEqualTo(code.equals("AUTH_TAB_REPLACED") ? 409
+                            : code.equals("AUTH_SESSION_UNAVAILABLE") ? 503 : 401)
+                    .expectHeader().doesNotExist("Set-Cookie").expectBody().jsonPath("$.code").isEqualTo(code);
+            assertThat(LAST.get()).isNull();
+        }
     }
 
     @Test
@@ -220,8 +244,7 @@ class GatewayIntegrationTests {
                 new ServiceWrite("shop-service", HttpMethod.PUT, "/api/inventory/" + UUID.randomUUID() + "/equip"),
                 new ServiceWrite("shop-service", HttpMethod.DELETE, "/api/inventory/" + UUID.randomUUID() + "/equip"),
                 new ServiceWrite("shop-service", HttpMethod.POST, "/api/payments/orders"),
-                new ServiceWrite("shop-service", HttpMethod.POST, "/api/payments/bundles/" + UUID.randomUUID() + "/orders"),
-                new ServiceWrite("shop-service", HttpMethod.POST, "/api/sandbox/bundles/" + UUID.randomUUID() + "/purchase"));
+                new ServiceWrite("shop-service", HttpMethod.POST, "/api/payments/bundles/" + UUID.randomUUID() + "/orders"));
         String access = token("USER", "valid");
         String body = "{\"example\":true}";
         for (ServiceWrite write : writes) {

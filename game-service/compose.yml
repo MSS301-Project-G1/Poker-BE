@@ -7,6 +7,8 @@ services:
     ports:
       - "${GAME_SERVICE_PORT:-8082}:8082"
     environment:
+      AUTH_SESSION_INTERNAL_KEY: ${AUTH_SESSION_INTERNAL_KEY:-poker_session_dev}
+      AUTH_SESSION_CHECK_URL: http://auth-service:8090/internal/auth/session/check
       EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_HOSTNAME: game-service
       GAME_DB_URL: jdbc:postgresql://game-db:5432/game_db

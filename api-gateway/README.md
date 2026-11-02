@@ -36,8 +36,11 @@ vì vậy gửi link hai file trên cho nhóm thay vì chỉ gửi tài liệu t
 Gateway xóa header danh tính/Bearer giả do client gửi, xác minh JWT RS256 bằng
 JWKS của auth rồi gắn `X-User-Id`, `X-User-Role`, `X-Request-Id`. Service tự kiểm tra
 sở hữu tài nguyên/nghiệp vụ và bảo vệ đường vào trực tiếp trước khi tin header.
-JWT kiểm tra issuer/audience/UUID subject/role/time và các claim bắt buộc; không
-blacklist access token sau logout theo hợp đồng hiện tại.
+JWT kiểm tra issuer/audience/UUID subject/role/time và các claim bắt buộc. Request đã
+xác thực còn được kiểm tra trạng thái phiên/tab ở auth trước khi proxy; login mới,
+chuyển tab hoặc logout làm phiên/tab cũ mất quyền dù access JWT chưa hết hạn.
+FE gửi `X-Tab-Id` UUID riêng của document. Hợp đồng và cách test ở
+[SESSION-PROTECTION.md](../auth-service/SESSION-PROTECTION.md).
 
 JWKS gateway dùng HTTP URL riêng (`GATEWAY_JWK_SET_URI`), Compose trỏ
 `http://auth-service:8090/.well-known/jwks.json`; issuer vẫn `http://localhost:8090`.

@@ -47,14 +47,18 @@ class GatewayDiscoveryTests {
                 return response.header("Content-Type", "application/json").sendString(Mono.just("{\"owner\":\"fixture\"}"));
             }).bindNow();
     private static final DisposableServer REGISTRY = HttpServer.create().host("127.0.0.1").port(0)
-            .handle((request, response) -> response.header("Content-Type", "application/json")
+            .handle((request, response) -> {
+                if (request.uri().contains("/internal/auth/session/check")) return response.status(204).send();
+                return response.header("Content-Type", "application/json")
                     .sendString(Mono.just(request.uri().contains("jwks")
-                            ? JSON.writeValueAsString(new JWKSet(KEY.toPublicJWK()).toJSONObject()) : registryJson())))
+                            ? JSON.writeValueAsString(new JWKSet(KEY.toPublicJWK()).toJSONObject()) : registryJson()));
+            })
             .bindNow();
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("EUREKA_SERVICE_URL", () -> "http://127.0.0.1:" + REGISTRY.port() + "/eureka/");
+        registry.add("AUTH_SESSION_CHECK_URL", () -> "http://127.0.0.1:" + REGISTRY.port() + "/internal/auth/session/check");
         registry.add("GATEWAY_JWK_SET_URI", () -> "http://127.0.0.1:" + REGISTRY.port() + "/jwks");
         // An owner's new service and security rules are configuration, without Java route changes.
         String service = "gateway.catalog.services.fixture-service.";

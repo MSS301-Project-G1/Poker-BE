@@ -85,7 +85,9 @@ class LoginSessionTests {
     @BeforeEach
     void setup() throws Exception {
         clock.set(NOW);
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
         MvcResult csrf = mvc.perform(get("/api/auth/csrf")).andReturn();
         assertThat(csrf.getResponse().getStatus()).isEqualTo(200);
         csrfCookie = csrf.getResponse().getCookie("XSRF-TOKEN");
@@ -237,10 +239,9 @@ class LoginSessionTests {
     }
 
     @Test
-    void logoutRevokesOnlyThisRefreshAndDeletesBothCookiesButIssuedAccessRemainsValid() throws Exception {
+    void logoutRevokesTheSessionAndDeletesCookiesAndBlocksIssuedAccess() throws Exception {
         Account account = account(true);
         MvcResult deviceA = login(account.getEmail(), "Poker123!", null);
-        MvcResult deviceB = login(account.getEmail(), "Poker123!", null);
         Cookie refreshA = cookie(deviceA, "refreshToken");
         MvcResult logout = postWithCsrf("/logout", refreshA);
         assertThat(logout.getResponse().getStatus()).isEqualTo(200);
@@ -250,22 +251,21 @@ class LoginSessionTests {
         assertThat(cookie(logout, "refreshToken").getPath()).isEqualTo("/api/auth");
         assertThat(refreshTokens.findByTokenHash(hash(refreshA.getValue())).orElseThrow().getRevokedAt()).isEqualTo(NOW);
         error(postWithCsrf("/refresh", refreshA), 401, "AUTH_REFRESH_INVALID");
-        assertThat(postWithCsrf("/refresh", cookie(deviceB, "refreshToken")).getResponse().getStatus()).isEqualTo(200);
         assertThat(mvc.perform(get("/api/auth/me").cookie(cookie(deviceA, "accessToken")))
-                .andReturn().getResponse().getStatus()).isEqualTo(200);
+                .andReturn().getResponse().getStatus()).isEqualTo(401);
         assertThat(postWithCsrf("/logout", refreshA).getResponse().getStatus()).isEqualTo(200);
         assertThat(postWithCsrf("/logout", null).getResponse().getStatus()).isEqualTo(200);
     }
 
     @Test
-    void reloginReplacesBrowserRefreshWhileOtherDeviceRemainsLoggedIn() throws Exception {
+    void reloginReplacesEveryEarlierDeviceSession() throws Exception {
         Account account = account(true);
         MvcResult first = login(account.getEmail(), "Poker123!", null);
         MvcResult otherDevice = login(account.getEmail(), "Poker123!", null);
         MvcResult replacement = login(account.getEmail(), "Poker123!", cookie(first, "refreshToken"));
         assertThat(replacement.getResponse().getStatus()).isEqualTo(200);
-        error(postWithCsrf("/refresh", cookie(first, "refreshToken")), 401, "AUTH_REFRESH_INVALID");
-        assertThat(postWithCsrf("/refresh", cookie(otherDevice, "refreshToken")).getResponse().getStatus()).isEqualTo(200);
+        error(postWithCsrf("/refresh", cookie(first, "refreshToken")), 401, "AUTH_SESSION_REPLACED");
+        error(postWithCsrf("/refresh", cookie(otherDevice, "refreshToken")), 401, "AUTH_SESSION_REPLACED");
         assertThat(postWithCsrf("/refresh", cookie(replacement, "refreshToken")).getResponse().getStatus()).isEqualTo(200);
     }
 
@@ -279,7 +279,7 @@ class LoginSessionTests {
                 ready.countDown();
                 if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Timed out");
                 try {
-                    return service.refresh(raw) == null ? "unexpected" : "success";
+                    return service.refresh(raw, TestSessions.TAB) == null ? "unexpected" : "success";
                 } catch (ApiException exception) {
                     return exception.getErrorCode().name();
                 }

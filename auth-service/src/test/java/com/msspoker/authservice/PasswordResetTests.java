@@ -89,16 +89,18 @@ class PasswordResetTests {
         reset(mail, clock);
         now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
         when(clock.instant()).thenReturn(now);
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
     }
 
     @Test
     void publicFlowConsumesOtpRevokesEveryDeviceAndRequiresLoginWithNewPassword() throws Exception {
         Account account = account(true, false);
-        var first = auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), null);
-        var second = auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), null);
+        var first = auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), TestSessions.TAB);
+        var second = auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), TestSessions.TAB);
         Account other = account(true, false);
-        var unrelated = auth.login(new LoginRequest(other.getEmail(), OLD_PASSWORD), null);
+        var unrelated = auth.login(new LoginRequest(other.getEmail(), OLD_PASSWORD), TestSessions.TAB);
         var forgot = postJson("/forgot", new ForgotPasswordRequest(account.getEmail().toUpperCase()));
         assertThat(forgot.getResponse().getStatus()).isEqualTo(200);
         String code = code(1);
@@ -116,13 +118,13 @@ class PasswordResetTests {
         assertThat(otps.findById(account.getId())).isEmpty();
         assertThat(tokens.findAll().stream().filter(t -> t.getAccountId().equals(account.getId())))
                 .hasSize(2).allSatisfy(t -> assertThat(t.getRevokedAt()).isEqualTo(now));
-        assertError(() -> auth.refresh(first.refreshToken()), ErrorCode.AUTH_REFRESH_INVALID);
-        assertError(() -> auth.refresh(second.refreshToken()), ErrorCode.AUTH_REFRESH_INVALID);
-        assertError(() -> auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), null), ErrorCode.AUTH_INVALID_CREDENTIALS);
-        assertThat(auth.login(new LoginRequest(account.getEmail(), NEW_PASSWORD), null)).isNotNull();
-        assertThat(auth.refresh(unrelated.refreshToken())).isNotNull();
+        assertError(() -> auth.refresh(first.refreshToken(), TestSessions.TAB), ErrorCode.AUTH_SESSION_REPLACED);
+        assertError(() -> auth.refresh(second.refreshToken(), TestSessions.TAB), ErrorCode.AUTH_REFRESH_INVALID);
+        assertError(() -> auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), TestSessions.TAB), ErrorCode.AUTH_INVALID_CREDENTIALS);
+        assertThat(auth.login(new LoginRequest(account.getEmail(), NEW_PASSWORD), TestSessions.TAB)).isNotNull();
+        assertThat(auth.refresh(unrelated.refreshToken(), TestSessions.TAB)).isNotNull();
         assertError(() -> auth.resetPassword(request(account, code)), ErrorCode.AUTH_OTP_INVALID);
-        // This phase revokes refresh credentials, not already-issued access JWTs.
+        // The signature stays valid; the live session guard rejects revoked sessions.
         assertThat(jwtService.verify(first.accessToken()).getSubject()).isEqualTo(account.getId().toString());
     }
 
@@ -249,7 +251,7 @@ class PasswordResetTests {
         Account account = account(true, false);
         new TransactionTemplate(transactions).executeWithoutResult(status -> profiles.saveAndFlush(Profile.builder()
                 .account(accounts.findById(account.getId()).orElseThrow()).displayName("Before reset").build()));
-        var session = auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), null);
+        var session = auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), TestSessions.TAB);
         auth.forgotPassword(new ForgotPasswordRequest(account.getEmail()));
         String code = code(1);
         var started = new CountDownLatch(3);
@@ -260,14 +262,14 @@ class PasswordResetTests {
                 futures.add(executor.submit(() -> {
                     started.countDown();
                     try {
-                        auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), null);
+                        auth.login(new LoginRequest(account.getEmail(), OLD_PASSWORD), TestSessions.TAB);
                         return "unexpected login";
                     } catch (ApiException exception) { return exception.getErrorCode().name(); }
                 }));
                 futures.add(executor.submit(() -> {
                     started.countDown();
                     try {
-                        auth.refresh(session.refreshToken());
+                        auth.refresh(session.refreshToken(), TestSessions.TAB);
                         return "unexpected refresh";
                     } catch (ApiException exception) { return exception.getErrorCode().name(); }
                 }));

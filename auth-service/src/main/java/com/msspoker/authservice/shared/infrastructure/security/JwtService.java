@@ -31,12 +31,12 @@ public class JwtService {
     private final AuthJwtProperties properties;
     private final Clock clock;
 
-    public String issue(Account account, Instant expiresAt) {
+    public String issue(Account account, UUID sessionId, Instant expiresAt) {
         Instant now = clock.instant();
         JwtClaimsSet claims = JwtClaimsSet.builder().issuer(properties.issuer())
                 .audience(List.of(properties.audience())).subject(account.getId().toString())
                 .issuedAt(now).notBefore(now).expiresAt(expiresAt).id(UUID.randomUUID().toString())
-                .claim("role", account.getRole().name()).build();
+                .claim("role", account.getRole().name()).claim("sid", sessionId.toString()).build();
         return encoder.encode(JwtEncoderParameters.from(JwsHeader.with(SignatureAlgorithm.RS256)
                 .keyId(signingKey.getKeyID()).build(), claims)).getTokenValue();
     }

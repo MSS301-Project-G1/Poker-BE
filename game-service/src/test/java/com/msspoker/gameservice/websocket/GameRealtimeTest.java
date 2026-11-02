@@ -32,6 +32,9 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {"spring.datasource.url=jdbc:h2:mem:poker-realtime;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "game.scheduling-enabled=false"})
 class GameRealtimeTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.msspoker.common.security.SessionAccessClient sessionAuthority;
+
     @LocalServerPort int port;
     @Autowired DevTableService dev;
     @Autowired GameplayService gameplay;
