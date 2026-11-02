@@ -42,15 +42,18 @@ class ProfileBatchTests {
     @Autowired private ProfileRepository profiles;
     @Autowired private EntityManager entityManager;
     @Autowired private JwtService jwtService;
+    @Autowired private com.msspoker.authservice.repository.RefreshTokenRepository sessionTokens;
     private MockMvc mvc;
     private Cookie access;
     private Account caller;
 
     @BeforeEach
     void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
         caller = account();
-        access = new Cookie("accessToken", jwtService.issue(caller, Instant.now().plusSeconds(900)));
+        access = new Cookie("accessToken", TestSessions.issue(jwtService, sessionTokens, caller, Instant.now().plusSeconds(900)));
     }
 
     @Test

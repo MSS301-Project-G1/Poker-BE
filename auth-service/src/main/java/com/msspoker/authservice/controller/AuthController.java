@@ -6,6 +6,7 @@ import com.msspoker.authservice.dto.auth.request.LoginRequest;
 import com.msspoker.authservice.dto.auth.request.ResetPasswordRequest;
 import com.msspoker.authservice.dto.auth.response.CsrfResponse;
 import com.msspoker.authservice.dto.auth.response.CurrentUserResponse;
+import com.msspoker.authservice.dto.auth.response.SessionStateResponse;
 import com.msspoker.authservice.dto.auth.response.SessionResponse;
 import com.msspoker.authservice.dto.auth.response.WebSocketTokenResponse;
 import com.msspoker.authservice.service.AuthService;
@@ -27,6 +28,7 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -63,7 +65,7 @@ public class AuthController {
     @Tag(name = "Khôi phục mật khẩu")
     @Operation(summary = "2. Đặt lại mật khẩu bằng OTP", description = "Public, không cần cookie/CSRF; chỉ dùng OTP khôi phục. "
             + "Mật khẩu mới theo quy tắc đăng ký. Thành công tiêu thụ OTP, thu hồi mọi refresh token và xóa cookie ở trình duyệt hiện tại; "
-            + "FE về màn login. Access JWT đã cấp vẫn có hiệu lực tới hạn; chưa có blacklist.")
+            + "FE về màn login. Access JWT của các phiên bị thu hồi cũng không còn được phép sử dụng.")
     public ResponseEntity<ApiResponse<Void>> resetPassword(HttpServletRequest request, HttpServletResponse response,
             @Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
         authService.resetPassword(resetPasswordRequest);
@@ -84,7 +86,7 @@ public class AuthController {
     @Operation(summary = "Đổi mật khẩu khi đang đăng nhập", description = "Cần access cookie và CSRF. "
             + "Account lấy từ JWT; kiểm tra currentPassword và newPassword/confirmPassword theo quy tắc đăng ký. "
             + "Không cần OTP. Thành công thu hồi mọi refresh token, hủy OTP reset đang có và xóa cookie trình duyệt hiện tại; FE về login. "
-            + "Access JWT đã phát vẫn có hiệu lực tới hạn, chưa có blacklist.")
+            + "Access JWT của các phiên bị thu hồi cũng không còn được phép sử dụng.")
     public ResponseEntity<ApiResponse<Void>> changePassword(HttpServletRequest request, HttpServletResponse response,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChangePasswordRequest changePasswordRequest) {
@@ -117,11 +119,10 @@ public class AuthController {
 
     @PostMapping("/login")
     @SecurityRequirement(name = "csrfToken")
-    @Operation(summary = "2. Đăng nhập", description = "Email + mật khẩu; phải hoàn tất OTP đăng ký. Cấp accessToken/refreshToken bằng cookie HttpOnly. Nhiều thiết bị được login cùng lúc; login lại thay refresh token cũ trong cookie hiện tại. Chưa giới hạn login sai.")
+    @Operation(summary = "2. Đăng nhập", description = "Email + mật khẩu; phải hoàn tất OTP đăng ký. Cấp accessToken/refreshToken bằng cookie HttpOnly. Login thành công thay mọi phiên cũ. Gửi X-Tab-Id UUID riêng của tab đang hoạt động. Chưa giới hạn login sai.")
     public ResponseEntity<ApiResponse<SessionResponse>> login(HttpServletRequest request, HttpServletResponse response,
-            @Valid @RequestBody LoginRequest loginRequest) {
-        SessionTokens sessionTokens = authService.login(loginRequest,
-                authCookieService.read(request, AuthCookieService.REFRESH_COOKIE));
+            @Valid @RequestBody LoginRequest loginRequest, @Parameter(hidden = true) @RequestHeader("X-Tab-Id") UUID tabId) {
+        SessionTokens sessionTokens = authService.login(loginRequest, tabId);
         authCookieService.write(response, sessionTokens);
         return ResponseEntity.ok(
                 ApiResponse.<SessionResponse>builder()
@@ -137,8 +138,9 @@ public class AuthController {
     @PostMapping("/refresh")
     @SecurityRequirement(name = "csrfToken")
     @Operation(summary = "3. Làm mới phiên", description = "Đọc refreshToken từ cookie, đổi cả access và refresh. Token refresh cũ dùng lại trả 401; hạn phiên giữ nguyên từ login. FE chỉ gửi một refresh tại một thời điểm, rồi thử lại request cũ một lần. Không cần access token còn hạn.")
-    public ResponseEntity<ApiResponse<SessionResponse>> refresh(HttpServletRequest request, HttpServletResponse response) {
-        SessionTokens sessionTokens = authService.refresh(authCookieService.read(request, AuthCookieService.REFRESH_COOKIE));
+    public ResponseEntity<ApiResponse<SessionResponse>> refresh(HttpServletRequest request, HttpServletResponse response,
+            @Parameter(hidden = true) @RequestHeader("X-Tab-Id") UUID tabId) {
+        SessionTokens sessionTokens = authService.refresh(authCookieService.read(request, AuthCookieService.REFRESH_COOKIE), tabId);
         authCookieService.write(response, sessionTokens);
         return ResponseEntity.ok(
                 ApiResponse.<SessionResponse>builder()
@@ -151,11 +153,48 @@ public class AuthController {
         );
     }
 
+    @GetMapping("/session")
+    @Operation(summary = "Kiểm tra phiên và tab hiện tại", description = "Cần access cookie và X-Tab-Id; không cần CSRF.")
+    public ResponseEntity<ApiResponse<SessionStateResponse>> sessionState(HttpServletRequest request,
+            @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+            @Parameter(hidden = true) @RequestHeader("X-Tab-Id") UUID tabId) {
+        return ResponseEntity.ok(
+                ApiResponse.<SessionStateResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Phiên đang hoạt động.")
+                        .result(authService.sessionState(UUID.fromString(jwt.getSubject()),
+                                UUID.fromString(jwt.getClaimAsString("sid")), tabId))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
+    }
+
+    @PostMapping("/session/claim")
+    @SecurityRequirement(name = "csrfToken")
+    @Operation(summary = "Tiếp quản ở tab này", description = "Refresh cookie + CSRF + X-Tab-Id; đổi token, "
+            + "giữ hạn phiên và khóa tab trước. Gọi một lần khi khởi tạo trang, không gọi khi chỉ đổi focus.")
+    public ResponseEntity<ApiResponse<SessionResponse>> claimTab(HttpServletRequest request, HttpServletResponse response,
+            @Parameter(hidden = true) @RequestHeader("X-Tab-Id") UUID tabId) {
+        SessionTokens sessionTokens = authService.claimTab(authCookieService.read(request, AuthCookieService.REFRESH_COOKIE), tabId);
+        authCookieService.write(response, sessionTokens);
+        return ResponseEntity.ok(
+                ApiResponse.<SessionResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Đã tiếp quản tại tab này.")
+                        .result(sessionTokens.response())
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
+    }
+
     @PostMapping("/logout")
     @SecurityRequirement(name = "csrfToken")
-    @Operation(summary = "4. Đăng xuất phiên hiện tại", description = "Thu hồi refresh token tương ứng ở DB và xóa cả hai cookie. Gọi lại vẫn thành công; không ảnh hưởng thiết bị khác. Access JWT đã cấp không bị chặn trước khi hết hạn.")
-    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request, HttpServletResponse response) {
-        authService.logout(authCookieService.read(request, AuthCookieService.REFRESH_COOKIE));
+    @Operation(summary = "4. Đăng xuất phiên hiện tại", description = "Thu hồi refresh token tương ứng ở DB và xóa cả hai cookie. Gọi lại vẫn thành công; tab cũ không được đăng xuất thay tab mới. Access JWT của phiên bị thu hồi bị chặn ngay khi kiểm tra lại.")
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request, HttpServletResponse response,
+            @Parameter(hidden = true) @RequestHeader("X-Tab-Id") UUID tabId) {
+        authService.logout(authCookieService.read(request, AuthCookieService.REFRESH_COOKIE), tabId);
         authCookieService.clear(response);
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()
@@ -183,7 +222,7 @@ public class AuthController {
     }
 
     @GetMapping("/ws-token")
-    @Operation(summary = "6. Lấy access token cho STOMP", description = "Sau login, gọi bằng cookie để lấy JWT hiện tại. Giữ trong bộ nhớ FE, gửi Authorization: Bearer <token> trong frame STOMP CONNECT; không lưu localStorage. Chưa tích hợp gateway/game trong phase này.")
+    @Operation(summary = "6. Lấy access token cho STOMP", description = "Sau login, gọi bằng cookie và X-Tab-Id để lấy JWT hiện tại. Giữ trong bộ nhớ FE; STOMP CONNECT gửi Authorization: Bearer <token> cùng X-Tab-Id. Game/social/chat kiểm tra phiên và quyền tab qua auth; không lưu JWT vào localStorage.")
     public ResponseEntity<ApiResponse<WebSocketTokenResponse>> webSocketToken(HttpServletRequest request,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
         authService.currentUser(UUID.fromString(jwt.getSubject()));

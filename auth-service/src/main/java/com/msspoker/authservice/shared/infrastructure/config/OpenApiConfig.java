@@ -4,6 +4,8 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +26,17 @@ public class OpenApiConfig {
                         + "thông số thực tế phụ thuộc cấu hình server."))
                 .components(new Components().addSecuritySchemes("csrfToken", new SecurityScheme()
                         .type(SecurityScheme.Type.APIKEY).in(SecurityScheme.In.HEADER).name("X-XSRF-TOKEN")
-                        .description("Giá trị result.token từ GET /api/auth/csrf; cookie được trình duyệt giữ tự động.")));
+                        .description("Giá trị result.token từ GET /api/auth/csrf; cookie được trình duyệt giữ tự động."))
+                        .addSecuritySchemes("tabId", new SecurityScheme().type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER).name("X-Tab-Id")
+                                .description("UUID riêng của tab, tạo bằng crypto.randomUUID(); giữ nguyên cho các request ở tab này.")))
+                .addSecurityItem(new SecurityRequirement().addList("tabId"));
     }
+    @Bean
+    OpenApiCustomizer tabSecurity() {
+        return api -> api.getPaths().values().forEach(path -> path.readOperations().forEach(operation -> {
+            if (operation.getSecurity() != null) operation.getSecurity().forEach(rule -> rule.addList("tabId"));
+        }));
+    }
+
 }

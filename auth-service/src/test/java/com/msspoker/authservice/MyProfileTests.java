@@ -48,6 +48,7 @@ class MyProfileTests {
     @Autowired private EntityManager entityManager;
     @Autowired private JwtService jwtService;
     @Autowired private JsonMapper json;
+    @Autowired private com.msspoker.authservice.repository.RefreshTokenRepository sessionTokens;
     private MockMvc mvc;
     private Account caller;
     private Cookie access;
@@ -56,7 +57,9 @@ class MyProfileTests {
 
     @BeforeEach
     void setup() throws Exception {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
         caller = account();
         profile(caller);
         access = access(caller);
@@ -214,7 +217,8 @@ class MyProfileTests {
         pending.setAccountStatus(AccountStatus.PENDING_VERIFICATION);
         accounts.saveAndFlush(pending);
 
-        for (Cookie cookie : List.of(deletedAccess, access(missing))) {
+        Cookie missingAccess = new Cookie("accessToken", jwtService.issue(missing, UUID.randomUUID(), Instant.now().plusSeconds(900)));
+        for (Cookie cookie : List.of(deletedAccess, missingAccess)) {
             mvc.perform(get(PATH).cookie(cookie)).andExpect(status().isUnauthorized());
             mvc.perform(update("{\"displayName\":\"New\"}").cookie(cookie)).andExpect(status().isUnauthorized());
         }
@@ -264,7 +268,7 @@ class MyProfileTests {
     }
 
     private Cookie access(Account account) {
-        return new Cookie("accessToken", jwtService.issue(account, Instant.now().plusSeconds(900)));
+        return new Cookie("accessToken", TestSessions.issue(jwtService, sessionTokens, account, Instant.now().plusSeconds(900)));
     }
 
     private Account account() {

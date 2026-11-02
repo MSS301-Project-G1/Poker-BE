@@ -22,6 +22,9 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
 abstract class TestSupport {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.msspoker.common.security.SessionAccessClient sessionAuthority;
+
   static final GenericContainer<?> DB =
       new GenericContainer<>(DockerImageName.parse("postgres:17-alpine"))
           .withEnv("POSTGRES_DB", "test_db")

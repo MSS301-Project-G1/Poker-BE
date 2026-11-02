@@ -21,6 +21,9 @@ import java.util.concurrent.locks.ReentrantLock;
         properties = {"spring.datasource.url=jdbc:h2:mem:poker-stomp-executor;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
                 "game.scheduling-enabled=true"})
 class StompChannelExecutorTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.msspoker.common.security.SessionAccessClient sessionAuthority;
+
     private static final int WAITING_HANDLERS = 8;
 
     @Autowired @Qualifier("clientInboundChannel") ExecutorSubscribableChannel inbound;

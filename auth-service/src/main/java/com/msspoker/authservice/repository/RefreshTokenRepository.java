@@ -24,6 +24,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Query("UPDATE RefreshToken t SET t.revokedAt = :now WHERE t.accountId = :accountId AND t.revokedAt IS NULL")
     int revokeAllByAccountId(@Param("accountId") UUID accountId, @Param("now") Instant now);
 
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE RefreshToken t SET t.revokedAt = :now, t.replaced = true "
+            + "WHERE t.accountId = :accountId AND t.revokedAt IS NULL")
+    int replaceAllByAccountId(@Param("accountId") UUID accountId, @Param("now") Instant now);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM RefreshToken t WHERE t.tokenHash = :hash")
     Optional<RefreshToken> findByTokenHashForUpdate(@Param("hash") String hash);

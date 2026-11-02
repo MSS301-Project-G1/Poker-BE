@@ -26,6 +26,9 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 gateway:
+  session:
+    check-url: ${AUTH_SESSION_CHECK_URL:http://localhost:8090/internal/auth/session/check}
+    internal-key: ${AUTH_SESSION_INTERNAL_KEY:poker_session_dev}
   jwt:
     jwk-set-uri: ${GATEWAY_JWK_SET_URI:http://localhost:8090/.well-known/jwks.json}
     issuer: ${JWT_ISSUER:http://localhost:8090}
@@ -49,3 +52,6 @@ eureka:
     hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     prefer-ip-address: false
     instance-id: ${spring.application.name}:${random.value}
+
+# Online session authority, separate from the public-key decoder.
+# Kept HTTP so it can be used before discovery registration finishes.

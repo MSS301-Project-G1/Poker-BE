@@ -65,6 +65,7 @@ class AvatarS3FlowTests {
     @Autowired private JsonMapper json;
     @Autowired private ProfileService avatars;
     @Autowired private PlatformTransactionManager transactions;
+    @Autowired private com.msspoker.authservice.repository.RefreshTokenRepository sessionTokens;
     private MockMvc mvc;
     private Account caller;
     private Cookie access;
@@ -86,14 +87,16 @@ class AvatarS3FlowTests {
 
     @BeforeEach
     void setup() throws Exception {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
         caller = new TransactionTemplate(transactions).execute(status -> {
             Account account = accounts.saveAndFlush(Account.builder().email(UUID.randomUUID() + "@example.com")
                     .passwordHash("private-hash").accountStatus(AccountStatus.ACTIVE).emailVerified(true).build());
             profiles.saveAndFlush(Profile.builder().account(account).displayName("Khanh").build());
             return account;
         });
-        access = new Cookie("accessToken", jwtService.issue(caller, Instant.now().plusSeconds(900)));
+        access = new Cookie("accessToken", TestSessions.issue(jwtService, sessionTokens, caller, Instant.now().plusSeconds(900)));
         admin = accounts.saveAndFlush(Account.builder()
                 .email(UUID.randomUUID() + "@example.com")
                 .passwordHash("private-hash")
@@ -101,7 +104,7 @@ class AvatarS3FlowTests {
                 .emailVerified(true)
                 .role(AccountRole.ADMIN)
                 .build());
-        adminAccess = new Cookie("accessToken", jwtService.issue(admin, Instant.now().plusSeconds(900)));
+        adminAccess = new Cookie("accessToken", TestSessions.issue(jwtService, sessionTokens, admin, Instant.now().plusSeconds(900)));
         var csrf = mvc.perform(get("/api/auth/csrf")).andReturn().getResponse();
         csrfCookie = csrf.getCookie("XSRF-TOKEN");
         csrfToken = json.readTree(csrf.getContentAsString()).get("result").get("token").asString();
