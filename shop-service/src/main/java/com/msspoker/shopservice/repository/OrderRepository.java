@@ -37,6 +37,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
             UUID accountId, UUID bundleId, OrderStatus status);
 
+    @Query("SELECT COUNT(o) > 0 FROM Order o WHERE o.bundle.id = :bundleId")
+    boolean existsByBundleId(@Param("bundleId") UUID bundleId);
+
     Optional<Order> findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
             UUID accountId, OrderStatus status, Instant now);
 

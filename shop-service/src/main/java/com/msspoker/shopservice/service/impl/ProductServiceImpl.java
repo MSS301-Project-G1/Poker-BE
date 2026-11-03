@@ -255,7 +255,8 @@ public class ProductServiceImpl implements ProductService {
             @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
     })
     public ProductResponse scheduleDeletion(UUID id, ScheduleDeletionRequest request, UUID adminId) {
-        log.info("Scheduling deletion for product id={} by adminId={}, durationHours={}", id, adminId, request.durationHours());
+        int effectiveMinutes = request.getEffectiveMinutes();
+        log.info("Scheduling deletion for product id={} by adminId={}, durationMinutes={}", id, adminId, effectiveMinutes);
         Product product = productRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(ProductExceptions::productNotFound);
 
@@ -264,7 +265,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product.setDeleting(true);
-        product.setDeletionScheduledAt(Instant.now().plus(request.durationHours(), ChronoUnit.HOURS));
+        product.setDeletionScheduledAt(Instant.now().plus(effectiveMinutes, ChronoUnit.MINUTES));
         product.setDeletionNotice(request.notice().trim());
         inventoryItemRepository.unequipAllByProductId(id);
         Product saved = productRepository.save(product);

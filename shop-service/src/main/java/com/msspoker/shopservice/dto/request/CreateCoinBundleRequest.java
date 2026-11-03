@@ -2,6 +2,7 @@ package com.msspoker.shopservice.dto.request;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
@@ -16,17 +17,19 @@ public record CreateCoinBundleRequest(
         @Size(max = 100, message = "Tên gói nạp tối đa 100 ký tự")
         String name,
 
+        @NotNull(message = "Giá tiền VND không được để trống")
         @Positive(message = "Giá tiền VND phải lớn hơn 0")
-        long priceVnd,
+        Long priceVnd,
 
+        @NotNull(message = "Số VIP Coin gốc không được để trống")
         @Positive(message = "Số VIP Coin gốc phải lớn hơn 0")
-        long baseVipCoin,
+        Long baseVipCoin,
 
         @Min(value = 0, message = "Số VIP Coin thưởng không được âm")
-        long bonusVipCoin,
+        Long bonusVipCoin,
 
         @Min(value = 0, message = "Phần trăm thưởng không được âm")
-        int bonusPercentage,
+        Integer bonusPercentage,
 
         @Size(max = 50, message = "Nhãn huy hiệu tối đa 50 ký tự")
         String badgeLabel,
@@ -35,7 +38,23 @@ public record CreateCoinBundleRequest(
         String iconUrl,
 
         @Min(value = 0, message = "Thứ tự sắp xếp không được âm")
-        int sortOrder,
+        Integer sortOrder,
 
-        boolean isActive
-) {}
+        Boolean isActive
+) {
+    public int bonusPercentageVal() {
+        if (bonusPercentage != null) return bonusPercentage;
+        if (baseVipCoin != null && baseVipCoin > 0 && bonusVipCoin != null && bonusVipCoin > 0) {
+            return Math.round(((float) bonusVipCoin / baseVipCoin) * 100);
+        }
+        return 0;
+    }
+
+    public int sortOrderVal() {
+        return sortOrder != null ? sortOrder : 0;
+    }
+
+    public boolean isActiveVal() {
+        return isActive != null ? isActive : true;
+    }
+}

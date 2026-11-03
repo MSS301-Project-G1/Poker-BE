@@ -235,8 +235,9 @@ class ProductServiceImplTest {
     }
 
     @Test
-    @DisplayName("updateProduct cập nhật sản phẩm thành công")
+    @DisplayName("updateProduct cập nhật sản phẩm thành công khi ở trạng thái MAINTAIN")
     void updateProductSuccess() {
+        product1.setStatus(ProductStatus.MAINTAIN);
         UpdateProductRequest request = UpdateProductRequest.builder()
                 .categoryId(avatarFrameCategory.getId())
                 .name("Khung Rồng Vàng Siêu Cấp")
