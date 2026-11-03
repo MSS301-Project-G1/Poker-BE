@@ -17,5 +17,7 @@ public interface CoinBundleValidator {
 
     void validateForUpdate(UUID id, CoinBundle bundle, UpdateCoinBundleRequest request);
 
+    void validateForDelete(UUID id, CoinBundle bundle);
+
     void validateForSandboxPurchase(CoinBundle bundle);
 }

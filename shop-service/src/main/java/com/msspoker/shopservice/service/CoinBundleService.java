@@ -25,4 +25,6 @@ public interface CoinBundleService {
     void deleteBundle(UUID id);
 
     CoinBundleResponse toggleActive(UUID id);
+
+    CoinBundleResponse toggleActive(UUID id, Boolean isActive);
 }

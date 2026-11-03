@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -71,12 +72,13 @@ public class AdminCoinBundleController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật gói nạp thành công", response));
     }
 
-    @PatchMapping("/{id}/toggle")
+    @PatchMapping(value = {"/{id}/toggle", "/{id}/active"})
     @Operation(summary = "Bật tắt trạng thái", description = "Bật hoặc tắt trạng thái mở bán gói nạp")
     public ResponseEntity<ApiResponse<CoinBundleResponse>> toggleActive(
-            @Parameter(description = "UUID gói nạp") @PathVariable UUID id
+            @Parameter(description = "UUID gói nạp") @PathVariable UUID id,
+            @Parameter(description = "Trạng thái mong muốn (tùy chọn)") @RequestParam(required = false) Boolean isActive
     ) {
-        CoinBundleResponse response = coinBundleService.toggleActive(id);
+        CoinBundleResponse response = coinBundleService.toggleActive(id, isActive);
         return ResponseEntity.ok(ApiResponse.success("Chuyển trạng thái gói nạp thành công", response));
     }
 
