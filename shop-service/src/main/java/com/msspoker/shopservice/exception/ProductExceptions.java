@@ -78,7 +78,15 @@ public final class ProductExceptions {
         return AppException.of(
                 HttpStatus.BAD_REQUEST,
                 "PRODUCT_MUST_BE_MAINTAIN_BEFORE_DELETE",
-                "Sản phẩm phải được chuyển sang trạng thái Bảo Trì (Maintain) trước khi có thể lên lịch xóa hoặc tiêu hủy."
+                "Sản phẩm phải được chuyển sang trạng thái Tạm Ngưng (Maintain) trước khi có thể lên lịch xóa hoặc tiêu hủy."
+        );
+    }
+
+    public static AppException mustBeInMaintainBeforeUpdate() {
+        return AppException.of(
+                HttpStatus.BAD_REQUEST,
+                "PRODUCT_MUST_BE_MAINTAIN_BEFORE_UPDATE",
+                "Sản phẩm phải được chuyển sang trạng thái Tạm Ngưng (Maintain) trước khi có thể chỉnh sửa thông tin."
         );
     }
 

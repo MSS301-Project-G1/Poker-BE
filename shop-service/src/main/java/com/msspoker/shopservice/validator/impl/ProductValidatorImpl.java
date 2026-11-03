@@ -41,6 +41,9 @@ public class ProductValidatorImpl implements ProductValidator {
     @Override
     public void validateForUpdate(UUID productId, Product product, Category category) {
         validateExists(productId, product);
+        if (product.getStatus() != ProductStatus.MAINTAIN) {
+            throw ProductExceptions.mustBeInMaintainBeforeUpdate();
+        }
         if (category == null) {
             throw CategoryExceptions.categoryNotFound();
         }

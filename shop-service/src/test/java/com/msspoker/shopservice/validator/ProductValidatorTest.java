@@ -4,6 +4,7 @@ import com.msspoker.shopservice.dto.request.CreateProductRequest;
 import com.msspoker.shopservice.dto.request.UpdateProductRequest;
 import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.entity.Product;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
@@ -129,5 +130,22 @@ class ProductValidatorTest {
 
         assertThatThrownBy(() -> productValidator.validateForPurchase(accountId, activeProduct))
                 .isInstanceOf(AppException.class);
+    }
+
+    @Test
+    @DisplayName("validateForUpdate: ném lỗi khi sản phẩm không ở trạng thái MAINTAIN")
+    void validateForUpdate_ThrowsWhenNotMaintain() {
+        activeProduct.setStatus(ProductStatus.ACTIVE);
+        assertThatThrownBy(() -> productValidator.validateForUpdate(productId, activeProduct, category))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("Tạm Ngưng");
+    }
+
+    @Test
+    @DisplayName("validateForUpdate: thành công khi sản phẩm ở trạng thái MAINTAIN")
+    void validateForUpdate_SuccessWhenMaintain() {
+        activeProduct.setStatus(ProductStatus.MAINTAIN);
+        assertThatCode(() -> productValidator.validateForUpdate(productId, activeProduct, category))
+                .doesNotThrowAnyException();
     }
 }
