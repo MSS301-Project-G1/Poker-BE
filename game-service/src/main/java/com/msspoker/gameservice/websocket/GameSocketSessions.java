@@ -65,12 +65,14 @@ public class GameSocketSessions {
         GameError code = switch (exception.getCode()) {
             case "AUTH_SESSION_REPLACED" -> GameError.GAME_SESSION_REPLACED;
             case "AUTH_TAB_REPLACED" -> GameError.GAME_TAB_REPLACED;
+            case "AUTH_ACCOUNT_BANNED" -> GameError.GAME_ACCOUNT_BANNED;
             case "AUTH_SESSION_UNAVAILABLE" -> GameError.GAME_DEPENDENCY_UNAVAILABLE;
             default -> GameError.GAME_UNAUTHORIZED;
         };
         String message = switch (code) {
             case GAME_SESSION_REPLACED -> "Tài khoản đã đăng nhập ở nơi khác.";
             case GAME_TAB_REPLACED -> "Bạn đã chuyển sang tab khác. Bạn có thể đóng tab này.";
+            case GAME_ACCOUNT_BANNED -> "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.";
             default -> "Chưa xác thực được phiên chơi.";
         };
         return new GameApiException(code, HttpStatus.valueOf(exception.getStatus()), message);

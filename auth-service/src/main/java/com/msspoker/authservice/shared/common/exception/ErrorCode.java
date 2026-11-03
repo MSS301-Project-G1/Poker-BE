@@ -14,6 +14,8 @@ public enum ErrorCode {
     AUTH_TAB_REPLACED(HttpStatus.CONFLICT, "Bạn đã chuyển sang tab khác. Bạn có thể đóng tab này."),
     AUTH_SESSION_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Chưa kiểm tra được phiên đăng nhập, vui lòng thử lại."),
     AUTH_ACCOUNT_UNAVAILABLE(HttpStatus.FORBIDDEN, "Tài khoản không thể đăng nhập."),
+    AUTH_ACCOUNT_BANNED(HttpStatus.FORBIDDEN, "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên."),
+    AUTH_BAN_ALREADY_ACTIVE(HttpStatus.CONFLICT, "Tài khoản đang bị khóa. Hãy gỡ khóa trước khi tạo lệnh khóa mới."),
     AUTH_CSRF_INVALID(HttpStatus.FORBIDDEN, "CSRF token không hợp lệ. Vui lòng lấy lại token và thử lại."),
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập tài nguyên này."),
     AUTH_ORIGIN_NOT_ALLOWED(HttpStatus.FORBIDDEN, "Nguồn gửi yêu cầu không được phép."),

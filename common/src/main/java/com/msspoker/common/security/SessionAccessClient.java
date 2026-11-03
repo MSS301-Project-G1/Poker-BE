@@ -28,7 +28,7 @@ public class SessionAccessClient {
             if (response.statusCode() == 204) return;
             String code = response.headers().firstValue("X-Session-Error").orElse("AUTH_SESSION_UNAVAILABLE");
             if (!java.util.Set.of("AUTH_SESSION_REPLACED", "AUTH_TAB_REPLACED", "AUTH_UNAUTHENTICATED",
-                    "AUTH_REFRESH_INVALID", "AUTH_ACCOUNT_UNAVAILABLE", "AUTH_EMAIL_VERIFICATION_PENDING").contains(code)) {
+                    "AUTH_REFRESH_INVALID", "AUTH_ACCOUNT_UNAVAILABLE", "AUTH_ACCOUNT_BANNED", "AUTH_EMAIL_VERIFICATION_PENDING").contains(code)) {
                 throw new SessionAccessException("AUTH_SESSION_UNAVAILABLE", 503);
             }
             throw new SessionAccessException(code, response.statusCode());

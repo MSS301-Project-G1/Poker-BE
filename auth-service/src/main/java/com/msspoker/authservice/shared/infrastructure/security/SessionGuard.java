@@ -1,6 +1,7 @@
 package com.msspoker.authservice.shared.infrastructure.security;
 
 import com.msspoker.authservice.entity.RefreshToken;
+import com.msspoker.authservice.entity.Account;
 import com.msspoker.authservice.enums.AccountStatus;
 import com.msspoker.authservice.repository.AccountRepository;
 import com.msspoker.authservice.repository.RefreshTokenRepository;
@@ -31,12 +32,13 @@ public class SessionGuard {
         }
         var token = tokens.findById(sid).orElseThrow(() -> new ApiException(ErrorCode.AUTH_SESSION_REPLACED));
         if (!token.getAccountId().toString().equals(jwt.getSubject())) throw new ApiException(ErrorCode.AUTH_SESSION_REPLACED);
+        var account = accounts.findByIdAndDeletedFalse(token.getAccountId())
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_UNAUTHENTICATED));
+        requireNotBanned(account);
         if (token.isReplaced()) throw new ApiException(ErrorCode.AUTH_SESSION_REPLACED);
         if (token.getRevokedAt() != null || !token.getExpiresAt().isAfter(clock.instant())) {
             throw new ApiException(ErrorCode.AUTH_UNAUTHENTICATED);
         }
-        var account = accounts.findByIdAndDeletedFalse(token.getAccountId())
-                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_UNAUTHENTICATED));
         if (!account.isEmailVerified() || account.getAccountStatus() == AccountStatus.PENDING_VERIFICATION) {
             throw new ApiException(ErrorCode.AUTH_EMAIL_VERIFICATION_PENDING);
         }
@@ -51,6 +53,14 @@ public class SessionGuard {
         if (token.getRevokedAt() != null || !token.getExpiresAt().isAfter(clock.instant())) {
             throw new ApiException(ErrorCode.AUTH_REFRESH_INVALID);
         }
+    }
+
+    public boolean isBanned(Account account) {
+        return account.isBanned() && (account.getBannedUntil() == null || account.getBannedUntil().isAfter(clock.instant()));
+    }
+
+    public void requireNotBanned(Account account) {
+        if (isBanned(account)) throw new ApiException(ErrorCode.AUTH_ACCOUNT_BANNED);
     }
 
     public void requireTab(RefreshToken token, String tabId) {

@@ -10,10 +10,19 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class SessionSocketOwnershipTest {
+    @Test
+    void accountBanIsReportedAsABanInsteadOfAnExpiredOrReplacedLogin() {
+        var sessions = new GameSocketSessions(mock(GameStompErrorHandler.class), mock(SessionAccessClient.class));
+        var error = sessions.sessionError(new SessionAccessException("AUTH_ACCOUNT_BANNED", 403));
+        assertThat(error.getCode()).isEqualTo(com.msspoker.gameservice.enums.GameError.GAME_ACCOUNT_BANNED);
+        assertThat(error.getStatus().value()).isEqualTo(403);
+    }
+
     @Test
     void replacementBlocksCommandsAndClosesOldSocketWithoutLeavingTheTable() throws Exception {
         var authority = mock(SessionAccessClient.class);
