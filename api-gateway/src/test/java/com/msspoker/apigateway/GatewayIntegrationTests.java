@@ -52,7 +52,7 @@ class GatewayIntegrationTests {
                     String code = SESSION_FAILURE.get();
                     if (code == null) return response.status(204).send();
                     return response.status(code.equals("AUTH_TAB_REPLACED") ? 409
-                                    : code.equals("AUTH_SESSION_UNAVAILABLE") ? 503 : 401)
+                                    : code.equals("AUTH_SESSION_UNAVAILABLE") ? 503 : code.equals("AUTH_ACCOUNT_BANNED") ? 403 : 401)
                             .header("X-Session-Error", code).send();
                 }
                 if (request.uri().equals("/.well-known/jwks.json")) {
@@ -129,13 +129,13 @@ class GatewayIntegrationTests {
 
     @Test
     void sessionFailuresAreRejectedBeforeProxyingWithoutDeletingCookies() {
-        for (String code : List.of("AUTH_SESSION_REPLACED", "AUTH_TAB_REPLACED", "AUTH_SESSION_UNAVAILABLE")) {
+        for (String code : List.of("AUTH_SESSION_REPLACED", "AUTH_TAB_REPLACED", "AUTH_SESSION_UNAVAILABLE", "AUTH_ACCOUNT_BANNED")) {
             SESSION_FAILURE.set(code);
             LAST.set(null);
             client.get().uri("/api/wallet/me").cookie("accessToken", token("USER", "valid"))
                     .header("X-Session-Internal-Key", "spoofed")
                     .exchange().expectStatus().isEqualTo(code.equals("AUTH_TAB_REPLACED") ? 409
-                            : code.equals("AUTH_SESSION_UNAVAILABLE") ? 503 : 401)
+                            : code.equals("AUTH_SESSION_UNAVAILABLE") ? 503 : code.equals("AUTH_ACCOUNT_BANNED") ? 403 : 401)
                     .expectHeader().doesNotExist("Set-Cookie").expectBody().jsonPath("$.code").isEqualTo(code);
             assertThat(LAST.get()).isNull();
         }

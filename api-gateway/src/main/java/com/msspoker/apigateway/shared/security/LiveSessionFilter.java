@@ -58,6 +58,7 @@ public class LiveSessionFilter {
                     case "AUTH_TAB_REPLACED" -> GatewayErrorCode.AUTH_TAB_REPLACED;
                     case "AUTH_EMAIL_VERIFICATION_PENDING" -> GatewayErrorCode.AUTH_EMAIL_VERIFICATION_PENDING;
                     case "AUTH_ACCOUNT_UNAVAILABLE" -> GatewayErrorCode.AUTH_ACCOUNT_UNAVAILABLE;
+                    case "AUTH_ACCOUNT_BANNED" -> GatewayErrorCode.AUTH_ACCOUNT_BANNED;
                     case "AUTH_UNAUTHENTICATED", "AUTH_REFRESH_INVALID" -> GatewayErrorCode.GATEWAY_UNAUTHENTICATED;
                     default -> GatewayErrorCode.AUTH_SESSION_UNAVAILABLE;
                 };

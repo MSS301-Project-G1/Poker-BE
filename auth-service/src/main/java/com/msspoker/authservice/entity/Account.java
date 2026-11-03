@@ -17,6 +17,9 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @Entity
 @Table(name = "accounts")
 @Getter
@@ -49,6 +52,27 @@ public class Account extends BaseEntity {
 
     @Column(name = "first_login_rewarded", nullable = false)
     private boolean firstLoginRewarded;
+
+    @Column(nullable = false)
+    private boolean banned;
+
+    @Column(name = "banned_until")
+    private Instant bannedUntil;
+
+    @Column(name = "ban_reason", length = 500)
+    private String banReason;
+
+    @Column(name = "banned_at")
+    private Instant bannedAt;
+
+    @Column(name = "banned_by")
+    private UUID bannedBy;
+
+    @Column(name = "chat_banned_until")
+    private Instant chatBannedUntil;
+
+    @Column(name = "rank_banned_until")
+    private Instant rankBannedUntil;
 
     @OneToOne(mappedBy = "account", fetch = FetchType.LAZY)
     private Profile profile;

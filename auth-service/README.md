@@ -1,5 +1,9 @@
 # auth-service
 
+**04/11/2026:** đã có ADMIN quản lý user, ban/unban có thời hạn hoặc đến khi gỡ, lịch sử và
+`GET /internal/accounts/{id}/restrictions`. Xem [ADMIN-USERS.md](ADMIN-USERS.md) để chạy và test;
+auth dùng migration V11, FE nằm ở nhánh `feat/ban-user`.
+
 **01/11/2026:** đã thêm một phiên login/một tab hoạt động, `X-Tab-Id` và API tiếp quản tab.
 Đọc [SESSION-PROTECTION.md](SESSION-PROTECTION.md) trước khi chạy FE hoặc test Swagger;
 lần nâng cấp V10 cần login lại.
@@ -312,7 +316,7 @@ port DB; file dev chỉ bổ sung port host. Auth trong Docker luôn kết nối
 Cấu hình chính và dev dùng cùng database/volume. Không bật đồng thời app Java
 trên host và container auth trên cùng port 8090.
 
-Flyway áp dụng V1–V10 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
+Flyway áp dụng V1–V11 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
 `password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`, V7 thêm danh mục avatar S3; không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
 không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,

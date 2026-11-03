@@ -8,6 +8,7 @@ import com.msspoker.authservice.dto.auth.request.ResendRegistrationOtpRequest;
 import com.msspoker.authservice.dto.auth.request.ResetPasswordRequest;
 import com.msspoker.authservice.dto.auth.request.VerifyRegistrationOtpRequest;
 import com.msspoker.authservice.dto.auth.response.CurrentUserResponse;
+import com.msspoker.authservice.dto.auth.response.AccountRestrictionsResponse;
 import com.msspoker.authservice.dto.auth.response.SessionStateResponse;
 import com.msspoker.authservice.dto.auth.response.EmailVerificationResponse;
 import com.msspoker.authservice.dto.auth.response.RegistrationResponse;
@@ -273,10 +274,10 @@ public class AuthServiceImpl implements AuthService {
         // Serialize rotation/logout for the matching token. A concurrent refresh can win only once.
         RefreshToken token = refreshTokenRepository.findByTokenHashForUpdate(hash(rawRefreshToken))
                 .orElseThrow(() -> new ApiException(ErrorCode.AUTH_REFRESH_INVALID));
+        requireActive(account);
         sessionGuard.requireLive(token);
         if (claim) token.setActiveTabId(tabId);
         else sessionGuard.requireTab(token, tabId.toString());
-        requireActive(account);
         String replacement = newRefreshToken();
         token.setTokenHash(hash(replacement));
         // Preserve the original seven-day deadline; rotation does not prolong the login.
@@ -318,12 +319,22 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void requireActive(Account account) {
+        sessionGuard.requireNotBanned(account);
         if (!account.isEmailVerified() || account.getAccountStatus() == AccountStatus.PENDING_VERIFICATION) {
             throw new ApiException(ErrorCode.AUTH_EMAIL_VERIFICATION_PENDING);
         }
         if (account.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new ApiException(ErrorCode.AUTH_ACCOUNT_UNAVAILABLE);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountRestrictionsResponse restrictions(UUID accountId) {
+        Account account = accountRepository.findByIdAndDeletedFalse(accountId)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_NOT_FOUND));
+        return new AccountRestrictionsResponse(sessionGuard.isBanned(account),
+                account.getChatBannedUntil(), account.getRankBannedUntil());
     }
 
     private SessionTokens issueTokens(Account account, RefreshToken refreshToken, String rawRefreshToken) {
