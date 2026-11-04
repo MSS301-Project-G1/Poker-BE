@@ -124,6 +124,7 @@ class CheckinTests {
         mvc.perform(get("/api/checkin/calendar").cookie(access).param("month", "2026-10"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result.days.length()").value(1))
                 .andExpect(jsonPath("$.result.checkedInToday").value(true))
+                .andExpect(jsonPath("$.result.dailyRewardCoins").value(50))
                 .andExpect(jsonPath("$.result.days[0].rewardStatus").value("REWARDED"));
     }
 
