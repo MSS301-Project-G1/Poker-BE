@@ -482,6 +482,12 @@ public class OrderServiceImpl implements OrderService {
         Long orderCode = data.getOrderCode();
         log.info("Webhook verified successfully for orderCode={}, amount={}", orderCode, data.getAmount());
 
+        // Bỏ qua đơn test khi PayOS ping xác thực Webhook URL (PayOS mặc định gửi orderCode = 123)
+        if (orderCode != null && (orderCode == 123L || "confirm-webhook".equalsIgnoreCase(webhook.getDesc()))) {
+            log.info("PayOS test webhook received for URL confirmation (orderCode={}). Acknowledging 200 OK.", orderCode);
+            return;
+        }
+
         // 2. Acquire Pessimistic Write Lock (SELECT ... FOR UPDATE) to prevent race conditions & deadlocks
         Order order = orderRepository.findByPayosOrderCodeForUpdate(orderCode)
                 .orElseThrow(() -> {
