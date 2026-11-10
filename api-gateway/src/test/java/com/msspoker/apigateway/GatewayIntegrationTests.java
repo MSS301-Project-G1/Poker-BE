@@ -97,6 +97,7 @@ class GatewayIntegrationTests {
                 });
             }).bindNow();
     private static final Map<String, DisposableServer> CONTRACT_UPSTREAMS = Map.of(
+            "matchmaking-service", contractUpstream("matchmaking-service"),
             "ranking-service", contractUpstream("ranking-service"),
             "competition-service", contractUpstream("competition-service"),
             "shop-service", contractUpstream("shop-service"),
@@ -121,7 +122,12 @@ class GatewayIntegrationTests {
         registry.add("WALLET_GATEWAY_KEY", () -> "gateway-wallet-test-secret");
         registry.add("WALLET_SERVICE_URL", () -> upstreamUrl("wallet-service"));
         registry.add("spring.cloud.gateway.server.webflux.httpclient.response-timeout", () -> "2s");
-        registry.add("MATCHMAKING_SERVICE_URL", () -> "http://127.0.0.1:" + unusedPort());
+        registry.add("MATCHMAKING_SERVICE_URL", () -> upstreamUrl("matchmaking-service"));
+        registry.add("MATCHMAKING_GATEWAY_KEY", () -> "gateway-matchmaking-test-secret");
+        String unavailable = "gateway.catalog.services.unavailable-fixture.";
+        registry.add(unavailable + "uri", () -> "http://127.0.0.1:" + unusedPort());
+        registry.add(unavailable + "routes[0].id", () -> "unavailable-fixture");
+        registry.add(unavailable + "routes[0].paths[0]", () -> "/api/unavailable-fixture");
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -216,6 +222,8 @@ class GatewayIntegrationTests {
     @Test
     void protectedServiceReadsKeepPathsQueriesAndVerifiedUserHeaders() {
         Map<String, List<String>> routes = Map.of(
+                "matchmaking-service", List.of("/api/matchmaking/normal/status", "/api/matchmaking/normal/reconnect",
+                        "/api/matchmaking/rank/status", "/api/matchmaking/rank/reconnect", "/api/party/me"),
                 "ranking-service", List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me", "/api/tutorial/me"),
                 "competition-service", List.of("/api/rooms/me", "/api/rooms/ROOM01"),
                 "shop-service", List.of("/api/inventory/me", "/api/payments/orders/me"),
@@ -232,6 +240,7 @@ class GatewayIntegrationTests {
                         .header("Authorization", "Bearer fake")
                         .header("X-Wallet-Gateway-Key", "spoofed").header("X-Wallet-Internal-Key", "spoofed")
                         .header("X-Shop-Gateway-Key", "spoofed").header("X-Shop-Internal-Key", "spoofed")
+                        .header("X-Matchmaking-Gateway-Key", "spoofed")
                         .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
@@ -249,6 +258,11 @@ class GatewayIntegrationTests {
                     assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Gateway-Key");
                 }
                 assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Internal-Key");
+                if (service.getKey().equals("matchmaking-service")) {
+                    assertThat(LAST.get().headers().get("X-Matchmaking-Gateway-Key")).isEqualTo("gateway-matchmaking-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Matchmaking-Gateway-Key");
+                }
                 assertThat(LAST.get().headers().get("X-Request-Id")).isNotBlank();
             }
         }
@@ -294,6 +308,16 @@ class GatewayIntegrationTests {
     @Test
     void serviceWritesRequireCsrfAndKeepTheDestinationMethodAndBody() {
         List<ServiceWrite> writes = List.of(
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/normal/join"),
+                new ServiceWrite("matchmaking-service", HttpMethod.DELETE, "/api/matchmaking/normal/leave"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/rank/join"),
+                new ServiceWrite("matchmaking-service", HttpMethod.DELETE, "/api/matchmaking/rank/leave"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/proposals/" + UUID.randomUUID() + "/accept"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/proposals/" + UUID.randomUUID() + "/decline"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/party/create"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/party/join"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/party/kick"),
+                new ServiceWrite("matchmaking-service", HttpMethod.DELETE, "/api/party/leave"),
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/seasons/" + UUID.randomUUID() + "/rewards/claim"),
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/tutorial/complete"),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms"),
@@ -320,6 +344,9 @@ class GatewayIntegrationTests {
             assertThat(LAST.get().method()).isEqualTo(write.method().name());
             assertThat(LAST.get().body()).isEqualTo(body);
             assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+            if (write.service().equals("matchmaking-service")) {
+                assertThat(LAST.get().headers().get("X-Matchmaking-Gateway-Key")).isEqualTo("gateway-matchmaking-test-secret");
+            }
         }
     }
 
@@ -770,7 +797,7 @@ class GatewayIntegrationTests {
 
     @Test
     void unreachableUpstreamReturnsServiceUnavailableWithRequestId() {
-        client.get().uri("/api/matchmaking/queue").cookie("accessToken", token("USER", "valid"))
+        client.get().uri("/api/unavailable-fixture").cookie("accessToken", token("USER", "valid"))
                 .exchange().expectStatus().isEqualTo(503).expectHeader().exists("X-Request-Id")
                 .expectBody().jsonPath("$.code").isEqualTo("GATEWAY_UPSTREAM_UNAVAILABLE")
                 .jsonPath("$.timestamp").exists().jsonPath("$.requestId").exists();

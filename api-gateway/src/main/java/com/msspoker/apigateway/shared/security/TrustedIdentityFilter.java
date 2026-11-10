@@ -26,18 +26,21 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
     private final String chatGatewayKey;
     private final String walletGatewayKey;
     private final String shopGatewayKey;
+    private final String matchmakingGatewayKey;
 
     public TrustedIdentityFilter(GatewayErrorWriter errors, @Value("${gateway.game-service-key:}") String gameServiceKey,
             @Value("${gateway.social-gateway-key:}") String socialGatewayKey,
             @Value("${gateway.chat-gateway-key:}") String chatGatewayKey,
             @Value("${gateway.wallet-gateway-key:}") String walletGatewayKey,
-            @Value("${gateway.shop-gateway-key:}") String shopGatewayKey) {
+            @Value("${gateway.shop-gateway-key:}") String shopGatewayKey,
+            @Value("${gateway.matchmaking-gateway-key:}") String matchmakingGatewayKey) {
         this.errors = errors;
         this.gameServiceKey = gameServiceKey;
         this.socialGatewayKey = socialGatewayKey;
         this.chatGatewayKey = chatGatewayKey;
         this.walletGatewayKey = walletGatewayKey;
         this.shopGatewayKey = shopGatewayKey;
+        this.matchmakingGatewayKey = matchmakingGatewayKey;
     }
 
     @Override
@@ -48,6 +51,8 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
             if (wallet && walletGatewayKey.isBlank()) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
             boolean shop = route != null && route.getId().equals("shop-service");
             if (shop && shopGatewayKey.isBlank()) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
+            boolean matchmaking = route != null && route.getId().equals("matchmaking-service");
+            if (matchmaking && matchmakingGatewayKey.isBlank()) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
             boolean game = route != null && route.getId().equals("game-service");
             boolean social = route != null && route.getId().equals("social-service");
             boolean chat = route != null && route.getId().equals("chat-service");
@@ -62,6 +67,7 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
                 }
                 if (wallet) headers.set("X-Wallet-Gateway-Key", walletGatewayKey);
                 if (shop) headers.set("X-Shop-Gateway-Key", shopGatewayKey);
+                if (matchmaking) headers.set("X-Matchmaking-Gateway-Key", matchmakingGatewayKey);
                 if (game) headers.set("X-Game-Service-Key", gameServiceKey);
                 if (social) headers.set("X-Social-Gateway-Key", socialGatewayKey);
                 if (chat) headers.set("X-Chat-Gateway-Key", chatGatewayKey);
