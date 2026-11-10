@@ -15,7 +15,7 @@ class RankingGatewayConfigurationTest {
     @Test
     void missingRankingGatewayKeyReturns503BeforeForwarding() {
         var filter = new TrustedIdentityFilter(new GatewayErrorWriter(JsonMapper.builder().build()),
-                "game", "social", "chat", "wallet", "shop", "matchmaking", "");
+                "game", "social", "chat", "wallet", "shop", "matchmaking", "", "competition");
         var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/ranking/leaderboard"));
         exchange.getAttributes().put(GATEWAY_ROUTE_ATTR, Route.async().id("ranking-service").uri("http://ranking.test")
                 .predicate(ignored -> true).build());

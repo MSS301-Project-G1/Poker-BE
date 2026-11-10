@@ -118,6 +118,7 @@ class GatewayIntegrationTests {
         registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));
         registry.add("RANKING_GATEWAY_KEY", () -> "gateway-ranking-test-secret");
         registry.add("COMPETITION_SERVICE_URL", () -> upstreamUrl("competition-service"));
+        registry.add("COMPETITION_GATEWAY_KEY", () -> "gateway-competition-test-secret");
         registry.add("SHOP_SERVICE_URL", () -> upstreamUrl("shop-service"));
         registry.add("SHOP_GATEWAY_KEY", () -> "gateway-shop-test-secret");
         registry.add("WALLET_GATEWAY_KEY", () -> "gateway-wallet-test-secret");
@@ -205,11 +206,17 @@ class GatewayIntegrationTests {
                         .expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 client.get().uri(path).cookie("accessToken", token("USER", "expired"))
                         .header("X-Ranking-Gateway-Key", "spoofed").header("X-Ranking-Internal-Key", "spoofed")
+                        .header("X-Competition-Gateway-Key", "spoofed")
                         .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN").header("X-Dev-User", ACCOUNT_ID)
                         .exchange().expectStatus().isOk();
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-Dev-User");
                 assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Internal-Key");
+                if (service.getKey().equals("competition-service")) {
+                    assertThat(LAST.get().headers().get("X-Competition-Gateway-Key")).isEqualTo("gateway-competition-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Competition-Gateway-Key");
+                }
                 if (service.getKey().equals("ranking-service")) {
                     assertThat(LAST.get().headers().get("X-Ranking-Gateway-Key")).isEqualTo("gateway-ranking-test-secret");
                 } else {
@@ -250,6 +257,7 @@ class GatewayIntegrationTests {
                         .header("X-Shop-Gateway-Key", "spoofed").header("X-Shop-Internal-Key", "spoofed")
                         .header("X-Matchmaking-Gateway-Key", "spoofed")
                         .header("X-Ranking-Gateway-Key", "spoofed").header("X-Ranking-Internal-Key", "spoofed")
+                        .header("X-Competition-Gateway-Key", "spoofed")
                         .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
@@ -267,6 +275,11 @@ class GatewayIntegrationTests {
                     assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Gateway-Key");
                 }
                 assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Internal-Key");
+                if (service.getKey().equals("competition-service")) {
+                    assertThat(LAST.get().headers().get("X-Competition-Gateway-Key")).isEqualTo("gateway-competition-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Competition-Gateway-Key");
+                }
                 assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Internal-Key");
                 if (service.getKey().equals("ranking-service")) {
                     assertThat(LAST.get().headers().get("X-Ranking-Gateway-Key")).isEqualTo("gateway-ranking-test-secret");
@@ -336,9 +349,15 @@ class GatewayIntegrationTests {
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/seasons/" + UUID.randomUUID() + "/rewards/claim"),
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/tutorial/complete"),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/join"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/leave"),
+                new ServiceWrite("competition-service", HttpMethod.PUT, "/api/rooms/ROOM01/owner"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/invitations"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/start"),
                 new ServiceWrite("competition-service", HttpMethod.PUT, "/api/rooms/ROOM01/ready"),
                 new ServiceWrite("competition-service", HttpMethod.DELETE, "/api/rooms/ROOM01/members/" + UUID.randomUUID()),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/tournaments/" + UUID.randomUUID() + "/register"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/tournaments/" + UUID.randomUUID() + "/confirm"),
                 new ServiceWrite("shop-service", HttpMethod.POST, "/api/shop/products/" + UUID.randomUUID() + "/purchase"),
                 new ServiceWrite("shop-service", HttpMethod.PUT, "/api/inventory/" + UUID.randomUUID() + "/equip"),
                 new ServiceWrite("shop-service", HttpMethod.DELETE, "/api/inventory/" + UUID.randomUUID() + "/equip"),
@@ -362,6 +381,9 @@ class GatewayIntegrationTests {
             if (write.service().equals("matchmaking-service")) {
                 assertThat(LAST.get().headers().get("X-Matchmaking-Gateway-Key")).isEqualTo("gateway-matchmaking-test-secret");
             }
+            if (write.service().equals("competition-service")) {
+                assertThat(LAST.get().headers().get("X-Competition-Gateway-Key")).isEqualTo("gateway-competition-test-secret");
+            }
         }
     }
 
@@ -373,6 +395,7 @@ class GatewayIntegrationTests {
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/admin/seasons/close"),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments"),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments/" + UUID.randomUUID() + "/start"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments/" + UUID.randomUUID() + "/cancel"),
                 new ServiceWrite("shop-service", HttpMethod.POST, "/api/shop/categories"),
                 new ServiceWrite("shop-service", HttpMethod.PUT, "/api/shop/categories/" + UUID.randomUUID()),
                 new ServiceWrite("shop-service", HttpMethod.DELETE, "/api/shop/categories/" + UUID.randomUUID()),

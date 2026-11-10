@@ -30,7 +30,7 @@ competitionservice/
 ├── constant/           # Shared constants and header names
 ├── exception/          # Exception factory and REST exception handler
 ├── config/             # Spring configuration and room defaults
-├── security/           # Dev-only X-Dev-User identity filter
+├── security/           # Gateway caller verification
 └── util/               # UUID v7 generation
 ```
 
@@ -69,12 +69,16 @@ discovery-service. To check the route, follow `api-gateway/ONBOARDING.md` with
 
 ## Integration contract
 
-All `/api/rooms/**` calls trust `X-User-Id` set by the gateway; a missing header
-returns `401 COMP_UNAUTHORIZED`. Room codes are 6 characters and case-insensitive.
-In the `dev` profile only, `X-Dev-User` (the FE `?devUser` identity, read like
-game-service does) wins over `X-User-Id`, because the shared FE http client also
-sends a default `X-User-Id` in dev; any dev request without `X-User-Role` acts as
-`ADMIN`.
+All `/api/**` calls require `X-Competition-Gateway-Key` matching
+`COMPETITION_GATEWAY_KEY`, shared only by the gateway and competition. The gateway
+supplies verified `X-User-Id` and `X-User-Role`; a missing account header on a user
+endpoint returns `401 COMP_UNAUTHORIZED`. Room codes are 6 characters and case-insensitive.
+Public room/tournament reads remain available anonymously through the gateway.
+These rules also apply in `dev`: `X-Dev-User` no longer supplies or overrides an
+identity and a missing role never defaults to `ADMIN`. FE keeps using the gateway
+and never receives the key. Calls to ranking/wallet/shop retain their separate
+internal keys. See [the review guide](../docker/COMPETITION-GATEWAY-REVIEW.md)
+for `.env` setup and commands to update gateway and competition together.
 
 | Method | Endpoint | Behavior |
 | --- | --- | --- |

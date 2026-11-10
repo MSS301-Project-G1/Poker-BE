@@ -12,7 +12,7 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.G
 class WalletGatewayConfigurationTest {
     @Test
     void missingWalletGatewayKeyReturns503BeforeForwarding() {
-        var filter = new TrustedIdentityFilter(new GatewayErrorWriter(tools.jackson.databind.json.JsonMapper.builder().build()), "game", "social", "chat", "", "shop", "matchmaking", "ranking");
+        var filter = new TrustedIdentityFilter(new GatewayErrorWriter(tools.jackson.databind.json.JsonMapper.builder().build()), "game", "social", "chat", "", "shop", "matchmaking", "ranking", "competition");
         var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/wallet/me"));
         exchange.getAttributes().put(GATEWAY_ROUTE_ATTR, Route.async().id("wallet-service").uri("http://wallet.test")
                 .predicate(ignored -> true).build());

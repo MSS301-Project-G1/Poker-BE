@@ -15,7 +15,7 @@ class ShopGatewayConfigurationTest {
     @Test
     void missingShopGatewayKeyReturns503BeforeForwarding() {
         var filter = new TrustedIdentityFilter(new GatewayErrorWriter(JsonMapper.builder().build()),
-                "game", "social", "chat", "wallet", "", "matchmaking", "ranking");
+                "game", "social", "chat", "wallet", "", "matchmaking", "ranking", "competition");
         var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/shop/products"));
         exchange.getAttributes().put(GATEWAY_ROUTE_ATTR, Route.async().id("shop-service").uri("http://shop.test")
                 .predicate(ignored -> true).build());
