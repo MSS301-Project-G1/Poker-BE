@@ -19,6 +19,8 @@ import java.util.UUID;
 @Component
 public class ShopSoundClient {
     private final RestClient shop;
+    @Value("${shop.internal-key:}")
+    private String shopInternalKey = "";
 
     public ShopSoundClient(@Value("${game.shop-url:http://localhost:8088}") String url,
             @Value("${game.shop-timeout-millis:2000}") long timeoutMillis) {
@@ -31,7 +33,7 @@ public class ShopSoundClient {
     public String soundUrl(UUID accountId, UUID productId) {
         OwnedSoundResponse response;
         try {
-            response = shop.get().uri(GamePaths.OWNED_SOUND, accountId, productId).retrieve()
+            response = shop.get().uri(GamePaths.OWNED_SOUND, accountId, productId).header("X-Shop-Internal-Key", shopInternalKey).retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, (request, reply) -> {
                         throw GameExceptions.tauntSoundNotOwned();
                     })

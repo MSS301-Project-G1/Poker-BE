@@ -9,6 +9,10 @@ import com.msspoker.shopservice.service.InventoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +29,9 @@ import java.util.UUID;
 @RequestMapping("/internal/inventory")
 @RequiredArgsConstructor
 @Tag(name = "Internal Inventory APIs", description = "API nội bộ giữa các microservices")
+@SecurityScheme(name = "shopInternalKey", type = SecuritySchemeType.APIKEY,
+        in = SecuritySchemeIn.HEADER, paramName = "X-Shop-Internal-Key")
+@SecurityRequirement(name = "shopInternalKey")
 public class InternalInventoryController {
 
     private final InventoryService inventoryService;
