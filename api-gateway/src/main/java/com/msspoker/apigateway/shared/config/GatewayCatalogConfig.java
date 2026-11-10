@@ -32,9 +32,14 @@ public class GatewayCatalogConfig {
                         .map(Object::toString).collect(Collectors.joining(","))));
             }
             definition.setPredicates(predicates);
+            List<FilterDefinition> filters = new ArrayList<>();
             if (route.stripPrefix() > 0) {
-                definition.setFilters(List.of(new FilterDefinition("StripPrefix=" + route.stripPrefix())));
+                filters.add(new FilterDefinition("StripPrefix=" + route.stripPrefix()));
             }
+            if (route.preserveHost()) {
+                filters.add(new FilterDefinition("PreserveHostHeader"));
+            }
+            definition.setFilters(filters);
             definitions.add(definition);
         }));
         return () -> Flux.fromIterable(definitions);

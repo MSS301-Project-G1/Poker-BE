@@ -56,6 +56,24 @@ if [ "$healthy" != true ]; then
   exit 1
 fi
 
+# Every STOMP endpoint must upgrade through the gateway (101), as the browser would open it.
+# The service registers with Eureka a little after the gateway is healthy, so retry briefly.
+ORIGIN="$(grep -m1 '^GATEWAY_CORS_ALLOWED_ORIGINS=' .env | cut -d= -f2- | cut -d, -f1)"
+for path in /ws/game /ws/social /ws/chat; do
+  status=""
+  for _ in $(seq 1 24); do
+    status="$(curl -si --http1.1 --max-time 3 -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+      -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H "Origin: $ORIGIN" \
+      "http://127.0.0.1:8080$path" 2>/dev/null | head -1 | tr -d '\r' || true)"
+    case "$status" in *" 101"*) break ;; esac
+    sleep 5
+  done
+  case "$status" in
+    *" 101"*) echo "==> WebSocket $path ✅" ;;
+    *) echo "::error::WebSocket $path did not upgrade through the gateway (got: ${status:-no response})"; exit 1 ;;
+  esac
+done
+
 # nginx in the FE container resolves service names only when it loads its config, and recreated
 # backend containers may get new IPs. A reload picks them up; if a name does not resolve, nginx
 # keeps serving with the old config instead of going down like a restart would.

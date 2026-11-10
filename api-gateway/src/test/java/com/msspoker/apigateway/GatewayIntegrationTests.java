@@ -19,12 +19,14 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
 import reactor.core.publisher.Mono;
 import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.net.ServerSocket;
+import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -34,6 +36,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "eureka.client.enabled=false")
@@ -46,8 +49,17 @@ class GatewayIntegrationTests {
     private static final AtomicReference<ObservedRequest> LAST = new AtomicReference<>();
     private static final AtomicReference<String> SESSION_FAILURE = new AtomicReference<>();
     private static final AtomicReference<Reply> REPLY = new AtomicReference<>();
+    private static final AtomicReference<String> WEBSOCKET_HANDSHAKE = new AtomicReference<>();
+    private static final String ALLOWED_ORIGIN = "http://localhost:5173";
     private static final DisposableServer UPSTREAM = HttpServer.create().host("127.0.0.1").port(0)
             .handle((request, response) -> {
+                if (request.requestHeaders().containsValue(HttpHeaders.UPGRADE, "websocket", true)) {
+                    var headers = request.requestHeaders();
+                    String seen = String.join("|", request.uri(), headers.get(HttpHeaders.HOST),
+                            String.valueOf(headers.get(HttpHeaders.ORIGIN)), String.valueOf(headers.get("X-User-Id")));
+                    WEBSOCKET_HANDSHAKE.set(seen);
+                    return response.sendWebsocket((in, out) -> out.sendString(Mono.just(seen)));
+                }
                 if (request.uri().equals("/internal/auth/session/check")) {
                     String code = SESSION_FAILURE.get();
                     if (code == null) return response.status(204).send();
@@ -125,6 +137,33 @@ class GatewayIntegrationTests {
     static void closeUpstream() {
         UPSTREAM.disposeNow();
         CONTRACT_UPSTREAMS.values().forEach(DisposableServer::disposeNow);
+    }
+
+    @Test
+    void websocketHandshakesArePublicAndReachTheirServiceWithTheBrowserHostAndOrigin() {
+        var websocket = new ReactorNettyWebSocketClient();
+        String gateway = "127.0.0.1:" + environment.getProperty("local.server.port");
+        for (String path : List.of("/ws/game", "/ws/social", "/ws/chat")) {
+            var headers = new HttpHeaders();
+            headers.setOrigin(ALLOWED_ORIGIN);
+            headers.set("X-User-Id", ACCOUNT_ID);
+            var message = new AtomicReference<String>();
+            websocket.execute(URI.create("ws://" + gateway + path), headers, session -> session.receive().next()
+                    .doOnNext(frame -> message.set(frame.getPayloadAsText())).then()).block(Duration.ofSeconds(10));
+            // No access cookie is needed (services check the STOMP ws-token); spoofed identity is stripped.
+            assertThat(message.get()).isEqualTo(String.join("|", path, gateway, ALLOWED_ORIGIN, "null"));
+        }
+    }
+
+    @Test
+    void websocketHandshakesFromForeignOriginsNeverReachTheService() {
+        WEBSOCKET_HANDSHAKE.set(null);
+        var headers = new HttpHeaders();
+        headers.setOrigin("https://evil.example");
+        URI uri = URI.create("ws://127.0.0.1:" + environment.getProperty("local.server.port") + "/ws/game");
+        assertThatThrownBy(() -> new ReactorNettyWebSocketClient().execute(uri, headers, session -> session.receive().then())
+                .block(Duration.ofSeconds(10))).hasMessageContaining("403");
+        assertThat(WEBSOCKET_HANDSHAKE.get()).isNull();
     }
 
     @Test
