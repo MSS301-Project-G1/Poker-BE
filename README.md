@@ -64,6 +64,15 @@ docker compose up --build
 
 Các port public trong `.env` có thể đổi để tránh xung đột trên máy. Gateway có health endpoint tại `http://localhost:8080/actuator/health`; mỗi service cũng có `/actuator/health` trên port của mình. Test auth trực tiếp bằng Swagger tại `http://localhost:8090/swagger-ui.html`; login/refresh/logout cần CSRF token theo README auth. Root Compose có DB riêng cho auth; hạ tầng và cấu hình riêng của game xem README game trước khi chạy cả nhóm.
 
+## Deploy (CI/CD)
+
+Workflow `.github/workflows/ci-cd.yml` chạy `./mvnw verify` cho mọi pull request. Push lên `main` thì sau khi test qua, workflow build image ARM cho từng service, đẩy lên GHCR (`ghcr.io/mss301-project-g1/poker-<service>`) rồi SSH vào VPS chạy `deploy/remote-deploy.sh`: pull image, `docker compose up` với `deploy/compose.prod.yml` và đợi gateway healthy. Nếu FE đang chạy thì container FE cũng được khởi động lại.
+
+- VPS: Oracle Ampere (ARM), Ubuntu; Caddy lo HTTPS cho `game-fun.me` và chuyển tiếp về container FE ở `127.0.0.1:3000`. FE (repo Poker-FE) proxy `/api` và `/ws` vào network `poker_default`.
+- Lần đầu trên VPS mới: chạy `bash deploy/setup-vps.sh` (Docker, swap), tạo `~/poker/be/.env` từ `deploy/prod.env.example` (`chmod 600`).
+- Secrets của repo: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` (private key riêng cho deploy; public key nằm trong `~/.ssh/authorized_keys` của user trên VPS).
+- Trên VPS: `cd ~/poker/be && docker compose -f docker-compose.yml -f deploy/compose.prod.yml ps` (hoặc `logs -f <service>`).
+
 ## Migration
 
 Mỗi service sở hữu database đặt script Flyway tại `src/main/resources/db/migration/`. Auth đã có `V1__create_accounts_and_profiles.sql`, driver PostgreSQL và Flyway; game cũng quản lý migration riêng. Không đặt migration tại `common` hoặc `api-gateway`. Không sửa script đã áp dụng ở môi trường dùng chung; tạo migration phiên bản mới.
