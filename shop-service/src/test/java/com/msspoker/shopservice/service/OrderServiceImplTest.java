@@ -10,6 +10,7 @@ import com.msspoker.shopservice.entity.Order;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.OrderFulfillmentStatus;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.shopservice.exception.AppException;
@@ -273,6 +274,7 @@ class OrderServiceImplTest {
     @DisplayName("handlePayosWebhook - Idempotency: Đơn hàng đã PAID thì bỏ qua và không cấp đồ lần 2")
     void handlePayosWebhook_Idempotency() {
         pendingOrder.setStatus(OrderStatus.PAID);
+        pendingOrder.setFulfillmentStatus(OrderFulfillmentStatus.FULFILLED);
 
         WebhookData webhookData = mock(WebhookData.class);
         when(webhookData.getOrderCode()).thenReturn(100001L);
@@ -322,8 +324,13 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("cancelOrder - Thành công: Hủy đơn PENDING")
     void cancelOrder_Success() {
-        when(orderRepository.findById(pendingOrder.getId())).thenReturn(Optional.of(pendingOrder));
+        when(orderRepository.findByIdForUpdate(pendingOrder.getId())).thenReturn(Optional.of(pendingOrder));
         when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
+        PaymentLink cancelled = new PaymentLink();
+        cancelled.setOrderCode(100001L);
+        cancelled.setAmount(50000L);
+        cancelled.setStatus(PaymentLinkStatus.CANCELLED);
+        when(paymentRequestsService.cancel(100001L, "User cancelled")).thenReturn(cancelled);
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OrderResponse response = orderService.cancelOrder(accountId, pendingOrder.getId());
@@ -337,7 +344,7 @@ class OrderServiceImplTest {
     @DisplayName("cancelOrder - Thất bại: Đơn hàng không ở trạng thái PENDING ném SHOP_ORDER_NOT_PENDING")
     void cancelOrder_NotPending() {
         pendingOrder.setStatus(OrderStatus.PAID);
-        when(orderRepository.findById(pendingOrder.getId())).thenReturn(Optional.of(pendingOrder));
+        when(orderRepository.findByIdForUpdate(pendingOrder.getId())).thenReturn(Optional.of(pendingOrder));
 
         assertThatThrownBy(() -> orderService.cancelOrder(accountId, pendingOrder.getId()))
                 .isInstanceOf(AppException.class)
@@ -381,7 +388,8 @@ class OrderServiceImplTest {
         assertThat(response.amountVnd()).isEqualTo(100000L);
         assertThat(response.payosOrderCode()).isEqualTo(OrderServiceImpl.generatePayosOrderCodeFromUuid(response.id()));
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
-        assertThat(response.qrImageUrl()).contains(String.valueOf(response.payosOrderCode()));
+        assertThat(response.qrImageUrl()).isNull();
+        assertThat(response.qrCode()).isEqualTo("vietqr-bundle-code");
     }
 
     @Test
@@ -509,6 +517,12 @@ class OrderServiceImplTest {
                 .thenReturn(Optional.of(expiredPendingOrder));
 
         when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
+        PaymentLink expired = new PaymentLink();
+        expired.setOrderCode(100088L);
+        expired.setAmount(50000L);
+        expired.setStatus(PaymentLinkStatus.EXPIRED);
+        when(paymentRequestsService.get(100088L)).thenReturn(expired);
+
 
         CreatePaymentLinkResponse payosResponse = mock(CreatePaymentLinkResponse.class);
         when(payosResponse.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/new-uuid");
@@ -520,7 +534,7 @@ class OrderServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.payosOrderCode()).isEqualTo(OrderServiceImpl.generatePayosOrderCodeFromUuid(response.id()));
-        assertThat(expiredPendingOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(expiredPendingOrder.getStatus()).isEqualTo(OrderStatus.EXPIRED);
     }
 
     @Test
@@ -552,12 +566,13 @@ class OrderServiceImplTest {
                 .expiresAt(Instant.now().plusSeconds(600))
                 .build();
 
-        when(orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
-                eq(accountId), eq(OrderStatus.PENDING), any(Instant.class)))
-                .thenReturn(Optional.of(existingBundleOrder));
+        when(orderRepository.findByAccountIdAndStatusOrderByPayosOrderCodeAsc(
+                accountId, OrderStatus.PENDING)).thenReturn(List.of(existingBundleOrder));
         when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
         PaymentLink mockLink = mock(PaymentLink.class);
         when(mockLink.getStatus()).thenReturn(PaymentLinkStatus.PENDING);
+        when(mockLink.getOrderCode()).thenReturn(200055L);
+        when(mockLink.getAmount()).thenReturn(50000L);
         when(paymentRequestsService.get(200055L)).thenReturn(mockLink);
 
         OrderResponse response = orderService.createBundleOrder(accountId, bundleId);
@@ -589,7 +604,9 @@ class OrderServiceImplTest {
                 OrderStatus.PENDING,
                 null,
                 Instant.now().plusSeconds(600),
-                Instant.now()
+                Instant.now(),
+                OrderFulfillmentStatus.PENDING,
+                null
         );
 
         when(productRepository.findByIdAndIsDeletedFalse(product.getId())).thenReturn(Optional.of(product));
@@ -638,7 +655,9 @@ class OrderServiceImplTest {
                 OrderStatus.PENDING,
                 null,
                 Instant.now().plusSeconds(600),
-                Instant.now()
+                Instant.now(),
+                OrderFulfillmentStatus.PENDING,
+                null
         );
 
         when(coinBundleRepository.findByIdAndIsActiveTrue(bundleId)).thenReturn(Optional.of(bundle));

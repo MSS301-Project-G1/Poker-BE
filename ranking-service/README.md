@@ -30,7 +30,7 @@ rankingservice/
 ├── constant/           # Shared constants and header names
 ├── exception/          # Exception factory and REST exception handler
 ├── config/             # Spring configuration and SPEC §8 parameters
-├── security/           # Dev-only X-Dev-User identity filter
+├── security/           # Gateway and internal caller verification
 └── util/               # UUID v7 generation
 ```
 
@@ -95,12 +95,17 @@ Leaderboard order is Elo descending, then account id ascending.
 | GET | `/api/tutorial/me` | `{ completed, completedAt, rewardCoins }` |
 | POST | `/api/tutorial/complete` | Records the completion and grants `TUTORIAL_REWARD` once; repeating returns the first completion |
 
-`/api/**` trusts `X-User-Id` set by the gateway (SPEC §5.1); a missing header
-returns `401 RANK_UNAUTHORIZED`. `/internal/**` must not be exposed by the gateway.
-In the `dev` profile only, `X-Dev-User` (the FE `?devUser` identity, read like
-game-service does) wins over `X-User-Id`, because the shared FE http client also
-sends a default `X-User-Id` in dev; any dev request without `X-User-Role` acts as
-`ADMIN`.
+`/api/**` requires `X-Ranking-Gateway-Key` matching `RANKING_GATEWAY_KEY`, shared
+only by the gateway and ranking. The gateway supplies verified `X-User-Id` and
+`X-User-Role`; a missing account header on a user endpoint returns `401 RANK_UNAUTHORIZED`.
+Public leaderboard/season reads remain available anonymously through the gateway.
+`/internal/**` requires `X-Ranking-Internal-Key` matching `RANKING_INTERNAL_KEY`,
+shared by ranking, matchmaking and competition, and is not exposed by the gateway.
+Use different random values for the two keys; missing/wrong/duplicate keys are rejected.
+These rules also apply in the `dev` profile: `X-Dev-User` no longer supplies an
+identity and a missing role never defaults to `ADMIN`. FE keeps using the gateway
+and never receives either key. See [the review guide](../docker/RANKING-SECURITY-REVIEW.md)
+for `.env` setup and commands to rebuild the affected services together.
 
 Consumed events on exchange `poker.events`, each with its own durable queue:
 

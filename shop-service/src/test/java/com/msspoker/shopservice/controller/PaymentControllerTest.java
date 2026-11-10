@@ -4,6 +4,7 @@ import com.msspoker.shopservice.dto.request.CreateOrderRequest;
 import com.msspoker.shopservice.dto.response.ApiResponse;
 import com.msspoker.shopservice.dto.response.OrderResponse;
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.OrderFulfillmentStatus;
 import com.msspoker.shopservice.service.OrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,7 +57,9 @@ class PaymentControllerTest {
                 OrderStatus.PENDING,
                 null,
                 Instant.now().plusSeconds(900),
-                Instant.now()
+                Instant.now(),
+                OrderFulfillmentStatus.PENDING,
+                null
         );
     }
 
@@ -94,7 +97,9 @@ class PaymentControllerTest {
                 OrderStatus.PENDING,
                 null,
                 Instant.now().plusSeconds(900),
-                Instant.now()
+                Instant.now(),
+                OrderFulfillmentStatus.PENDING,
+                null
         );
         when(orderService.createBundleOrder(accountId, bundleId)).thenReturn(bundleOrderResp);
 
@@ -152,7 +157,9 @@ class PaymentControllerTest {
                 OrderStatus.CANCELLED,
                 null,
                 null,
-                Instant.now()
+                Instant.now(),
+                OrderFulfillmentStatus.PENDING,
+                null
         );
         when(orderService.cancelOrder(accountId, orderId)).thenReturn(cancelledResponse);
 

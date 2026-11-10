@@ -2,6 +2,7 @@ package com.msspoker.shopservice.entity;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.OrderFulfillmentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -65,6 +66,14 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30, nullable = false)
     private OrderStatus status;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fulfillment_status", length = 30, nullable = false)
+    private OrderFulfillmentStatus fulfillmentStatus = OrderFulfillmentStatus.PENDING;
+
+    @Column(name = "fulfilled_at")
+    private Instant fulfilledAt;
 
     @Version
     @Column(name = "version", nullable = false)

@@ -129,6 +129,10 @@ public final class GameExceptions {
         return new GameApiException(GameError.GAME_TAUNT_UNAVAILABLE, HttpStatus.FORBIDDEN, "Bạn chưa sở hữu âm thanh này.");
     }
 
+    public static GameApiException tauntSoundNotPlayable() {
+        return new GameApiException(GameError.GAME_TAUNT_UNAVAILABLE, HttpStatus.BAD_REQUEST, "Vật phẩm này không phải âm thanh có thể phát trong bàn chơi.");
+    }
+
     public static GameApiException tauntSoundUnavailable() {
         return new GameApiException(GameError.GAME_TAUNT_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Không tải được âm thanh lúc này. Vui lòng thử lại sau.");
     }

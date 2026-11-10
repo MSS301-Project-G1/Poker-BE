@@ -1,6 +1,7 @@
 package com.msspoker.shopservice.dto.response;
 
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.OrderFulfillmentStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
@@ -50,9 +51,15 @@ public record OrderResponse(
         @Schema(description = "Thời điểm thanh toán thành công")
         Instant paidAt,
 
-        @Schema(description = "Thời điểm hết hạn thanh toán (mặc định sau 15 phút)")
+        @Schema(description = "Thời điểm hết hạn thanh toán theo cấu hình; quá hạn chưa đồng nghĩa PayOS đã xác nhận hủy")
         Instant expiresAt,
 
         @Schema(description = "Thời điểm tạo đơn hàng")
-        Instant createdAt
+        Instant createdAt,
+
+        @Schema(description = "Giao thưởng: PENDING, FULFILLED, REVIEW_REQUIRED; xét khi đơn đã PAID")
+        OrderFulfillmentStatus fulfillmentStatus,
+
+        @Schema(description = "Thời điểm xác nhận giao vật phẩm hoặc cộng VIP Coin xong")
+        Instant fulfilledAt
 ) {}

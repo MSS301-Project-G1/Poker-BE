@@ -20,6 +20,8 @@ import java.util.UUID;
 @ConditionalOnProperty(name = "matchmaking.ranking.stub-enabled", havingValue = "false", matchIfMissing = true)
 public class HttpRankingClient implements RankingClient {
     private final RestClient ranking;
+    @Value("${ranking.internal-key:}")
+    private String rankingInternalKey = "";
 
     public HttpRankingClient(
             @Value("${matchmaking.ranking-url:http://localhost:8086}") String rankingUrl,
@@ -38,6 +40,7 @@ public class HttpRankingClient implements RankingClient {
         try {
             PlayerRankingResponse response = ranking.get()
                     .uri("/internal/ranking/{accountId}", accountId)
+                    .header("X-Ranking-Internal-Key", rankingInternalKey)
                     .retrieve()
                     .body(PlayerRankingResponse.class);
             if (response == null || !accountId.equals(response.accountId())) {

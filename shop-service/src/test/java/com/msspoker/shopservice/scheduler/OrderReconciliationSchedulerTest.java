@@ -2,6 +2,7 @@ package com.msspoker.shopservice.scheduler;
 
 import com.msspoker.shopservice.entity.Order;
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.OrderFulfillmentStatus;
 import com.msspoker.shopservice.repository.OrderRepository;
 import com.msspoker.shopservice.service.OrderService;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,5 +77,15 @@ class OrderReconciliationSchedulerTest {
         scheduler.reconcilePendingOrders();
 
         verify(orderService, never()).reconcileOrder(any());
+    }
+
+    @Test
+    void paidButUnfulfilledOrderIsRetriedEvenWhenNoPaymentIsPending() {
+        var paid = Order.builder().id(UUID.randomUUID()).status(OrderStatus.PAID)
+                .fulfillmentStatus(OrderFulfillmentStatus.PENDING).payosOrderCode(100001).build();
+        when(orderRepository.findByStatusAndFulfillmentStatusOrderByPayosOrderCodeAsc(
+                OrderStatus.PAID, OrderFulfillmentStatus.PENDING)).thenReturn(List.of(paid));
+        scheduler.reconcilePendingOrders();
+        verify(orderService).reconcileOrder(paid.getId());
     }
 }

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Exercises the real HTTP client against a stub ranking-service using its response format. */
 class RankingClientImplTest {
     final AtomicReference<String> query = new AtomicReference<>();
+    final AtomicReference<String> internalKey = new AtomicReference<>();
     HttpServer server;
     volatile int status;
     volatile String response;
@@ -32,6 +34,7 @@ class RankingClientImplTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/internal/ranking/top", exchange -> {
             query.set(exchange.getRequestURI().getQuery());
+            internalKey.set(exchange.getRequestHeaders().getFirst("X-Ranking-Internal-Key"));
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, bytes.length);
@@ -57,6 +60,7 @@ class RankingClientImplTest {
                 """.formatted(first, second);
         List<RankedPlayerResponse> top = client().top(32);
         assertEquals("limit=32", query.get());
+        assertEquals("ranking-internal-test-key", internalKey.get());
         assertEquals(List.of(first, second), top.stream().map(RankedPlayerResponse::accountId).toList());
         assertEquals(1720, top.getFirst().elo());
     }
@@ -73,6 +77,16 @@ class RankingClientImplTest {
     }
 
     private RankingClient client() {
-        return new RankingClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000);
+        var client = new RankingClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000);
+        ReflectionTestUtils.setField(client, "rankingInternalKey", "ranking-internal-test-key");
+        return client;
+    }
+
+    @Test
+    void rejectedInternalKeyBecomesDependencyError() {
+        status = 403;
+        response = "{\"code\":\"RANK_INTERNAL_FORBIDDEN\"}";
+        assertEquals(CompetitionError.COMP_DEPENDENCY_UNAVAILABLE,
+                assertThrows(CompetitionApiException.class, () -> client().top(32)).getCode());
     }
 }

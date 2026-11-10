@@ -31,6 +31,7 @@ public interface WalletClient {
 
     /**
      * Tra cứu số tiền của giao dịch ví theo idempotencyKey (phục vụ đối soát hoàn tiền).
+     * Chỉ trả empty khi wallet xác nhận không có giao dịch; lỗi upstream phải được báo lỗi.
      */
     Optional<Long> findDebitAmountByIdempotencyKey(String idempotencyKey);
 }
