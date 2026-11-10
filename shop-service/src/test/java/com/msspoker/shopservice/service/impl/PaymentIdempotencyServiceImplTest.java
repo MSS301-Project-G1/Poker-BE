@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.msspoker.shopservice.dto.response.OrderResponse;
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.OrderFulfillmentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -70,7 +71,9 @@ class PaymentIdempotencyServiceImplTest {
                 OrderStatus.PENDING,
                 null,
                 Instant.now().plusSeconds(600),
-                Instant.now()
+                Instant.now(),
+                OrderFulfillmentStatus.PENDING,
+                null
         );
 
         String json = objectMapper.writeValueAsString(cached);
@@ -166,7 +169,9 @@ class PaymentIdempotencyServiceImplTest {
                 OrderStatus.PENDING,
                 null,
                 Instant.now().plusSeconds(900),
-                Instant.now()
+                Instant.now(),
+                OrderFulfillmentStatus.PENDING,
+                null
         );
 
         when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
