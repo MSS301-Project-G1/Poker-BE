@@ -100,4 +100,5 @@ test mới. Chưa nghiệm thu trình duyệt hoặc toàn bộ stack Docker đa
 Các phần chặn giả danh HTTP đã triển khai lần lượt cho wallet, shop, matchmaking,
 ranking và competition; wallet/shop/ranking có key cho HTTP nội bộ. Đây là phạm vi
 đã sửa theo feedback, không phải kết luận toàn hệ thống đã qua kiểm toán bảo mật.
-Các điểm xử lý lỗi ví/âm thanh cũ đã ghi trong `WALLET-GATEWAY-REVIEW.md` vẫn chưa sửa.
+Các điểm xử lý lỗi ví/âm thanh cũ đã ghi trong `WALLET-GATEWAY-REVIEW.md` đã được xử lý
+sau đó ở [phần 8](UPSTREAM-ERRORS-REVIEW.md).

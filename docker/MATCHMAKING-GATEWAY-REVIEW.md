@@ -72,4 +72,4 @@ Fixture matchmaking trong test gateway được đổi từ địa chỉ chết 
 
 Phần còn lại: ranking gateway + internal ranking + DevIdentityFilter, sau đó
 competition gateway + DevIdentityFilter. Những lỗi xử lý response ví/âm thanh cũ
-đã ghi trong `WALLET-GATEWAY-REVIEW.md` vẫn chưa sửa ở phần này.
+đã ghi trong `WALLET-GATEWAY-REVIEW.md` đã được xử lý sau đó ở [phần 8](UPSTREAM-ERRORS-REVIEW.md).

@@ -21,7 +21,8 @@ class WalletInternalKeyTest {
         for (String path : new String[]{"debit", "credit", "transactions/by-idempotency-key?key=lookup"}) {
             server.expect(requestTo("http://wallet.test/internal/wallet/" + path))
                     .andExpect(header("X-Wallet-Internal-Key", "shop-wallet-test-key"))
-                    .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+                    .andRespond(withSuccess(path.startsWith("transactions/")
+                            ? "{\"code\":\"WALLET_SUCCESS\",\"data\":{\"amount\":-10,\"idempotencyKey\":\"lookup\"}}" : "{}", MediaType.APPLICATION_JSON));
         }
         var account = UUID.randomUUID();
         client.debitVipCoin(account, 10, "ref", "debit");

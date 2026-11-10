@@ -29,8 +29,9 @@ Các điểm xử lý lỗi đã tồn tại từ trước hai commit, cần xem
    nơi gọi hàm này trong source nghiệp vụ hiện tại; cần sửa hợp đồng trước khi
    dùng nó để quyết định giao dịch/hoàn tiền.
 
-Lần này chưa thay các nhánh nghiệp vụ trên. Không coi test gửi đúng header là
-bằng chứng rằng mọi cách xử lý lỗi tài chính của các service đã đúng.
+Tại thời điểm phần 3, các nhánh trên chưa được thay đổi. Cập nhật: cả ba điểm đã
+được xử lý ở [phần 8](UPSTREAM-ERRORS-REVIEW.md), kèm test contract. Không coi test
+gửi đúng header là bằng chứng rằng mọi cách xử lý lỗi tài chính của các service đã đúng.
 
 ## Luồng mới
 
