@@ -8,3 +8,15 @@ gateway:
           paths:
           - /api/game/**
           - /api/admin/match-settings/**
+        # STOMP over WebSocket: the handshake carries no session check here; game-service
+        # authenticates the ws-token sent in the CONNECT frame. Host stays the browser's for its Origin check.
+        - id: game-service-websocket
+          paths:
+          - /ws/game
+          methods:
+          - GET
+          preserve-host: true
+        public-endpoints:
+        - method: GET
+          paths:
+          - /ws/game

@@ -67,7 +67,8 @@ public record GatewayCatalogProperties(Map<String, Service> services) {
         }
     }
 
-    public record Route(String id, List<String> paths, List<HttpMethod> methods, @DefaultValue("0") int stripPrefix) {
+    public record Route(String id, List<String> paths, List<HttpMethod> methods, @DefaultValue("0") int stripPrefix,
+            @DefaultValue("false") boolean preserveHost) {
         public Route {
             paths = GatewayCatalogProperties.paths(paths);
             methods = methods == null ? List.of() : List.copyOf(methods);
