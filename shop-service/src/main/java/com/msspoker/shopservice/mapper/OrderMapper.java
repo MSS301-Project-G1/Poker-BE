@@ -21,10 +21,13 @@ public interface OrderMapper {
     List<OrderResponse> toOrderResponseList(List<Order> orders);
 
     default String generateQrImageUrl(Order order) {
-        if (order == null || order.getPayosOrderCode() == 0) {
+        if (order == null || order.getQrCode() == null) {
             return null;
         }
-        return "https://img.vietqr.io/image/MB-0348732999-compact2.png?amount="
-                + order.getAmountVnd() + "&addInfo=MSS%20" + order.getPayosOrderCode();
+        // Manual-bank orders store the configured VietQR image URL when the order is created.
+        // PayOS orders store an EMV QR payload; FE renders that exact payload locally.
+        String qrCode = order.getQrCode();
+        return (qrCode.startsWith("https://") || qrCode.startsWith("http://"))
+                && qrCode.equals(order.getCheckoutUrl()) ? qrCode : null;
     }
 }

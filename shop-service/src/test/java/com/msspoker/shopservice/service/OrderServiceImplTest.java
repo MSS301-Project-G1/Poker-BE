@@ -388,7 +388,8 @@ class OrderServiceImplTest {
         assertThat(response.amountVnd()).isEqualTo(100000L);
         assertThat(response.payosOrderCode()).isEqualTo(OrderServiceImpl.generatePayosOrderCodeFromUuid(response.id()));
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
-        assertThat(response.qrImageUrl()).contains(String.valueOf(response.payosOrderCode()));
+        assertThat(response.qrImageUrl()).isNull();
+        assertThat(response.qrCode()).isEqualTo("vietqr-bundle-code");
     }
 
     @Test
