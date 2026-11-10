@@ -8,3 +8,14 @@ gateway:
           paths:
           - /api/friends/**
           - /api/blocks/**
+        # STOMP over WebSocket: social-service authenticates the ws-token sent in the CONNECT frame.
+        - id: social-service-websocket
+          paths:
+          - /ws/social
+          methods:
+          - GET
+          preserve-host: true
+        public-endpoints:
+        - method: GET
+          paths:
+          - /ws/social

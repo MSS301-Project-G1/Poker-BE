@@ -7,3 +7,14 @@ gateway:
         - id: chat-service
           paths:
           - /api/chat/**
+        # STOMP over WebSocket: chat-service authenticates the ws-token sent in the CONNECT frame.
+        - id: chat-service-websocket
+          paths:
+          - /ws/chat
+          methods:
+          - GET
+          preserve-host: true
+        public-endpoints:
+        - method: GET
+          paths:
+          - /ws/chat
