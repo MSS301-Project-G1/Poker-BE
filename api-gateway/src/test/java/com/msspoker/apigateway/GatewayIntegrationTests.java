@@ -117,6 +117,7 @@ class GatewayIntegrationTests {
         registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));
         registry.add("COMPETITION_SERVICE_URL", () -> upstreamUrl("competition-service"));
         registry.add("SHOP_SERVICE_URL", () -> upstreamUrl("shop-service"));
+        registry.add("WALLET_GATEWAY_KEY", () -> "gateway-wallet-test-secret");
         registry.add("WALLET_SERVICE_URL", () -> upstreamUrl("wallet-service"));
         registry.add("spring.cloud.gateway.server.webflux.httpclient.response-timeout", () -> "2s");
         registry.add("MATCHMAKING_SERVICE_URL", () -> "http://127.0.0.1:" + unusedPort());
@@ -228,11 +229,18 @@ class GatewayIntegrationTests {
                         .header("X-User-Id", UUID.randomUUID().toString()).header("X-User-Role", "ADMIN")
                         .header("X-Dev-User", "fake").header("X-Game-Service-Key", "fake")
                         .header("Authorization", "Bearer fake")
+                        .header("X-Wallet-Gateway-Key", "spoofed").header("X-Wallet-Internal-Key", "spoofed")
                         .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
                 assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("USER");
                 assertThat(LAST.get().headers()).doesNotContainKeys("X-Dev-User", "X-Game-Service-Key", "Authorization");
+                if (service.getKey().equals("wallet-service")) {
+                    assertThat(LAST.get().headers().get("X-Wallet-Gateway-Key")).isEqualTo("gateway-wallet-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Wallet-Gateway-Key");
+                }
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Wallet-Internal-Key");
                 assertThat(LAST.get().headers().get("X-Request-Id")).isNotBlank();
             }
         }
