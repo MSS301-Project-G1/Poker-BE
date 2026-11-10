@@ -58,7 +58,9 @@ class GatewayIntegrationTests {
                     String seen = String.join("|", request.uri(), headers.get(HttpHeaders.HOST),
                             String.valueOf(headers.get(HttpHeaders.ORIGIN)), String.valueOf(headers.get("X-User-Id")));
                     WEBSOCKET_HANDSHAKE.set(seen);
-                    return response.sendWebsocket((in, out) -> out.sendString(Mono.just(seen)));
+                    // Stay open until the client leaves, like a STOMP server; closing right after sending
+                    // races the gateway's close relay against the frame.
+                    return response.sendWebsocket((in, out) -> out.sendString(Mono.just(seen)).then(in.receive().then()));
                 }
                 if (request.uri().equals("/internal/auth/session/check")) {
                     String code = SESSION_FAILURE.get();
