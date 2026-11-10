@@ -117,6 +117,7 @@ class GatewayIntegrationTests {
         registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));
         registry.add("COMPETITION_SERVICE_URL", () -> upstreamUrl("competition-service"));
         registry.add("SHOP_SERVICE_URL", () -> upstreamUrl("shop-service"));
+        registry.add("SHOP_GATEWAY_KEY", () -> "gateway-shop-test-secret");
         registry.add("WALLET_GATEWAY_KEY", () -> "gateway-wallet-test-secret");
         registry.add("WALLET_SERVICE_URL", () -> upstreamUrl("wallet-service"));
         registry.add("spring.cloud.gateway.server.webflux.httpclient.response-timeout", () -> "2s");
@@ -230,6 +231,7 @@ class GatewayIntegrationTests {
                         .header("X-Dev-User", "fake").header("X-Game-Service-Key", "fake")
                         .header("Authorization", "Bearer fake")
                         .header("X-Wallet-Gateway-Key", "spoofed").header("X-Wallet-Internal-Key", "spoofed")
+                        .header("X-Shop-Gateway-Key", "spoofed").header("X-Shop-Internal-Key", "spoofed")
                         .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
@@ -241,6 +243,12 @@ class GatewayIntegrationTests {
                     assertThat(LAST.get().headers()).doesNotContainKey("X-Wallet-Gateway-Key");
                 }
                 assertThat(LAST.get().headers()).doesNotContainKey("X-Wallet-Internal-Key");
+                if (service.getKey().equals("shop-service")) {
+                    assertThat(LAST.get().headers().get("X-Shop-Gateway-Key")).isEqualTo("gateway-shop-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Gateway-Key");
+                }
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Internal-Key");
                 assertThat(LAST.get().headers().get("X-Request-Id")).isNotBlank();
             }
         }
@@ -251,10 +259,13 @@ class GatewayIntegrationTests {
         for (String path : List.of("/api/shop/products?category=CARDS&page=0&size=20",
                 "/api/shop/products/" + UUID.randomUUID(), "/api/shop/categories", "/api/shop/bundles")) {
             client.get().uri(path).header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
+                    .header("X-Shop-Gateway-Key", "spoofed").header("X-Shop-Internal-Key", "spoofed")
                     .header("Authorization", "Bearer " + token("USER", "valid"))
                     .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", "shop-service");
             assertThat(LAST.get().uri()).isEqualTo(path);
             assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "Authorization");
+            assertThat(LAST.get().headers().get("X-Shop-Gateway-Key")).isEqualTo("gateway-shop-test-secret");
+            assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Internal-Key");
             for (String variant : List.of("expired", "signature", "role")) {
                 client.get().uri(path).cookie("accessToken", token("USER", variant))
                         .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
@@ -363,6 +374,7 @@ class GatewayIntegrationTests {
                 .expectHeader().doesNotExist(HttpHeaders.SET_COOKIE).expectBody(String.class).isEqualTo(reply);
         assertThat(LAST.get().uri()).isEqualTo(path);
         assertThat(LAST.get().body()).isEqualTo(body);
+        assertThat(LAST.get().headers().get("X-Shop-Gateway-Key")).isEqualTo("gateway-shop-test-secret");
         assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-XSRF-TOKEN");
         REPLY.set(new Reply(400, "{\"code\":\"SHOP_PAYOS_INVALID_SIGNATURE\"}", List.of()));
         client.post().uri(path).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()

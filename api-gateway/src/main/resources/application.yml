@@ -38,6 +38,7 @@ gateway:
   game-service-key: ${GAME_SERVICE_KEY:}
   social-gateway-key: ${SOCIAL_GATEWAY_KEY:}
   wallet-gateway-key: ${WALLET_GATEWAY_KEY:}
+  shop-gateway-key: ${SHOP_GATEWAY_KEY:}
   chat-gateway-key: ${CHAT_GATEWAY_KEY:}
 management:
   endpoints:

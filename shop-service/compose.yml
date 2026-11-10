@@ -7,6 +7,7 @@ services:
     ports:
       - "${SHOP_SERVICE_PORT:-8088}:8088"
     environment:
+      SHOP_GATEWAY_KEY: ${SHOP_GATEWAY_KEY:?Set SHOP_GATEWAY_KEY in .env}
       SHOP_INTERNAL_KEY: ${SHOP_INTERNAL_KEY:?Set SHOP_INTERNAL_KEY in .env}
       WALLET_INTERNAL_KEY: ${WALLET_INTERNAL_KEY:?Set WALLET_INTERNAL_KEY in .env}
       DB_HOST: shop-postgres
