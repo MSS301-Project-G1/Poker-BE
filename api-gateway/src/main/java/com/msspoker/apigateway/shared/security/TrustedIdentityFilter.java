@@ -27,13 +27,15 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
     private final String walletGatewayKey;
     private final String shopGatewayKey;
     private final String matchmakingGatewayKey;
+    private final String rankingGatewayKey;
 
     public TrustedIdentityFilter(GatewayErrorWriter errors, @Value("${gateway.game-service-key:}") String gameServiceKey,
             @Value("${gateway.social-gateway-key:}") String socialGatewayKey,
             @Value("${gateway.chat-gateway-key:}") String chatGatewayKey,
             @Value("${gateway.wallet-gateway-key:}") String walletGatewayKey,
             @Value("${gateway.shop-gateway-key:}") String shopGatewayKey,
-            @Value("${gateway.matchmaking-gateway-key:}") String matchmakingGatewayKey) {
+            @Value("${gateway.matchmaking-gateway-key:}") String matchmakingGatewayKey,
+            @Value("${gateway.ranking-gateway-key:}") String rankingGatewayKey) {
         this.errors = errors;
         this.gameServiceKey = gameServiceKey;
         this.socialGatewayKey = socialGatewayKey;
@@ -41,6 +43,7 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
         this.walletGatewayKey = walletGatewayKey;
         this.shopGatewayKey = shopGatewayKey;
         this.matchmakingGatewayKey = matchmakingGatewayKey;
+        this.rankingGatewayKey = rankingGatewayKey;
     }
 
     @Override
@@ -53,6 +56,8 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
             if (shop && shopGatewayKey.isBlank()) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
             boolean matchmaking = route != null && route.getId().equals("matchmaking-service");
             if (matchmaking && matchmakingGatewayKey.isBlank()) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
+            boolean ranking = route != null && route.getId().equals("ranking-service");
+            if (ranking && rankingGatewayKey.isBlank()) return errors.write(exchange, GatewayErrorCode.GATEWAY_UPSTREAM_UNAVAILABLE);
             boolean game = route != null && route.getId().equals("game-service");
             boolean social = route != null && route.getId().equals("social-service");
             boolean chat = route != null && route.getId().equals("chat-service");
@@ -68,6 +73,7 @@ public class TrustedIdentityFilter implements GlobalFilter, Ordered {
                 if (wallet) headers.set("X-Wallet-Gateway-Key", walletGatewayKey);
                 if (shop) headers.set("X-Shop-Gateway-Key", shopGatewayKey);
                 if (matchmaking) headers.set("X-Matchmaking-Gateway-Key", matchmakingGatewayKey);
+                if (ranking) headers.set("X-Ranking-Gateway-Key", rankingGatewayKey);
                 if (game) headers.set("X-Game-Service-Key", gameServiceKey);
                 if (social) headers.set("X-Social-Gateway-Key", socialGatewayKey);
                 if (chat) headers.set("X-Chat-Gateway-Key", chatGatewayKey);

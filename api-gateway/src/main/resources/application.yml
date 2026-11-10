@@ -40,6 +40,7 @@ gateway:
   wallet-gateway-key: ${WALLET_GATEWAY_KEY:}
   shop-gateway-key: ${SHOP_GATEWAY_KEY:}
   matchmaking-gateway-key: ${MATCHMAKING_GATEWAY_KEY:}
+  ranking-gateway-key: ${RANKING_GATEWAY_KEY:}
   chat-gateway-key: ${CHAT_GATEWAY_KEY:}
 management:
   endpoints:

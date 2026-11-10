@@ -116,6 +116,7 @@ class GatewayIntegrationTests {
         registry.add("SOCIAL_GATEWAY_KEY", () -> "gateway-social-test-secret");
         registry.add("CHAT_GATEWAY_KEY", () -> "gateway-chat-test-secret");
         registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));
+        registry.add("RANKING_GATEWAY_KEY", () -> "gateway-ranking-test-secret");
         registry.add("COMPETITION_SERVICE_URL", () -> upstreamUrl("competition-service"));
         registry.add("SHOP_SERVICE_URL", () -> upstreamUrl("shop-service"));
         registry.add("SHOP_GATEWAY_KEY", () -> "gateway-shop-test-secret");
@@ -203,10 +204,17 @@ class GatewayIntegrationTests {
                 client.get().uri(path).exchange().expectStatus().isOk()
                         .expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 client.get().uri(path).cookie("accessToken", token("USER", "expired"))
+                        .header("X-Ranking-Gateway-Key", "spoofed").header("X-Ranking-Internal-Key", "spoofed")
                         .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN").header("X-Dev-User", ACCOUNT_ID)
                         .exchange().expectStatus().isOk();
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-Dev-User");
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Internal-Key");
+                if (service.getKey().equals("ranking-service")) {
+                    assertThat(LAST.get().headers().get("X-Ranking-Gateway-Key")).isEqualTo("gateway-ranking-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Gateway-Key");
+                }
             }
         }
         for (String path : List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me",
@@ -241,6 +249,7 @@ class GatewayIntegrationTests {
                         .header("X-Wallet-Gateway-Key", "spoofed").header("X-Wallet-Internal-Key", "spoofed")
                         .header("X-Shop-Gateway-Key", "spoofed").header("X-Shop-Internal-Key", "spoofed")
                         .header("X-Matchmaking-Gateway-Key", "spoofed")
+                        .header("X-Ranking-Gateway-Key", "spoofed").header("X-Ranking-Internal-Key", "spoofed")
                         .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
@@ -258,6 +267,12 @@ class GatewayIntegrationTests {
                     assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Gateway-Key");
                 }
                 assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Internal-Key");
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Internal-Key");
+                if (service.getKey().equals("ranking-service")) {
+                    assertThat(LAST.get().headers().get("X-Ranking-Gateway-Key")).isEqualTo("gateway-ranking-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Gateway-Key");
+                }
                 if (service.getKey().equals("matchmaking-service")) {
                     assertThat(LAST.get().headers().get("X-Matchmaking-Gateway-Key")).isEqualTo("gateway-matchmaking-test-secret");
                 } else {
@@ -756,9 +771,12 @@ class GatewayIntegrationTests {
 
     @Test
     void internalEndpointsAreBlockedForAnonymousAndAdmin() {
-        client.get().uri("/internal/accounts/" + ACCOUNT_ID + "/restrictions").exchange().expectStatus().isForbidden();
-        client.get().uri("/internal/accounts/" + ACCOUNT_ID + "/restrictions")
-                .cookie("accessToken", token("ADMIN", "valid")).exchange().expectStatus().isForbidden();
+        for (String path : List.of("/internal/accounts/" + ACCOUNT_ID + "/restrictions",
+                "/internal/ranking/" + ACCOUNT_ID, "/internal/ranking/top?limit=7")) {
+            client.get().uri(path).exchange().expectStatus().isForbidden();
+            client.get().uri(path).cookie("accessToken", token("ADMIN", "valid"))
+                    .header("X-Ranking-Internal-Key", "spoofed").exchange().expectStatus().isForbidden();
+        }
         assertThat(LAST.get()).isNull();
     }
 

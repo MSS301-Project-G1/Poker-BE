@@ -15,7 +15,7 @@ class MatchmakingGatewayConfigurationTest {
     @Test
     void missingMatchmakingGatewayKeyReturns503BeforeForwarding() {
         var filter = new TrustedIdentityFilter(new GatewayErrorWriter(JsonMapper.builder().build()),
-                "game", "social", "chat", "wallet", "shop", "");
+                "game", "social", "chat", "wallet", "shop", "", "ranking");
         var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/matchmaking/normal/status"));
         exchange.getAttributes().put(GATEWAY_ROUTE_ATTR, Route.async().id("matchmaking-service").uri("http://matchmaking.test")
                 .predicate(ignored -> true).build());
