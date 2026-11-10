@@ -52,6 +52,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -284,6 +285,23 @@ class OrderServiceImplTest {
 
         orderService.handlePayosWebhook(webhook);
 
+        verify(inventoryItemRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("handlePayosWebhook - Test Confirmation Webhook: Bỏ qua kiểm tra DB khi orderCode=123 và trả về thành công")
+    void handlePayosWebhook_TestConfirmationPayload() {
+        WebhookData webhookData = mock(WebhookData.class);
+        when(webhookData.getOrderCode()).thenReturn(123L);
+
+        Webhook webhook = mock(Webhook.class);
+
+        when(payOS.webhooks()).thenReturn(webhooksService);
+        when(webhooksService.verify(webhook)).thenReturn(webhookData);
+
+        orderService.handlePayosWebhook(webhook);
+
+        verify(orderRepository, never()).findByPayosOrderCodeForUpdate(anyLong());
         verify(inventoryItemRepository, never()).save(any());
     }
 
