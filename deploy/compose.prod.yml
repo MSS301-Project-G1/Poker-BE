@@ -2,8 +2,8 @@
 #   docker compose -f docker-compose.yml -f deploy/compose.prod.yml up -d
 # - Services run the images CI pushed to GHCR (IMAGE_TAG in .env) instead of building on the VPS.
 # - Docker-published ports bypass the host firewall, so nothing is published on 0.0.0.0. Only the gateway
-#   stays reachable from the host (127.0.0.1) for health checks; the FE container joins this project's
-#   network and reaches the services by name.
+#   is reachable from the host (127.0.0.1:8080): Caddy sends /api and /ws there, and the deploy script
+#   checks it.
 # - Memory caps keep twelve JVMs inside the VPS RAM; Java sizes its heap from the cap.
 # - shop-service uses the AWS bucket in production, so the local MinIO container does not start.
 

@@ -42,4 +42,33 @@ class PaymentWebhookControllerTest {
 
         verify(orderService).handlePayosWebhook(webhook);
     }
+
+    @Test
+    @DisplayName("Jackson deserialization of PayOS Webhook test payload")
+    void testJacksonDeserialization() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        String json = "{\n" +
+                "  \"code\": \"00\",\n" +
+                "  \"desc\": \"success\",\n" +
+                "  \"success\": true,\n" +
+                "  \"data\": {\n" +
+                "    \"orderCode\": 123,\n" +
+                "    \"amount\": 3000,\n" +
+                "    \"description\": \"VQRIO123\",\n" +
+                "    \"accountNumber\": \"12345678\",\n" +
+                "    \"reference\": \"TF230204212323\",\n" +
+                "    \"transactionDateTime\": \"2023-02-04 18:25:00\",\n" +
+                "    \"currency\": \"VND\",\n" +
+                "    \"paymentLinkId\": \"124c33293c43417ab7879e14c8d9eb18\",\n" +
+                "    \"code\": \"00\",\n" +
+                "    \"desc\": \"Thành công\"\n" +
+                "  },\n" +
+                "  \"signature\": \"8d8640d802576397a1ce45ebda7f835055768ac7ad2e0bfb77f9b8f12cca4c7f\"\n" +
+                "}";
+        Webhook parsed = mapper.readValue(json, Webhook.class);
+        assertThat(parsed).isNotNull();
+        assertThat(parsed.getCode()).isEqualTo("00");
+        assertThat(parsed.getData()).isNotNull();
+        assertThat(parsed.getData().getOrderCode()).isEqualTo(123L);
+    }
 }

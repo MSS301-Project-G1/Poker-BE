@@ -66,9 +66,9 @@ Các port public trong `.env` có thể đổi để tránh xung đột trên m�
 
 ## Deploy (CI/CD)
 
-Workflow `.github/workflows/ci-cd.yml` chạy `./mvnw verify` cho mọi pull request. Push lên `main` thì sau khi test qua, workflow build image ARM cho từng service, đẩy lên GHCR (`ghcr.io/mss301-project-g1/poker-<service>`) rồi SSH vào VPS chạy `deploy/remote-deploy.sh`: pull image, `docker compose up` với `deploy/compose.prod.yml` và đợi gateway healthy. Nếu FE đang chạy thì container FE cũng được khởi động lại.
+Workflow `.github/workflows/ci-cd.yml` chạy `./mvnw verify` cho mọi pull request. Push lên `main` thì sau khi test qua, workflow build image ARM cho từng service, đẩy lên GHCR (`ghcr.io/mss301-project-g1/poker-<service>`) rồi SSH vào VPS chạy `deploy/remote-deploy.sh`: pull image, `docker compose up` với `deploy/compose.prod.yml`, đợi gateway healthy và kiểm tra `/ws/game`, `/ws/social`, `/ws/chat` upgrade được (101) qua gateway.
 
-- VPS: Oracle Ampere (ARM), Ubuntu; Caddy lo HTTPS cho `game-fun.me` và chuyển tiếp về container FE ở `127.0.0.1:3000`. FE (repo Poker-FE) proxy `/api` và `/ws` vào network `poker_default`.
+- VPS: Oracle Ampere (ARM), Ubuntu. Caddy (cấu hình nằm ở `deploy/Caddyfile` của repo Poker-FE) lo HTTPS cho `game-fun.me`, phục vụ file FE và gửi `/api/*`, `/ws/*` vào gateway ở `127.0.0.1:8080`. Gateway định tuyến tới service qua Eureka, kể cả STOMP WebSocket.
 - Lần đầu trên VPS mới: chạy `bash deploy/setup-vps.sh` (Docker, swap), tạo `~/poker/be/.env` từ `deploy/prod.env.example` (`chmod 600`).
 - Secrets của repo: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` (private key riêng cho deploy; public key nằm trong `~/.ssh/authorized_keys` của user trên VPS).
 - Trên VPS: `cd ~/poker/be && docker compose -f docker-compose.yml -f deploy/compose.prod.yml ps` (hoặc `logs -f <service>`).
