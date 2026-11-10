@@ -5,6 +5,7 @@ import com.msspoker.gameservice.constant.GameSocketConstants;
 import com.msspoker.gameservice.exception.GameApiException;
 import com.msspoker.gameservice.exception.GameExceptions;
 import com.msspoker.gameservice.security.GameIdentity;
+import com.msspoker.common.security.SessionAccessException;
 import com.msspoker.gameservice.service.TableRegistry;
 import com.msspoker.gameservice.validator.TableMembershipValidator;
 
@@ -22,8 +23,8 @@ import java.util.regex.Pattern;
 @Component
 @RequiredArgsConstructor
 public class GameChannelInterceptor implements ChannelInterceptor {
-    private static final Pattern SEND = Pattern.compile("^/app/tables/([0-9a-fA-F-]{36})/(action|sync)$");
-    private static final Pattern SUBSCRIBE = Pattern.compile("^/user/queue/tables/([0-9a-fA-F-]{36})$");
+    private static final Pattern SEND = Pattern.compile("^/app/tables/([0-9a-fA-F-]{36})/(action|sync|taunt)$");
+    private static final Pattern SUBSCRIBE = Pattern.compile("^/user/queue/tables/([0-9a-fA-F-]{36})(/taunts)?$");
     private final GameIdentity identity;
     private final TableRegistry registry;
     private final TableMembershipValidator membership;
@@ -35,19 +36,27 @@ public class GameChannelInterceptor implements ChannelInterceptor {
         if (accessor == null || accessor.getCommand() == null) return message;
         StompCommand command = accessor.getCommand();
         try {
-        if (command == StompCommand.CONNECT) {
-            accessor.setUser(identity.authenticate(accessor.getFirstNativeHeader(GameHeaders.AUTHORIZATION),
-                    accessor.getFirstNativeHeader(GameHeaders.STOMP_DEV_USER)));
-        } else if (command == StompCommand.SEND || command == StompCommand.SUBSCRIBE) {
-            Principal user = accessor.getUser();
-            if (user == null) throw GameExceptions.unauthorized();
-            String destination = accessor.getDestination();
-            if (command == StompCommand.SUBSCRIBE && GameSocketConstants.USER_ERROR_QUEUE.equals(destination)) return message;
-            var matcher = (command == StompCommand.SEND ? SEND : SUBSCRIBE).matcher(destination == null ? "" : destination);
-            if (!matcher.matches()) throw GameExceptions.forbidden();
-            membership.validate(registry.require(UUID.fromString(matcher.group(1))), UUID.fromString(user.getName()));
-        }
-        return message;
+            if (command == StompCommand.CONNECT) {
+                accessor.setUser(identity.authenticate(accessor.getFirstNativeHeader(GameHeaders.AUTHORIZATION),
+                        accessor.getFirstNativeHeader(GameHeaders.STOMP_DEV_USER)));
+                String authorization = accessor.getFirstNativeHeader(GameHeaders.AUTHORIZATION);
+                sessions.authorize(accessor.getSessionId(), authorization != null && authorization.startsWith("Bearer ")
+                        ? authorization.substring(7) : null, accessor.getFirstNativeHeader("X-Tab-Id"),
+                        identity.developmentEnabled() && accessor.getFirstNativeHeader(GameHeaders.STOMP_DEV_USER) != null);
+            } else if (command == StompCommand.SEND || command == StompCommand.SUBSCRIBE) {
+                sessions.verify(accessor.getSessionId());
+                Principal user = accessor.getUser();
+                if (user == null) throw GameExceptions.unauthorized();
+                String destination = accessor.getDestination();
+                if (command == StompCommand.SUBSCRIBE && GameSocketConstants.USER_ERROR_QUEUE.equals(destination)) return message;
+                var matcher = (command == StompCommand.SEND ? SEND : SUBSCRIBE).matcher(destination == null ? "" : destination);
+                if (!matcher.matches()) throw GameExceptions.forbidden();
+                membership.validate(registry.require(UUID.fromString(matcher.group(1))), UUID.fromString(user.getName()));
+            }
+            return message;
+        } catch (SessionAccessException ex) {
+            sessions.reject(accessor.getSessionId(), sessions.sessionError(ex));
+            return null;
         } catch (GameApiException ex) {
             // Ordered inbound delivery can swallow a channel exception; reject on the actual socket.
             sessions.reject(accessor.getSessionId(), ex);

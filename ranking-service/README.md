@@ -47,8 +47,8 @@ docker compose up -d ranking-db rabbitmq
 java -jar ranking-service/target/ranking-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
 ```
 
-Dev uses PostgreSQL `127.0.0.1:54331/ranking_db` (user `poker`, local password
-`poker_dev`) and RabbitMQ `127.0.0.1:56729` (`guest`/`guest`, management UI
+Dev uses PostgreSQL `127.0.0.1:15431/ranking_db` (user `poker`, local password
+`poker_dev`) and RabbitMQ `127.0.0.1:5679` (`guest`/`guest`, management UI
 `http://localhost:15679`). When changing the local password, set
 `RANKING_DB_PASSWORD` for Compose and `RANKING_DEV_DB_PASSWORD` to the same value
 for the Java process. Flyway creates the schema and seeds one ACTIVE season;
@@ -64,6 +64,19 @@ To run the application container with the `dev` profile:
 docker compose -f docker-compose.yml -f ranking-service/compose.dev.yml up -d --build ranking-service
 ```
 
+## Service discovery and gateway
+
+The service registers in Eureka (`discovery-service`, 8761) as `ranking-service` and the
+API gateway routes `/api/ranking`, `/api/seasons`, `/api/tutorial` and `/api/admin/seasons` to it (`lb://ranking-service`). Calls to other services use the
+`@LoadBalanced RestClient.Builder` from `config/RestClientConfig`: base URLs are
+service names such as `http://wallet-service`, resolved through Eureka. The `dev`
+profile runs the jar on the host without Eureka (like game-service) and resolves
+the names from `spring.cloud.discovery.client.simple.instances` to the local
+ports (wallet 8089, shop 8088, social 8084); with `EUREKA_CLIENT_ENABLED=true` Eureka is asked first.
+`compose.dev.yml` turns Eureka on because the container shares the stack with
+discovery-service. To check the route, follow `api-gateway/ONBOARDING.md` with
+`-f ranking-service/compose.yml`.
+
 ## Integration contract
 
 See [SPEC §6](../docs/SPEC.md). Tiers use the SPEC enum names; `CARD_GOD` is
@@ -77,7 +90,7 @@ Leaderboard order is Elo descending, then account id ascending.
 | GET | `/api/ranking/leaderboard?page=0&size=20` | `PageResponse` of ranked players; size 1–100 |
 | GET | `/api/ranking/me` | Own standing from `X-User-Id`; `position` is `null` before the first record |
 | GET | `/api/ranking/friends` | The player and up to 199 friends: `[{ rank, position, accountId, elo, tier, winStreak, matchesPlayed, you }]` |
-| GET | `/api/ranking/me/matches/{matchId}` | Own result of one RANK match: `{ matchId, place, eloDelta, eloAfter, rewardCoins }`; `eloDelta` is the applied change, `rewardCoins` is 0 below top 3; `404` until `match.finished` is processed |
+| GET | `/api/ranking/me/matches/{matchId}` | Own result of one RANK match: `{ matchId, place, eloDelta, eloAfter, rewardCoins }`; `eloDelta` is the applied change, `rewardCoins` is 0 for unpaid places; `404` until `match.finished` is processed |
 | GET | `/api/seasons/current` | Active season |
 | GET | `/api/tutorial/me` | `{ completed, completedAt, rewardCoins }` |
 | POST | `/api/tutorial/complete` | Records the completion and grants `TUTORIAL_REWARD` once; repeating returns the first completion |
@@ -94,14 +107,23 @@ Consumed events on exchange `poker.events`, each with its own durable queue:
 | Queue | Routing key | Effect |
 | --- | --- | --- |
 | `ranking-service.account.registered` | `account.registered` | Creates the season Elo record (NEWBIE, 0) |
-| `ranking-service.match.finished` | `match.finished` | `RANK` only: Elo by place (+20/+10/+5/−5/−10/−15, floor 0), peak, tier, streaks, history, top 3 rewards |
+| `ranking-service.match.finished` | `match.finished` | `RANK` only: Elo by place and table size (floor 0), peak, tier, streaks, history, rewards |
 
 Players that arrive in `match.finished` before `account.registered` get a
 record on the fly. `elo_history` is unique per `(accountId, matchId)`, so a
 redelivered match changes nothing. Malformed or invalid payloads are logged and
 dropped; database failures are retried (5 attempts).
 
-Rank rewards (3×/2×/1× entry fee) are stored in `rank_reward_credits` in the
+Elo by place (SPEC §8): a 6-player table gets +20/+10/+5/−5/−10/−15. A smaller
+table splits in half: the top half takes the first values, the bottom half the
+last ones, and the middle seat of an odd table keeps its Elo. 2 players: +20/−15;
+3: +20/0/−15; 4: +20/+10/−10/−15; 5: +20/+10/0/−10/−15. Places that gain Elo
+(at most the top 3) extend the win streak, places that lose Elo extend the loss
+streak, and the middle seat ends both.
+
+Rank rewards are 3×/2×/1× the entry fee from the top, but never more than the fees
+the table paid in: 2 players 2×, 3 players 3×, 4 players 3×/1×, 5 players 3×/2×.
+They are stored in `rank_reward_credits` in the
 same transaction as the Elo update, then sent to wallet-service
 `POST /internal/wallet/credit` with reason `RANK_REWARD`, `refId` = matchId and
 key `rank-reward:{matchId}:{accountId}`. A wallet outage leaves the reward
@@ -159,9 +181,12 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 
 - PostgreSQL: `RANKING_DB_URL`, `RANKING_DB_USER`, `RANKING_DB_PASSWORD`.
 - RabbitMQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
-- Wallet: `WALLET_SERVICE_URL` (default `http://localhost:8089`).
-- Shop: `SHOP_SERVICE_URL` (default `http://localhost:8088`).
-- Social: `SOCIAL_SERVICE_URL` (default `http://localhost:8084`).
+- Eureka: `EUREKA_CLIENT_ENABLED` (`true`), `EUREKA_SERVICE_URL`, `EUREKA_INSTANCE_HOSTNAME`.
+- Wallet: `WALLET_SERVICE_URL` (default `http://wallet-service`).
+- Shop: `SHOP_SERVICE_URL` (default `http://shop-service`).
+- Social: `SOCIAL_SERVICE_URL` (default `http://social-service`) and `SOCIAL_INTERNAL_KEY`, sent as
+  `X-Social-Internal-Key` and equal to social-service's `SOCIAL_INTERNAL_KEY`. social-service answers 403
+  without it, so the Friends leaderboard fails with `RANK_DEPENDENCY_UNAVAILABLE` until both sides set it.
 - Mocks for services not running locally: `ranking.wallet.mock`, `ranking.shop.mock`,
   `ranking.social.mock` (`false`; `true` in `application-dev.properties` and tests).
 - SPEC §8 parameters: `ranking.elo-by-place`, `ranking.tier-thresholds`,

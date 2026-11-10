@@ -1,5 +1,6 @@
 package com.msspoker.walletservice.dto.request;
 
+import com.msspoker.walletservice.enums.CurrencyType;
 import com.msspoker.walletservice.enums.TransactionReason;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -25,5 +26,5 @@ public record CreditRequest(
         @NotBlank(message = "idempotencyKey is required")
         String idempotencyKey,
 
-        com.msspoker.walletservice.enums.CurrencyType currencyType
+        CurrencyType currencyType
 ) {}

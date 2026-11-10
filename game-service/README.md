@@ -64,8 +64,8 @@ The game owns its PostgreSQL container `game-db`, declared in
 `game-service/compose.yml` on the private `game-net` network, so other services
 cannot reach it. The same file points JWT validation and restrictions at
 `auth-service:8090`. RabbitMQ is shared infrastructure in `docker/compose.infra.yml`.
-Dev uses PostgreSQL `127.0.0.1:54329/game_db` (user `poker`, local password
-`poker_dev`) and RabbitMQ `127.0.0.1:56729`; management UI is at
+Dev uses PostgreSQL `127.0.0.1:15429/game_db` (user `poker`, local password
+`poker_dev`) and RabbitMQ `127.0.0.1:5679`; management UI is at
 `http://localhost:15679` (`guest`/`guest`). When changing the local password,
 set `GAME_DB_PASSWORD` for Compose and `GAME_DEV_DB_PASSWORD` to the same value
 for the Java process. Flyway creates the schema; Hibernate validates it. The
@@ -137,6 +137,14 @@ time. Hole cards are private until a non-folded showdown. A rejected business
 action reaches the private error queue; unauthorized destinations terminate
 the socket with a STOMP ERROR frame. REST errors use Vietnamese messages and the shared
 `com.msspoker.common.response.ErrorResponse`; events use the shared `EventEnvelope`.
+
+SEND `/app/tables/{tableId}/taunt` with `{ "productId": "<owned SOUND product>" }`
+to play a taunt sound for the whole table. Every seat except one that left may
+taunt, folded or not, once per `game.taunt-cooldown-millis` (5 s). The file
+URL comes from shop-service (`SHOP_SERVICE_URL`), never from the client, and
+reaches every seat on `/user/queue/tables/{tableId}/taunts` as
+`{ accountId, productId, soundUrl }`. Refusals reach the error queue with
+`GAME_TAUNT_COOLDOWN` or `GAME_TAUNT_UNAVAILABLE`.
 
 ## Production configuration and dependencies
 

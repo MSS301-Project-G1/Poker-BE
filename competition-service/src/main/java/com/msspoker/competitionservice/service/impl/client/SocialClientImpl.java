@@ -1,10 +1,12 @@
 package com.msspoker.competitionservice.service.impl.client;
 
+import com.msspoker.competitionservice.constant.CompetitionHeaders;
 import com.msspoker.competitionservice.dto.response.FriendshipResponse;
 import com.msspoker.competitionservice.exception.CompetitionExceptions;
 import com.msspoker.competitionservice.service.client.SocialClient;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -18,15 +20,19 @@ import java.util.UUID;
 @Component
 public class SocialClientImpl implements SocialClient {
     private final RestClient social;
+    private final String internalKey;
     private final boolean mock;
 
-    public SocialClientImpl(@Value("${competition.social-url:http://localhost:8084}") String url,
+    public SocialClientImpl(@LoadBalanced RestClient.Builder restClients,
+            @Value("${competition.social-url:http://social-service}") String url,
+            @Value("${competition.social-internal-key:}") String internalKey,
             @Value("${competition.social-timeout-millis:3000}") long timeoutMillis,
             @Value("${competition.social.mock:false}") boolean mock) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
-        social = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        social = restClients.clone().baseUrl(url).requestFactory(factory).build();
+        this.internalKey = internalKey;
         this.mock = mock;
     }
 
@@ -34,11 +40,13 @@ public class SocialClientImpl implements SocialClient {
     public FriendshipResponse friendship(UUID accountId, UUID otherId) {
         if (mock) return new FriendshipResponse(true, false);
         try {
-            FriendshipResponse response = social.get().uri("/internal/friends/{a}/with/{b}", accountId, otherId)
-                    .retrieve().body(FriendshipResponse.class);
+            RestClient.RequestHeadersSpec<?> call = social.get().uri("/internal/friends/{a}/with/{b}", accountId, otherId);
+            if (!internalKey.isBlank()) call = call.header(CompetitionHeaders.SOCIAL_INTERNAL_KEY, internalKey);
+            FriendshipResponse response = call.retrieve().body(FriendshipResponse.class);
             if (response == null) throw CompetitionExceptions.socialUnavailable();
             return response;
-        } catch (RestClientException ex) {
+        } catch (RestClientException | IllegalStateException ex) {
+            // IllegalStateException: no registered instance of the service.
             throw CompetitionExceptions.socialUnavailable();
         }
     }

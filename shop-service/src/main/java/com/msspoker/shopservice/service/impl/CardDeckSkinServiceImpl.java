@@ -3,6 +3,7 @@ package com.msspoker.shopservice.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msspoker.shopservice.constant.StorageKeyConstants;
 import com.msspoker.shopservice.dto.response.CardDeckManifest;
 import com.msspoker.shopservice.dto.response.CardSkinUploadResponse;
 import com.msspoker.shopservice.entity.Product;
@@ -11,6 +12,7 @@ import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.engine.TextureAtlasGenerator;
 import com.msspoker.shopservice.service.CardDeckSkinService;
 import com.msspoker.shopservice.service.S3StorageService;
+import com.msspoker.shopservice.util.MetadataJsonMerger;
 import com.msspoker.shopservice.validator.CardDeckValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
     private final TextureAtlasGenerator textureAtlasGenerator;
     private final CardDeckValidator cardDeckValidator;
     private final ObjectMapper objectMapper;
+    private final MetadataJsonMerger metadataJsonMerger;
 
     @Override
     @Transactional
@@ -137,7 +140,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
 
         // 2. Tạo version định danh theo timestamp (Cache busting)
         String version = "v" + Instant.now().toEpochMilli();
-        String basePath = "poker/skins/cards/" + product.getId() + "/";
+        String basePath = StorageKeyConstants.CARD_SKINS + product.getId() + "/";
         String currentVersionPath = basePath + version + "/";
 
         // Ghi nhận version cũ để dọn dẹp sau khi lưu thành công
@@ -193,9 +196,10 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
         // 7. Cập nhật vào PostgreSQL (chỉ lưu Metadata JSONB, không lưu binary)
         try {
             String manifestJson = objectMapper.writeValueAsString(manifest);
+            String mergedMetadata = metadataJsonMerger.merge(product.getMetadata(), manifestJson);
             product.setAssetUrl(atlasTextureUrl);
             product.setPreviewUrl(previewUrl);
-            product.setMetadata(manifestJson);
+            product.setMetadata(mergedMetadata);
             productRepository.save(product);
             log.info("Saved card skin product {} metadata to PostgreSQL ({} cards)", product.getId(), cardUrlMap.size());
         } catch (JsonProcessingException e) {
@@ -203,7 +207,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
             throw CardSkinExceptions.textureAtlasGenerationError("Lỗi chuyển đổi dữ liệu cấu hình bộ bài sang JSON.");
         }
 
-        // 8. Dọn dẹp phiên bản cũ trên S3 trong background (nếu có)
+        // 8. Dọn dẹp phiên bản cũ trên S3 trong background 
         if (oldVersionPath != null && !oldVersionPath.equals(currentVersionPath)) {
             CompletableFuture.runAsync(() -> s3StorageService.deleteFolder(oldVersionPath));
         }
@@ -228,7 +232,7 @@ public class CardDeckSkinServiceImpl implements CardDeckSkinService {
             JsonNode root = objectMapper.readTree(metadataJson);
             if (root.has("version") && root.has("card_back_url")) {
                 String cardBack = root.get("card_back_url").asText("");
-                int pokerIdx = cardBack.indexOf("poker/skins/cards/");
+                int pokerIdx = cardBack.indexOf(StorageKeyConstants.CARD_SKINS);
                 if (pokerIdx >= 0) {
                     String sub = cardBack.substring(pokerIdx);
                     int vIdx = sub.indexOf("/v");

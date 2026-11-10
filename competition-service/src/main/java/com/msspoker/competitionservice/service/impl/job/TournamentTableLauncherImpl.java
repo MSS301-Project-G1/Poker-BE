@@ -47,7 +47,7 @@ public class TournamentTableLauncherImpl implements TournamentTableLauncher {
     public void launchPending() {
         if (!launching.tryLock()) return;
         try {
-            for (TournamentTableEntity pending : tables.findTop10ByStatusOrderByCreatedAtAscIdAsc(TableStatus.PENDING)) {
+            for (TournamentTableEntity pending : tables.findTop10ByStatusOrderByCreatedAtAscTableIndexAscIdAsc(TableStatus.PENDING)) {
                 TournamentEntity tournament = tournaments.findById(pending.getTournamentId()).orElseThrow();
                 List<TournamentSeatEntity> roster = seats.findByTournamentTableIdOrderBySeatIndex(pending.getId());
                 CreateTableRequest request = new CreateTableRequest(GameMode.TOURNAMENT, pending.getId(),

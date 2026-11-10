@@ -12,13 +12,13 @@ import java.util.Collection;
 import java.util.UUID;
 
 public interface MatchProposalPlayerRepository extends JpaRepository<MatchProposalPlayerEntity, UUID> {
-    @EntityGraph(attributePaths = "proposal")
+    @EntityGraph(attributePaths = {"proposal", "proposal.players"})
     Optional<MatchProposalPlayerEntity> findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
             UUID accountId,
             ProposalStatus status
     );
 
-    @EntityGraph(attributePaths = "proposal")
+    @EntityGraph(attributePaths = {"proposal", "proposal.players"})
     Optional<MatchProposalPlayerEntity> findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusInAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
             UUID accountId,
             Collection<ProposalStatus> statuses

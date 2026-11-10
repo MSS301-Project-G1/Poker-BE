@@ -3,6 +3,7 @@ package com.msspoker.shopservice.service;
 import com.msspoker.shopservice.dto.request.GrantItemRequest;
 import com.msspoker.shopservice.dto.response.GrantItemResponse;
 import com.msspoker.shopservice.dto.response.InventoryItemResponse;
+import com.msspoker.shopservice.dto.response.OwnedSoundResponse;
 import com.msspoker.shopservice.dto.response.OwnershipResponse;
 
 import java.util.List;
@@ -19,6 +20,8 @@ public interface InventoryService {
     InventoryItemResponse unequipItem(UUID accountId, UUID productId);
 
     OwnershipResponse checkOwnership(UUID accountId, UUID productId);
+
+    OwnedSoundResponse getOwnedSound(UUID accountId, UUID productId);
 
     GrantItemResponse grantItem(GrantItemRequest request);
 }

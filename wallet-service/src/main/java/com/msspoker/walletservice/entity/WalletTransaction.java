@@ -1,5 +1,6 @@
 package com.msspoker.walletservice.entity;
 
+import com.msspoker.walletservice.enums.CurrencyType;
 import com.msspoker.walletservice.enums.TransactionReason;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -41,7 +42,7 @@ public class WalletTransaction {
     @Enumerated(EnumType.STRING)
     @Column(name = "currency_type", length = 20, nullable = false, updatable = false)
     @Builder.Default
-    private com.msspoker.walletservice.enums.CurrencyType currencyType = com.msspoker.walletservice.enums.CurrencyType.COIN;
+    private CurrencyType currencyType = CurrencyType.COIN;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reason", length = 50, nullable = false, updatable = false)

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +46,7 @@ public class WalletController {
     public ResponseEntity<ApiResponse<PageResponse<TransactionResponse>>> getMyTransactions(
             @Parameter(name = "X-User-Id", description = "UUID tài khoản người dùng", in = ParameterIn.HEADER, required = true, example = "00000000-0000-0000-0000-000000000001")
             @RequestHeader("X-User-Id") UUID accountId,
-            @PageableDefault(page = 0, size = 20) Pageable pageable
+            @ParameterObject @PageableDefault(page = 0, size = 20) Pageable pageable
     ) {
         PageResponse<TransactionResponse> response = walletService.getMyTransactions(accountId, pageable);
         return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử giao dịch thành công", response));

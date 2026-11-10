@@ -9,6 +9,7 @@ services:
     ports:
       - "${AUTH_SERVICE_PORT:-8090}:8090"
     environment:
+      AUTH_SESSION_INTERNAL_KEY: ${AUTH_SESSION_INTERNAL_KEY:-poker_session_dev}
       EUREKA_CLIENT_ENABLED: ${EUREKA_CLIENT_ENABLED:-true}
       EUREKA_SERVICE_URL: ${EUREKA_SERVICE_URL:-http://discovery-service:8761/eureka/}
       EUREKA_INSTANCE_HOSTNAME: auth-service
@@ -86,6 +87,8 @@ services:
       - "127.0.0.1:8026:8025"
   auth-postgres:
     image: postgres:17-alpine
+    ports:
+      - "127.0.0.1:54330:5432"
     environment:
       POSTGRES_DB: auth_db
       POSTGRES_USER: ${AUTH_DB_USERNAME:-poker}

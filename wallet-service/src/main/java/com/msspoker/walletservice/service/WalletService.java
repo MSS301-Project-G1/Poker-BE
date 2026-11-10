@@ -21,4 +21,6 @@ public interface WalletService {
     WalletResponse getMyWallet(UUID accountId);
 
     PageResponse<TransactionResponse> getMyTransactions(UUID accountId, Pageable pageable);
+
+    TransactionResponse getTransactionByIdempotencyKey(String idempotencyKey);
 }

@@ -5,6 +5,7 @@ public final class GamePaths {
     public static final String PUBLIC_API = "/api/";
     public static final String ADMIN_API = "/api/admin/";
     public static final String ACCOUNT_RESTRICTIONS = "/internal/accounts/{accountId}/restrictions";
+    public static final String OWNED_SOUND = "/internal/inventory/{accountId}/sounds/{productId}";
 
     private GamePaths() {
     }

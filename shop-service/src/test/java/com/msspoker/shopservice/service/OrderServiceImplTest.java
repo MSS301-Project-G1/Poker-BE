@@ -11,7 +11,7 @@ import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.OrderStatus;
 import com.msspoker.shopservice.enums.ProductTier;
-import com.msspoker.shopservice.event.VipCoinTopupSuccessEvent;
+import com.msspoker.shopservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.OrderMapper;
 import com.msspoker.shopservice.producer.TopupEventProducer;
@@ -36,6 +36,7 @@ import vn.payos.PayOS;
 import vn.payos.exception.InvalidSignatureException;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
 import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
@@ -111,8 +112,8 @@ class OrderServiceImplTest {
 
         Category category = Category.builder()
                 .id(UUID.randomUUID())
-                .code("CARD_BACK")
-                .name("Card Backs")
+                .code("CARD_SKIN")
+                .name("Skin bộ bài")
                 .build();
 
         product = Product.builder()
@@ -172,16 +173,15 @@ class OrderServiceImplTest {
     }
 
     @Test
-    @DisplayName("createOrder - Thành công: tạo link PayOS và lưu Order trạng thái PENDING")
+    @DisplayName("createOrder - Thành công: tạo link PayOS với mã đơn chuyển đổi từ UUID và lưu Order trạng thái PENDING")
     void createOrder_Success() {
         CreateOrderRequest request = new CreateOrderRequest(product.getId());
 
         when(productRepository.findByIdAndIsDeletedFalse(product.getId())).thenReturn(Optional.of(product));
-        when(orderRepository.generatePayosOrderCode()).thenReturn(100001L);
         when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
 
         CreatePaymentLinkResponse payosResponse = mock(CreatePaymentLinkResponse.class);
-        when(payosResponse.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/100001");
+        when(payosResponse.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/uuid-order");
         when(payosResponse.getQrCode()).thenReturn("vietqr-sample-qr");
 
         when(paymentRequestsService.create(any(CreatePaymentLinkRequest.class))).thenReturn(payosResponse);
@@ -190,15 +190,18 @@ class OrderServiceImplTest {
         OrderResponse response = orderService.createOrder(accountId, request);
 
         assertThat(response).isNotNull();
+        assertThat(response.id()).isNotNull();
         assertThat(response.amountVnd()).isEqualTo(50000L);
-        assertThat(response.payosOrderCode()).isEqualTo(100001L);
-        assertThat(response.checkoutUrl()).isEqualTo("https://payos.vn/checkout/100001");
+        assertThat(response.payosOrderCode()).isEqualTo(OrderServiceImpl.generatePayosOrderCodeFromUuid(response.id()));
+        assertThat(response.checkoutUrl()).isEqualTo("https://payos.vn/checkout/uuid-order");
         assertThat(response.qrCode()).isEqualTo("vietqr-sample-qr");
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
 
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
         Order captured = orderCaptor.getValue();
+        assertThat(captured.getId()).isEqualTo(response.id());
+        assertThat(captured.getPayosOrderCode()).isEqualTo(OrderServiceImpl.generatePayosOrderCodeFromUuid(captured.getId()));
         assertThat(captured.getAccountId()).isEqualTo(accountId);
         assertThat(captured.getProduct()).isEqualTo(product);
         assertThat(captured.getStatus()).isEqualTo(OrderStatus.PENDING);
@@ -224,7 +227,6 @@ class OrderServiceImplTest {
         CreateOrderRequest request = new CreateOrderRequest(product.getId());
 
         when(productRepository.findByIdAndIsDeletedFalse(product.getId())).thenReturn(Optional.of(product));
-        when(orderRepository.generatePayosOrderCode()).thenReturn(100001L);
         when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
         when(paymentRequestsService.create(any(CreatePaymentLinkRequest.class)))
                 .thenThrow(new RuntimeException("PayOS connection timeout"));
@@ -326,7 +328,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    @DisplayName("createBundleOrder - Thành công: Tạo đơn nạp VIP Coin qua PayOS")
+    @DisplayName("createBundleOrder - Thành công: Tạo đơn nạp VIP Coin qua PayOS với mã đơn từ UUID")
     void createBundleOrder_Success() {
         UUID bundleId = UUID.randomUUID();
         CoinBundle bundle = CoinBundle.builder()
@@ -343,11 +345,10 @@ class OrderServiceImplTest {
                 .build();
 
         when(coinBundleRepository.findByIdAndIsActiveTrue(bundleId)).thenReturn(Optional.of(bundle));
-        when(orderRepository.generatePayosOrderCode()).thenReturn(200002L);
         when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
 
         CreatePaymentLinkResponse payosResp = mock(CreatePaymentLinkResponse.class);
-        when(payosResp.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/200002");
+        when(payosResp.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/bundle-uuid");
         when(payosResp.getQrCode()).thenReturn("vietqr-bundle-code");
         when(paymentRequestsService.create(any(CreatePaymentLinkRequest.class))).thenReturn(payosResp);
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -355,13 +356,14 @@ class OrderServiceImplTest {
         OrderResponse response = orderService.createBundleOrder(accountId, bundleId);
 
         assertThat(response).isNotNull();
+        assertThat(response.id()).isNotNull();
         assertThat(response.bundleId()).isEqualTo(bundleId);
         assertThat(response.bundleName()).isEqualTo("Gói Đặc Biệt 100K");
         assertThat(response.vipCoinAmount()).isEqualTo(115000L);
         assertThat(response.amountVnd()).isEqualTo(100000L);
-        assertThat(response.payosOrderCode()).isEqualTo(200002L);
+        assertThat(response.payosOrderCode()).isEqualTo(OrderServiceImpl.generatePayosOrderCodeFromUuid(response.id()));
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
-        assertThat(response.qrImageUrl()).contains("200002");
+        assertThat(response.qrImageUrl()).contains(String.valueOf(response.payosOrderCode()));
     }
 
     @Test
@@ -488,11 +490,10 @@ class OrderServiceImplTest {
                 accountId, product.getId(), OrderStatus.PENDING))
                 .thenReturn(Optional.of(expiredPendingOrder));
 
-        when(orderRepository.generatePayosOrderCode()).thenReturn(100089L);
         when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
 
         CreatePaymentLinkResponse payosResponse = mock(CreatePaymentLinkResponse.class);
-        when(payosResponse.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/100089");
+        when(payosResponse.getCheckoutUrl()).thenReturn("https://payos.vn/checkout/new-uuid");
         when(payosResponse.getQrCode()).thenReturn("new-qr");
         when(paymentRequestsService.create(any(CreatePaymentLinkRequest.class))).thenReturn(payosResponse);
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -500,7 +501,7 @@ class OrderServiceImplTest {
         OrderResponse response = orderService.createOrder(accountId, request);
 
         assertThat(response).isNotNull();
-        assertThat(response.payosOrderCode()).isEqualTo(100089L);
+        assertThat(response.payosOrderCode()).isEqualTo(OrderServiceImpl.generatePayosOrderCodeFromUuid(response.id()));
         assertThat(expiredPendingOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
     }
 
@@ -533,16 +534,20 @@ class OrderServiceImplTest {
                 .expiresAt(Instant.now().plusSeconds(600))
                 .build();
 
-        when(orderRepository.findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
-                accountId, bundleId, OrderStatus.PENDING))
+        when(orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(accountId), eq(OrderStatus.PENDING), any(Instant.class)))
                 .thenReturn(Optional.of(existingBundleOrder));
+        when(payOS.paymentRequests()).thenReturn(paymentRequestsService);
+        PaymentLink mockLink = mock(PaymentLink.class);
+        when(mockLink.getStatus()).thenReturn(PaymentLinkStatus.PENDING);
+        when(paymentRequestsService.get(200055L)).thenReturn(mockLink);
 
         OrderResponse response = orderService.createBundleOrder(accountId, bundleId);
 
         assertThat(response).isNotNull();
         assertThat(response.id()).isEqualTo(existingBundleOrder.getId());
         assertThat(response.payosOrderCode()).isEqualTo(200055L);
-        verify(payOS, never()).paymentRequests();
+        verify(paymentRequestsService, never()).create(any(CreatePaymentLinkRequest.class));
     }
 
     @Test

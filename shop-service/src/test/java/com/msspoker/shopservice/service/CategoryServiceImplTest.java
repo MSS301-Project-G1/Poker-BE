@@ -51,6 +51,7 @@ class CategoryServiceImplTest {
         CategoryValidator categoryValidator = new com.msspoker.shopservice.validator.impl.CategoryValidatorImpl(categoryRepository, productRepository);
         categoryService = new CategoryServiceImpl(
                 categoryRepository,
+                productRepository,
                 productMapper,
                 categoryValidator
         );
@@ -165,6 +166,7 @@ class CategoryServiceImplTest {
 
         categoryService.deleteCategory(category.getId());
 
+        verify(productRepository).deleteAllByCategoryId(category.getId());
         verify(categoryRepository).delete(category);
     }
 

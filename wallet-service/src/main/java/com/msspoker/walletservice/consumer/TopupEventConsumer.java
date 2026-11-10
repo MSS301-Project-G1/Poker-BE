@@ -4,7 +4,7 @@ import com.msspoker.walletservice.config.RabbitMQConfig;
 import com.msspoker.walletservice.dto.request.CreditRequest;
 import com.msspoker.walletservice.enums.CurrencyType;
 import com.msspoker.walletservice.enums.TransactionReason;
-import com.msspoker.walletservice.event.VipCoinTopupSuccessEvent;
+import com.msspoker.walletservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.walletservice.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

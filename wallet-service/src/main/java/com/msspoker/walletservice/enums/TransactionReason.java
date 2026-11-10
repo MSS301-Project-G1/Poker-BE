@@ -16,5 +16,6 @@ public enum TransactionReason {
     TOPUP_BUNDLE_PAYOS,
     TOPUP_BUNDLE_DEV_MOCK,
     TOPUP_BUNDLE_SANDBOX,
+    REFUND_COIN,
     SHOP_BUY_ITEM
 }

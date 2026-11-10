@@ -11,6 +11,7 @@ import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.InventoryMapper;
+import com.msspoker.shopservice.mapper.TestMappers;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
 import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.service.impl.InventoryServiceImpl;
@@ -18,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msspoker.shopservice.dto.response.OwnedSoundResponse;
+import com.msspoker.shopservice.util.MetadataJsonMerger;
 import com.msspoker.shopservice.validator.InventoryValidator;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,7 +52,7 @@ class InventoryServiceImplTest {
     private ProductRepository productRepository;
 
     @Spy
-    private InventoryMapper inventoryMapper = Mappers.getMapper(InventoryMapper.class);
+    private InventoryMapper inventoryMapper = TestMappers.withUnsignedLinks(InventoryMapper.class);
 
     private InventoryServiceImpl inventoryService;
 
@@ -66,7 +69,8 @@ class InventoryServiceImplTest {
                 inventoryItemRepository,
                 productRepository,
                 inventoryMapper,
-                new com.msspoker.shopservice.validator.impl.InventoryValidatorImpl()
+                new com.msspoker.shopservice.validator.impl.InventoryValidatorImpl(),
+                new MetadataJsonMerger(new ObjectMapper())
         );
 
         accountId = UUID.randomUUID();
@@ -342,5 +346,66 @@ class InventoryServiceImplTest {
                     assertThat(ex.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
                     assertThat(ex.getErrorCode()).isEqualTo("SHOP_PRODUCT_NOT_FOUND");
                 });
+    }
+
+    @Test
+    @DisplayName("getOwnedSound trả về soundUrl khi sở hữu vật phẩm SOUND")
+    void getOwnedSoundSuccess() {
+        InventoryItem soundItem = soundItem("{\"soundUrl\":\"https://cdn.test/taunt.mp3\"}");
+        UUID productId = soundItem.getProduct().getId();
+        when(inventoryItemRepository.findByAccountIdAndProductId(accountId, productId)).thenReturn(Optional.of(soundItem));
+
+        OwnedSoundResponse response = inventoryService.getOwnedSound(accountId, productId);
+
+        assertThat(response.productId()).isEqualTo(productId);
+        assertThat(response.soundUrl()).isEqualTo("https://cdn.test/taunt.mp3");
+    }
+
+    @Test
+    @DisplayName("getOwnedSound ném lỗi khi chưa sở hữu vật phẩm")
+    void getOwnedSoundNotOwnedThrows() {
+        UUID productId = UUID.randomUUID();
+        when(inventoryItemRepository.findByAccountIdAndProductId(accountId, productId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> inventoryService.getOwnedSound(accountId, productId))
+                .isInstanceOf(AppException.class)
+                .satisfies(e -> assertThat(((AppException) e).getErrorCode()).isEqualTo("SHOP_ITEM_NOT_OWNED"));
+    }
+
+    @Test
+    @DisplayName("getOwnedSound ném lỗi khi vật phẩm không thuộc danh mục SOUND")
+    void getOwnedSoundNotSoundCategoryThrows() {
+        product1.setMetadata("{\"soundUrl\":\"https://cdn.test/taunt.mp3\"}");
+        when(inventoryItemRepository.findByAccountIdAndProductId(accountId, product1.getId())).thenReturn(Optional.of(item1));
+
+        assertThatThrownBy(() -> inventoryService.getOwnedSound(accountId, product1.getId()))
+                .isInstanceOf(AppException.class)
+                .satisfies(e -> assertThat(((AppException) e).getErrorCode()).isEqualTo("SHOP_SOUND_NOT_PLAYABLE"));
+    }
+
+    @Test
+    @DisplayName("getOwnedSound ném lỗi khi vật phẩm SOUND chưa gắn tệp âm thanh")
+    void getOwnedSoundWithoutFileThrows() {
+        InventoryItem soundItem = soundItem("{}");
+        UUID productId = soundItem.getProduct().getId();
+        when(inventoryItemRepository.findByAccountIdAndProductId(accountId, productId)).thenReturn(Optional.of(soundItem));
+
+        assertThatThrownBy(() -> inventoryService.getOwnedSound(accountId, productId))
+                .isInstanceOf(AppException.class)
+                .satisfies(e -> assertThat(((AppException) e).getErrorCode()).isEqualTo("SHOP_SOUND_NOT_PLAYABLE"));
+    }
+
+    private InventoryItem soundItem(String metadata) {
+        Category soundCategory = Category.builder().id(UUID.randomUUID()).code("SOUND").name("Âm thanh").build();
+        Product sound = Product.builder()
+                .id(UUID.randomUUID())
+                .category(soundCategory)
+                .name("Tiếng trêu")
+                .tier(ProductTier.NORMAL)
+                .assetUrl("https://cdn.test/icon.webp")
+                .metadata(metadata)
+                .build();
+        return InventoryItem.builder().id(UUID.randomUUID()).accountId(accountId).product(sound)
+                .source(ItemSource.REWARD).build();
     }
 }

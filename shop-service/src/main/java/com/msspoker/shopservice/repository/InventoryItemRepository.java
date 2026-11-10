@@ -29,4 +29,14 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, UU
            "AND i.product.category.id = :categoryId AND i.isEquipped = true")
     Optional<InventoryItem> findEquippedByAccountIdAndCategoryId(@Param("accountId") UUID accountId,
                                                                  @Param("categoryId") UUID categoryId);
+
+    @Query("SELECT i FROM InventoryItem i JOIN FETCH i.product p JOIN FETCH p.category WHERE i.product.id = :productId")
+    List<InventoryItem> findAllByProductIdWithProduct(@Param("productId") UUID productId);
+
+    @Query("SELECT i FROM InventoryItem i JOIN FETCH i.product p JOIN FETCH p.category WHERE i.accountId = :accountId AND i.product.id = :productId")
+    Optional<InventoryItem> findByAccountIdAndProductIdWithProduct(@Param("accountId") UUID accountId, @Param("productId") UUID productId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE InventoryItem i SET i.isEquipped = false WHERE i.product.id = :productId AND i.isEquipped = true")
+    int unequipAllByProductId(@Param("productId") UUID productId);
 }

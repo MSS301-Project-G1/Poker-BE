@@ -12,12 +12,13 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface TournamentRepository extends JpaRepository<TournamentEntity, UUID> {
-    Page<TournamentEntity> findByIsDeletedFalse(Pageable pageable);
+    Page<TournamentEntity> findByStatusInAndIsDeletedFalse(Collection<TournamentStatus> statuses, Pageable pageable);
 
     Optional<TournamentEntity> findByIdAndIsDeletedFalse(UUID id);
 

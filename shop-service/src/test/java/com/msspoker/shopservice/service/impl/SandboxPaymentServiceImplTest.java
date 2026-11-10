@@ -6,7 +6,9 @@ import com.msspoker.shopservice.entity.CoinBundle;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.SandboxPaymentMapper;
 import com.msspoker.shopservice.repository.CoinBundleRepository;
+import com.msspoker.shopservice.repository.OrderRepository;
 import com.msspoker.shopservice.validator.CoinBundleValidator;
+import com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,9 @@ class SandboxPaymentServiceImplTest {
     private CoinBundleRepository coinBundleRepository;
 
     @Mock
+    private OrderRepository orderRepository;
+
+    @Mock
     private WalletClient walletClient;
 
     @Spy
@@ -51,7 +56,7 @@ class SandboxPaymentServiceImplTest {
                 coinBundleRepository,
                 walletClient,
                 sandboxPaymentMapper,
-                new com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl(coinBundleRepository)
+                new CoinBundleValidatorImpl(coinBundleRepository, orderRepository)
         );
 
         bundleId = UUID.randomUUID();

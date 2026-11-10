@@ -1,0 +1,114 @@
+# Production overrides on top of docker-compose.yml (used by deploy/remote-deploy.sh):
+#   docker compose -f docker-compose.yml -f deploy/compose.prod.yml up -d
+# - Services run the images CI pushed to GHCR (IMAGE_TAG in .env) instead of building on the VPS.
+# - Docker-published ports bypass the host firewall, so nothing is published on 0.0.0.0. Only the gateway
+#   stays reachable from the host (127.0.0.1) for health checks; the FE container joins this project's
+#   network and reaches the services by name.
+# - Memory caps keep twelve JVMs inside the VPS RAM; Java sizes its heap from the cap.
+# - shop-service uses the AWS bucket in production, so the local MinIO container does not start.
+
+x-java-env: &java-env
+  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60
+
+x-java-service: &java-service
+  restart: unless-stopped
+  mem_limit: 768m
+  environment: *java-env
+
+services:
+  discovery-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-discovery-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+
+  api-gateway:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-api-gateway:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !override
+      - "127.0.0.1:8080:8080"
+
+  identity-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-identity-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+
+  auth-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-auth-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+
+  game-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-game-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+
+  matchmaking-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-matchmaking-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+
+  social-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-social-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    environment:
+      <<: *java-env
+      SOCIAL_ALLOWED_ORIGINS: ${SOCIAL_ALLOWED_ORIGINS:?SOCIAL_ALLOWED_ORIGINS is not set}
+
+  chat-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-chat-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    environment:
+      <<: *java-env
+      CHAT_ALLOWED_ORIGINS: ${CHAT_ALLOWED_ORIGINS:?CHAT_ALLOWED_ORIGINS is not set}
+
+  ranking-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-ranking-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+
+  competition-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-competition-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+
+  shop-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-shop-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+    depends_on: !override
+      shop-postgres:
+        condition: service_healthy
+      shop-redis:
+        condition: service_healthy
+
+  wallet-service:
+    <<: *java-service
+    image: ghcr.io/mss301-project-g1/poker-wallet-service:${IMAGE_TAG:?IMAGE_TAG is not set}
+    ports: !reset []
+
+  shop-minio:
+    profiles: ["local-storage"]
+
+  rabbitmq:
+    restart: unless-stopped
+  auth-postgres:
+    restart: unless-stopped
+  game-db:
+    restart: unless-stopped
+  matchmaking-db:
+    restart: unless-stopped
+  matchmaking-redis:
+    restart: unless-stopped
+  social-db:
+    restart: unless-stopped
+  chat-db:
+    restart: unless-stopped
+  ranking-db:
+    restart: unless-stopped
+  competition-db:
+    restart: unless-stopped
+  shop-postgres:
+    restart: unless-stopped
+  shop-redis:
+    restart: unless-stopped
+  wallet-postgres:
+    restart: unless-stopped

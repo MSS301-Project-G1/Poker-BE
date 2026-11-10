@@ -11,6 +11,7 @@ import com.msspoker.authservice.dto.profile.response.AvatarPresignResponse;
 import com.msspoker.authservice.dto.profile.response.AdminAvatarPresetResponse;
 import com.msspoker.authservice.dto.profile.response.MyProfileResponse;
 import com.msspoker.authservice.dto.profile.response.ProfileResponse;
+import com.msspoker.authservice.dto.profile.response.PlayerResponse;
 import com.msspoker.authservice.entity.Account;
 import com.msspoker.authservice.entity.AvatarPreset;
 import com.msspoker.authservice.entity.Profile;
@@ -55,6 +56,33 @@ public class ProfileServiceImpl implements ProfileService {
     private final AvatarPresetRepository avatarPresetRepository;
     private final AvatarPresetMapper avatarPresetMapper;
     private final S3AvatarStorage s3Storage;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlayerResponse> searchPlayers(UUID actor, String query) {
+        activeAccount(actor);
+        String term = query == null ? "" : query.strip();
+        if (term.length() < 2 || term.length() > 100) {
+            throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
+        }
+        return profileRepository.searchPlayers(actor, term, term.toUpperCase(Locale.ROOT),
+                AccountStatus.ACTIVE, org.springframework.data.domain.PageRequest.of(0, 20))
+                .stream().map(this::player).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PlayerResponse getMyPlayer(UUID actor) {
+        activeAccount(actor);
+        return player(profileRepository.findByAccountIdAndAccount_DeletedFalse(actor)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_NOT_FOUND)));
+    }
+
+    private PlayerResponse player(Profile profile) {
+        var publicData = publicProfile(profile);
+        return new PlayerResponse(profile.getAccountId(),
+                profile.getPlayerCode(), publicData.getDisplayName(), publicData.getAvatarUrl());
+    }
 
     @Override
     @Transactional(readOnly = true)

@@ -55,4 +55,4 @@ Code Chat/Social được lấy từ bản đã tích hợp trên testing. Thay 
 
 Các kiểm chứng Docker/Gateway ghi ở trên thuộc bản tích hợp trước đó, không xác nhận Gateway hiện tại trên develop. Chủ Gateway cần tích hợp route `/api/friends/**`, `/api/blocks/**`, `/api/chat/**` giữ nguyên path; gắn đúng ingress key sau xác thực và chặn header giả; chuyển tiếp WebSocket `/ws/social`, `/ws/chat`. Cấu hình cùng `SOCIAL_GATEWAY_KEY`, `CHAT_GATEWAY_KEY` giữa Gateway và service, cùng `SOCIAL_INTERNAL_KEY` giữa Social và Chat. Key rỗng sẽ từ chối truy cập.
 
-Swagger trực tiếp: `http://localhost:8084/swagger-ui.html` và `http://localhost:8085/swagger-ui.html`. PostgreSQL host mặc định: Social 54336, Chat 54337.
+Swagger trực tiếp: `http://localhost:8084/swagger-ui.html` và `http://localhost:8085/swagger-ui.html`. PostgreSQL host mặc định: Social 15436, Chat 15437.

@@ -6,6 +6,7 @@ public final class GameSocketConstants {
     public static final String BROKER_PREFIX = "/queue";
     public static final String USER_PREFIX = "/user";
     public static final String TABLE_QUEUE = "/queue/tables/";
+    public static final String TAUNT_QUEUE_SUFFIX = "/taunts";
     public static final String ERROR_QUEUE = "/queue/game-errors";
     public static final String USER_ERROR_QUEUE = USER_PREFIX + ERROR_QUEUE;
     public static final int MESSAGE_SIZE_LIMIT_BYTES = 8192;

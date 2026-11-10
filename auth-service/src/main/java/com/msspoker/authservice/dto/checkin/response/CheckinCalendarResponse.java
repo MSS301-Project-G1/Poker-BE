@@ -19,5 +19,6 @@ public class CheckinCalendarResponse {
     private String timezone;
     private LocalDate today;
     private boolean checkedInToday;
+    private long dailyRewardCoins;
     private List<CheckinResponse> days;
 }

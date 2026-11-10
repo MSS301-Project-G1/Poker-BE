@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
@@ -18,6 +20,8 @@ public class ManagedTable {
     private final MatchEntity match;
     private final ReentrantLock lock = new ReentrantLock();
     private final Set<UUID> bots = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Last taunt sound per player, guarded by lock; dropped together with the table. */
+    private final Map<UUID, Instant> lastTaunts = new HashMap<>();
     @Setter private Instant deadline;
     @Setter private Instant finishedAt;
     @Setter private boolean completionPersisted;

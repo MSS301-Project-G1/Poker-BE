@@ -7,6 +7,8 @@ services:
     ports:
       - "127.0.0.1:${CHAT_SERVICE_PORT:-8085}:8085"
     environment:
+      AUTH_SESSION_INTERNAL_KEY: ${AUTH_SESSION_INTERNAL_KEY:-poker_session_dev}
+      AUTH_SESSION_CHECK_URL: http://auth-service:8090/internal/auth/session/check
       EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_HOSTNAME: chat-service
       CHAT_DB_URL: jdbc:postgresql://chat-db:5432/chat_db
@@ -38,7 +40,7 @@ services:
       POSTGRES_USER: ${CHAT_DB_USER:-poker}
       POSTGRES_PASSWORD: ${CHAT_DB_PASSWORD:-poker_dev}
     ports:
-      - "127.0.0.1:${CHAT_DB_PORT:-54337}:5432"
+      - "127.0.0.1:${CHAT_DB_PORT:-15437}:5432"
     volumes:
       - chat-db-data:/var/lib/postgresql/data
     networks:

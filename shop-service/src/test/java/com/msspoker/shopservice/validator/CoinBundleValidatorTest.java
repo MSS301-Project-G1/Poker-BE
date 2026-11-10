@@ -1,9 +1,11 @@
 package com.msspoker.shopservice.validator;
 
 import com.msspoker.shopservice.dto.request.CreateCoinBundleRequest;
+import com.msspoker.shopservice.dto.request.UpdateCoinBundleRequest;
 import com.msspoker.shopservice.entity.CoinBundle;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.repository.CoinBundleRepository;
+import com.msspoker.shopservice.repository.OrderRepository;
 import com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,9 @@ class CoinBundleValidatorTest {
 
     @Mock
     private CoinBundleRepository coinBundleRepository;
+
+    @Mock
+    private OrderRepository orderRepository;
 
     @InjectMocks
     private CoinBundleValidatorImpl coinBundleValidator;
@@ -78,5 +83,51 @@ class CoinBundleValidatorTest {
         assertThatThrownBy(() -> coinBundleValidator.validateForUpdate(id, bundle, request))
                 .isInstanceOf(AppException.class)
                 .hasMessageContaining("đã tồn tại");
+    }
+
+    @Test
+    @DisplayName("validateForUpdate: ném lỗi khi gói nạp đang ở trạng thái Đang Bán (ACTIVE)")
+    void validateForUpdate_ActiveThrows() {
+        UUID id = UUID.randomUUID();
+        CoinBundle activeBundle = CoinBundle.builder().id(id).code("BUNDLE_50K").isActive(true).build();
+        UpdateCoinBundleRequest request = UpdateCoinBundleRequest.builder().name("Updated").build();
+
+        assertThatThrownBy(() -> coinBundleValidator.validateForUpdate(id, activeBundle, request))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("Tắt Bán");
+    }
+
+    @Test
+    @DisplayName("validateForDelete: ném lỗi khi gói nạp đang ở trạng thái Đang Bán (ACTIVE)")
+    void validateForDelete_ActiveThrows() {
+        UUID id = UUID.randomUUID();
+        CoinBundle activeBundle = CoinBundle.builder().id(id).code("BUNDLE_50K").isActive(true).build();
+
+        assertThatThrownBy(() -> coinBundleValidator.validateForDelete(id, activeBundle))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("Tắt Bán");
+    }
+
+    @Test
+    @DisplayName("validateForDelete: ném lỗi khi gói nạp đã từng có lịch sử giao dịch")
+    void validateForDelete_HasOrdersThrows() {
+        UUID id = UUID.randomUUID();
+        CoinBundle inactiveBundle = CoinBundle.builder().id(id).code("BUNDLE_50K").isActive(false).build();
+        when(orderRepository.existsByBundleId(id)).thenReturn(true);
+
+        assertThatThrownBy(() -> coinBundleValidator.validateForDelete(id, inactiveBundle))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("lịch sử giao dịch");
+    }
+
+    @Test
+    @DisplayName("validateForDelete: thành công khi gói nạp đã Tắt Bán và chưa có giao dịch")
+    void validateForDelete_Success() {
+        UUID id = UUID.randomUUID();
+        CoinBundle inactiveBundle = CoinBundle.builder().id(id).code("BUNDLE_50K").isActive(false).build();
+        when(orderRepository.existsByBundleId(id)).thenReturn(false);
+
+        assertThatCode(() -> coinBundleValidator.validateForDelete(id, inactiveBundle))
+                .doesNotThrowAnyException();
     }
 }

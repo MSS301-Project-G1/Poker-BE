@@ -1,5 +1,6 @@
 package com.msspoker.rankingservice.controller;
 
+import com.msspoker.rankingservice.entity.RewardCreditEntity;
 import com.msspoker.rankingservice.repository.EloHistoryRepository;
 import com.msspoker.rankingservice.repository.PlayerEloRepository;
 import com.msspoker.rankingservice.repository.RewardCreditRepository;
@@ -16,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -62,7 +64,8 @@ class RankingEventListenerTest {
         assertEquals(20, players.findBySeasonIdAndAccountIdAndIsDeletedFalse(seasons.active().getId(), first)
                 .orElseThrow().getCurrentElo());
         assertEquals(2, history.findByMatchIdOrderByPlace(matchId).size());
-        assertEquals(2, rewards.findByMatchIdOrderByPlace(matchId).size());
+        // Two players: only the winner is paid, 2x the fee.
+        assertEquals(List.of(200L), rewards.findByMatchIdOrderByPlace(matchId).stream().map(RewardCreditEntity::getAmount).toList());
     }
 
     @Test

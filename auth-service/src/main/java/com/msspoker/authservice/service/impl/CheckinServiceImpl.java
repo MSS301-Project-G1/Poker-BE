@@ -89,6 +89,7 @@ public class CheckinServiceImpl implements CheckinService {
                 .timezone(ZONE.getId())
                 .today(today)
                 .checkedInToday(dailyCheckinRepository.existsByAccountIdAndDate(accountId, today))
+                .dailyRewardCoins(checkinProperties.rewardCoins())
                 .days(days)
                 .build();
     }

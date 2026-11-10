@@ -9,6 +9,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -72,6 +73,6 @@ class RankingClientImplTest {
     }
 
     private RankingClient client() {
-        return new RankingClientImpl("http://127.0.0.1:" + server.getAddress().getPort(), 2000);
+        return new RankingClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000);
     }
 }

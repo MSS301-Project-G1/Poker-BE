@@ -51,24 +51,30 @@ public class RatingServiceImpl implements RatingService {
         if (event.mode() != GameMode.RANK || history.existsByMatchId(event.matchId())) return;
         UUID seasonId = seasons.lockActive().getId();
         Instant now = Instant.now();
+        int size = event.placements().size();
         for (PlacementEvent placement : event.placements()) {
             PlayerEloEntity player = player(seasonId, placement.accountId());
             int before = player.getCurrentElo();
-            player.setCurrentElo(calculator.apply(before, calculator.delta(placement.place())));
+            int delta = calculator.delta(placement.place(), size);
+            player.setCurrentElo(calculator.apply(before, delta));
             player.setPeakElo(Math.max(player.getPeakElo(), player.getCurrentElo()));
             player.setTier(calculator.tier(player.getCurrentElo()));
-            if (calculator.extendsWinStreak(placement.place())) {
+            if (calculator.extendsWinStreak(placement.place(), size)) {
                 player.setWinStreak(player.getWinStreak() + 1);
                 player.setLossStreak(0);
-            } else {
+            } else if (delta < 0) {
                 player.setLossStreak(player.getLossStreak() + 1);
                 player.setWinStreak(0);
+            } else {
+                // The middle seat of an odd table neither wins nor loses.
+                player.setWinStreak(0);
+                player.setLossStreak(0);
             }
             player.setMatchesPlayed(player.getMatchesPlayed() + 1);
             player.setLastMatchAt(event.finishedAt() == null ? now : event.finishedAt());
             // Record the applied change, which differs from the table when the Elo floor is reached.
             history.save(mapper.history(player, placement, event.matchId(), player.getCurrentElo() - before, now));
-            long amount = calculator.reward(placement.place(), event.entryFee());
+            long amount = calculator.reward(placement.place(), size, event.entryFee());
             if (amount > 0) rewards.save(mapper.reward(placement, event.matchId(), amount, now));
         }
     }

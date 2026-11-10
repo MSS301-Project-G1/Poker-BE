@@ -149,6 +149,14 @@ public class WalletServiceImpl implements WalletService {
         return PageResponse.of(page);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public TransactionResponse getTransactionByIdempotencyKey(String idempotencyKey) {
+        return transactionRepository.findByIdempotencyKey(idempotencyKey)
+                .map(walletMapper::toTransactionResponse)
+                .orElseThrow(WalletExceptions::transactionNotFound);
+    }
+
     private Pageable normalizePageable(Pageable pageable) {
         if (pageable == null) {
             return PageRequest.of(0, 20);

@@ -63,7 +63,9 @@ class ChangePasswordTests {
 
     @BeforeEach
     void setup() throws Exception {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
         caller = account();
         access = access(caller);
         var response = mvc.perform(get("/api/auth/csrf")).andReturn().getResponse();
@@ -73,9 +75,10 @@ class ChangePasswordTests {
 
     @Test
     void changesPasswordRevokesAllOwnDevicesClearsCookiesAndInvalidatesPendingRecoveryOtp() throws Exception {
-        var first = auth.login(new LoginRequest(caller.getEmail(), OLD), null);
-        var second = auth.login(new LoginRequest(caller.getEmail(), OLD), null);
-        var other = auth.login(new LoginRequest(account().getEmail(), OLD), null);
+        var first = auth.login(new LoginRequest(caller.getEmail(), OLD), TestSessions.TAB);
+        var second = auth.login(new LoginRequest(caller.getEmail(), OLD), TestSessions.TAB);
+        var other = auth.login(new LoginRequest(account().getEmail(), OLD), TestSessions.TAB);
+        access = new Cookie("accessToken", second.accessToken());
         pendingOtp();
         mvc.perform(change(OLD, NEW, NEW).cookie(access)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("success_request"))
@@ -84,21 +87,22 @@ class ChangePasswordTests {
         assertThat(encoder.matches(NEW, accounts.findById(caller.getId()).orElseThrow().getPasswordHash())).isTrue();
         assertThat(resetOtps.findById(caller.getId())).isEmpty();
         assertThat(refreshTokens.findAll().stream().filter(t -> t.getAccountId().equals(caller.getId())))
-                .hasSize(2).allSatisfy(t -> assertThat(t.getRevokedAt()).isNotNull());
+                .hasSize(3).allSatisfy(t -> assertThat(t.getRevokedAt()).isNotNull());
         for (String raw : List.of(first.refreshToken(), second.refreshToken())) {
-            assertThatThrownBy(() -> auth.refresh(raw)).isInstanceOfSatisfying(ApiException.class,
-                    e -> assertThat(e.getErrorCode().name()).isEqualTo("AUTH_REFRESH_INVALID"));
+            assertThatThrownBy(() -> auth.refresh(raw, TestSessions.TAB)).isInstanceOfSatisfying(ApiException.class,
+                    e -> assertThat(e.getErrorCode().name()).isIn("AUTH_REFRESH_INVALID", "AUTH_SESSION_REPLACED"));
         }
-        assertThatThrownBy(() -> auth.login(new LoginRequest(caller.getEmail(), OLD), null)).isInstanceOf(ApiException.class);
-        assertThat(auth.login(new LoginRequest(caller.getEmail(), NEW), null)).isNotNull();
-        assertThat(auth.refresh(other.refreshToken())).isNotNull();
-        // Revoking refresh credentials does not blacklist already-issued access JWTs.
+        assertThatThrownBy(() -> auth.login(new LoginRequest(caller.getEmail(), OLD), TestSessions.TAB)).isInstanceOf(ApiException.class);
+        assertThat(auth.login(new LoginRequest(caller.getEmail(), NEW), TestSessions.TAB)).isNotNull();
+        assertThat(auth.refresh(other.refreshToken(), TestSessions.TAB)).isNotNull();
+        // The signature stays valid; the live session guard rejects credentials after revocation.
         assertThat(jwtService.verify(first.accessToken()).getSubject()).isEqualTo(caller.getId().toString());
     }
 
     @Test
     void wrongCurrentPasswordDoesNotChangePasswordOtpOrSessions() throws Exception {
-        var session = auth.login(new LoginRequest(caller.getEmail(), OLD), null);
+        var session = auth.login(new LoginRequest(caller.getEmail(), OLD), TestSessions.TAB);
+        access = new Cookie("accessToken", session.accessToken());
         pendingOtp();
         String hash = accounts.findById(caller.getId()).orElseThrow().getPasswordHash();
         for (String wrong : List.of("wrong-password", "😀".repeat(19))) {
@@ -108,12 +112,13 @@ class ChangePasswordTests {
         }
         assertThat(accounts.findById(caller.getId()).orElseThrow().getPasswordHash()).isEqualTo(hash);
         assertThat(resetOtps.findById(caller.getId())).isPresent();
-        assertThat(auth.refresh(session.refreshToken())).isNotNull();
+        assertThat(auth.refresh(session.refreshToken(), TestSessions.TAB)).isNotNull();
     }
 
     @Test
     void validatesConfirmationAndUnicodeByteLimitsWithoutChangingState() throws Exception {
-        var session = auth.login(new LoginRequest(caller.getEmail(), OLD), null);
+        var session = auth.login(new LoginRequest(caller.getEmail(), OLD), TestSessions.TAB);
+        access = new Cookie("accessToken", session.accessToken());
         String hash = accounts.findById(caller.getId()).orElseThrow().getPasswordHash();
         mvc.perform(change(OLD, NEW, "different").cookie(access)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("AUTH_PASSWORD_MISMATCH"));
@@ -125,7 +130,7 @@ class ChangePasswordTests {
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
         assertThat(accounts.findById(caller.getId()).orElseThrow().getPasswordHash()).isEqualTo(hash);
-        assertThat(auth.refresh(session.refreshToken())).isNotNull();
+        assertThat(auth.refresh(session.refreshToken(), TestSessions.TAB)).isNotNull();
     }
 
     @Test
@@ -200,7 +205,7 @@ class ChangePasswordTests {
     }
 
     private Cookie access(Account account) {
-        return new Cookie("accessToken", jwtService.issue(account, Instant.now().plusSeconds(900)));
+        return new Cookie("accessToken", TestSessions.issue(jwtService, refreshTokens, account, Instant.now().plusSeconds(900)));
     }
 
     private void pendingOtp() {

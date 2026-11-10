@@ -7,6 +7,7 @@ import com.msspoker.authservice.shared.infrastructure.security.AuthCookieService
 import com.msspoker.authservice.shared.infrastructure.security.CookieAuthenticationFilter;
 import com.msspoker.authservice.shared.infrastructure.security.JwtService;
 import com.msspoker.authservice.shared.infrastructure.security.SecurityErrorHandler;
+import com.msspoker.authservice.shared.infrastructure.security.SessionGuard;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,7 +30,7 @@ import java.util.List;
 public class SecurityConfig {
     @Bean
     SecurityFilterChain authSecurity(HttpSecurity http, AuthCookieService cookies, JwtService jwtService,
-            AuthCookieProperties cookieProperties, GlobalExceptionHandler exceptionHandler, JsonMapper mapper,
+            AuthCookieProperties cookieProperties, SessionGuard sessions, GlobalExceptionHandler exceptionHandler, JsonMapper mapper,
             @Value("${auth.cors.allowed-origins}") List<String> allowedOrigins) throws Exception {
 
         if (allowedOrigins.stream().anyMatch(origin -> origin.contains("*"))) {
@@ -46,7 +47,7 @@ public class SecurityConfig {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(allowedOrigins);
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id"));
+        cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id", "X-Tab-Id"));
         cors.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -67,12 +68,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(config -> config
                         .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/api/auth/csrf",
                                 "/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Not routed by the gateway; the controller exists only with auth.data-init.enabled.
+                        .requestMatchers(HttpMethod.GET, "/internal/demo-accounts", "/internal/auth/session/check").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/internal/accounts/*/restrictions").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
-                                "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                                "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/auth/session/claim").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/admin/avatars", "/api/admin/avatars/presign").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/admin/avatars").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/admin/avatars/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me",
+                        .requestMatchers("/api/admin/users", "/api/admin/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/session", "/api/auth/ws-token", "/api/profiles/batch", "/api/profiles/me",
+                                "/api/profiles/search", "/api/profiles/players/me",
                                 "/api/profiles/avatars", "/api/profiles/me/avatar/presign", "/api/checkin/calendar").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/profiles/me", "/api/profiles/me/avatar").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/profiles/me/avatar", "/api/auth/password/change", "/api/checkin").authenticated()
@@ -85,7 +91,7 @@ public class SecurityConfig {
 
                 .addFilterBefore(new AllowedOriginFilter(allowedOrigins, errors), CsrfFilter.class)
 
-                .addFilterBefore(new CookieAuthenticationFilter(cookies, jwtService), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new CookieAuthenticationFilter(cookies, jwtService, sessions, errors), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

@@ -88,9 +88,18 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
     `POST /api/tournaments/{id}/confirm`, bù người vắng, lịch tự động bắt đầu/hủy và
     hoàn phí, prize pool 50/30/20 (`TOURNAMENT_PRIZE`), skin cho vô địch qua
     `/internal/inventory/grant`. 34 test H2.
-  - [ ] FE giải đấu, bracket cập nhật bằng hỏi lại định kỳ tới khi có `/ws/social`
-    (đợt B của FE GĐ2, xem `ranking-service/IMPLEMENTATION_PLAN.md`).
-  - [ ] Admin giải đấu (đợt C).
+  - [x] FE giải đấu, bracket cập nhật bằng hỏi lại định kỳ tới khi có `/ws/social`
+    (đợt B của FE GĐ2, xem `ranking-service/IMPLEMENTATION_PLAN.md`): `/tournaments`
+    (tab sắp tới/đã qua nhờ `GET /api/tournaments?past=`) và `/tournaments/{id}` (đăng ký,
+    nhận lời mời, vào bàn, bracket, prize pool). Mở bàn chờ theo thứ tự `tableIndex`.
+  - [x] Admin giải đấu (đợt C): `/admin/tournaments` tạo giải Mở/Cao thủ, bắt đầu sớm, hủy.
+  - [x] Realtime (đợt E, 2026-10-29): phòng chờ tải lại ngay khi `/ws/social` báo
+    `ROOM_UPDATED`/`ROOM_STARTED` (vẫn hỏi lại 15 giây khi socket nối, 3 giây khi mất),
+    trang giải tải lại ngay khi có `TOURNAMENT_TABLE_READY`/`TOURNAMENT_INVITE`, `/rooms`
+    liệt kê `ROOM_INVITE` để vào phòng. Gửi `X-Social-Internal-Key` (`SOCIAL_INTERNAL_KEY`)
+    khi hỏi quan hệ bạn bè; thiếu key thì social-service trả 403 và mời phòng luôn lỗi.
+    Kiểm tra qua gateway với social-service thật: người thứ hai vào phòng thì phòng chờ
+    cập nhật sau 0,9 giây; lời mời hiện trên `/rooms` và bấm Join vào được phòng.
 
 ## Phụ thuộc và review trước khi merge
 

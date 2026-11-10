@@ -490,7 +490,7 @@ của identity; hiện game kiểm tra restrictions khi tạo bàn.
 
 1. **Duy** — người chơi vào hàng chờ. Kiểm tra: không bị cấm Rank (hỏi Khanh), đủ xu (hỏi Tùng), không đang trong trận khác.
 2. **Duy** — ghép đủ người theo Elo, phát `notification.requested` loại `MATCH_FOUND` kèm `proposalId`.
-3. **FE** — hiện popup, người chơi bấm Chấp nhận trong 10 giây (`POST /api/matchmaking/proposals/{id}/accept`).
+3. **FE** — hiện xác nhận trận trên màn ghép, người chơi bấm Chấp nhận trong 30 giây (`POST /api/matchmaking/proposals/{id}/accept`). Khi mọi người xác nhận đủ và bàn READY, camera 3D đi từ chân bàn lên góc chơi; hiệu ứng không chặn thao tác và có thể bỏ qua.
 4. **Duy** — đủ người chấp nhận → gọi `debit` phí vào cho từng người (key `rank-fee:{proposalId}:{accountId}`). Nếu một người trừ thất bại → hoàn phí người đã trừ (`RANK_ENTRY_REFUND`), đưa những người còn lại về hàng chờ.
 5. **Duy** — gọi `CreateTable` của Bảo với `mode = RANK`, `entryFee`. Nếu lỗi → hoàn phí toàn bộ.
 6. **Duy** — phát `MATCH_READY` kèm `tableId`. FE chuyển sang màn bàn chơi.
@@ -519,7 +519,7 @@ Quy tắc gom người trước khi mở bàn:
 5. Khi hết 10 giây và nhóm vẫn có từ `minPlayers` đến `maxPlayers - 1`, tạo bàn với số người hiện có.
 6. Nếu số người tụt xuống dưới `minPlayers` trước deadline, hủy/reset countdown.
 
-Countdown gom người này độc lập với thời gian 10 giây chấp nhận proposal của trận Rank. Deadline do
+Countdown gom người này độc lập với thời gian 30 giây chấp nhận proposal của trận Rank. Deadline do
 backend sở hữu và trả về frontend; frontend chỉ hiển thị thời gian còn lại.
 
 ### 7.4. Custom Room 🟢
@@ -565,16 +565,16 @@ Tất cả nằm trong config / bảng Admin, chỉnh không cần sửa code.
 | Thời gian mỗi lượt | 20 giây | Bảo |
 | Số người bàn Rank / Normal | 6 (tối thiểu để mở bàn: config, demo để 2) | Bảo, Duy |
 | Thời gian gom thêm người Normal sau khi đủ tối thiểu | 10 giây; đủ 6 thì mở bàn ngay | Duy |
-| Elo theo thứ hạng (bàn 6) | +20, +10, +5, −5, −10, −15 | Hoài Anh |
+| Elo theo thứ hạng (bàn 6) | +20, +10, +5, −5, −10, −15. Bàn ít người hơn chia đôi: nửa trên lấy các mức đầu, nửa dưới lấy các mức cuối, người giữa bàn lẻ giữ nguyên Elo. Bàn 2: +20, −15 · bàn 3: +20, 0, −15 · bàn 4: +20, +10, −10, −15 · bàn 5: +20, +10, 0, −10, −15 | Hoài Anh |
 | Elo tối thiểu | 0 (không âm) *(đề xuất)* | Hoài Anh |
 | Phí vào Rank | 100 xu *(đề xuất)* | Duy |
-| Thưởng xu Rank | Top 1: 3× phí · Top 2: 2× phí · Top 3: 1× phí | Hoài Anh |
+| Thưởng xu Rank | Top 1: 3× phí · Top 2: 2× phí · Top 3: 1× phí, trả từ trên xuống và tổng không vượt số phí cả bàn đã nộp. Bàn 2: 2× · bàn 3: 3× · bàn 4: 3×, 1× · bàn 5: 3×, 2× | Hoài Anh |
 | Xu lần đăng nhập đầu | 500 *(đề xuất)* | Khanh |
 | Xu điểm danh mỗi ngày | 50 *(đề xuất)* | Khanh |
 | Phí điểm danh bù | 30 xu *(đề xuất)* | Khanh |
-| Thời gian chấp nhận trận | 10 giây | Duy |
+| Thời gian chấp nhận trận | 30 giây | Duy |
 | Phạt từ chối/không chấp nhận | Không được vào hàng chờ 2 phút *(đề xuất)* | Duy |
-| Chuỗi thắng | Số trận liên tiếp lọt top 3 *(đề xuất)* | Hoài Anh |
+| Chuỗi thắng | Số trận liên tiếp lọt top 3 và được cộng Elo (bàn 2–3: hạng 1, bàn 4–5: top 2) *(đề xuất)* | Hoài Anh |
 | Mốc Elo các bậc | Tân thủ 0 · Sắt 100 · Đồng 200 · Bạc 350 · Vàng 500 · Bạch kim 700 · Kim cương 950 · Kiện tướng 1.250 · Đại kiện tướng 1.600 · Thần bài = top 50 Đại kiện tướng *(đề xuất)* | Hoài Anh |
 | Reset mùa | Giữ lại 50% Elo *(đề xuất)* | Hoài Anh |
 | Chia prize pool Giải Mở | 50% / 30% / 20% cho top 3 chung kết *(đề xuất)* | Hoài Anh |
@@ -797,7 +797,7 @@ Trạng thái bàn đang chơi giữ **trong bộ nhớ**. Chỉ ghi DB khi bắ
 
 🟢 MVP
 - [ ] Hàng chờ Rank: vào/hủy hàng chờ, ghép theo Elo và chuỗi thắng, nới dần khoảng Elo khi chờ lâu, số người tối thiểu lấy từ config.
-- [ ] Proposal và popup chấp nhận 10 giây, thu phí, hoàn phí khi lỗi (luồng 7.2).
+- [ ] Proposal và xác nhận trong 30 giây, thu phí, hoàn phí khi lỗi (luồng 7.2).
 - [ ] Hàng chờ Normal (miễn phí).
 - [ ] Bạn bè: gửi/nhận/đồng ý/từ chối/hủy lời mời, xóa bạn, chặn/bỏ chặn.
 - [ ] `/internal/friends/**` cho Hoài Anh và chat.

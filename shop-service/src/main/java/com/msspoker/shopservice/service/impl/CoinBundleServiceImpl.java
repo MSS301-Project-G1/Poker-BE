@@ -67,6 +67,13 @@ public class CoinBundleServiceImpl implements CoinBundleService {
         coinBundleValidator.validateForCreate(request);
 
         CoinBundle bundle = coinBundleMapper.toCoinBundle(request);
+        bundle.setActive(request.isActiveVal());
+        if (request.bonusPercentage() == null) {
+            bundle.setBonusPercentage(request.bonusPercentageVal());
+        }
+        if (request.sortOrder() == null) {
+            bundle.setSortOrder(request.sortOrderVal());
+        }
         CoinBundle saved = coinBundleRepository.save(bundle);
         log.info("Created coin bundle id={}, code={} successfully", saved.getId(), saved.getCode());
         return coinBundleMapper.toCoinBundleResponse(saved);
@@ -80,7 +87,19 @@ public class CoinBundleServiceImpl implements CoinBundleService {
         CoinBundle bundle = coinBundleRepository.findById(id).orElse(null);
         coinBundleValidator.validateForUpdate(id, bundle, request);
 
+        String existingCode = bundle.getCode();
         coinBundleMapper.updateCoinBundleFromDto(request, bundle);
+        if (request.code() == null || request.code().isBlank()) {
+            bundle.setCode(existingCode);
+        } else {
+            bundle.setCode(request.code().trim().toUpperCase());
+        }
+        if (request.isActive() != null) {
+            bundle.setActive(request.isActive());
+        }
+        if (request.bonusPercentage() == null) {
+            bundle.setBonusPercentage(request.bonusPercentageVal());
+        }
         CoinBundle updated = coinBundleRepository.save(bundle);
         log.info("Updated coin bundle id={} successfully", id);
         return coinBundleMapper.toCoinBundleResponse(updated);
@@ -93,6 +112,7 @@ public class CoinBundleServiceImpl implements CoinBundleService {
         log.info("Deleting coin bundle id={}", id);
         CoinBundle bundle = coinBundleRepository.findById(id).orElse(null);
         coinBundleValidator.validateExists(id, bundle);
+        coinBundleValidator.validateForDelete(id, bundle);
 
         coinBundleRepository.delete(bundle);
         log.info("Deleted coin bundle id={} successfully", id);
@@ -102,11 +122,19 @@ public class CoinBundleServiceImpl implements CoinBundleService {
     @Transactional
     @CacheEvict(value = "coin_bundles", allEntries = true)
     public CoinBundleResponse toggleActive(UUID id) {
-        log.info("Toggling active status for coin bundle id={}", id);
+        return toggleActive(id, null);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "coin_bundles", allEntries = true)
+    public CoinBundleResponse toggleActive(UUID id, Boolean isActive) {
+        log.info("Toggling active status for coin bundle id={}, explicitActive={}", id, isActive);
         CoinBundle bundle = coinBundleRepository.findById(id).orElse(null);
         coinBundleValidator.validateExists(id, bundle);
 
-        bundle.setActive(!bundle.isActive());
+        boolean targetStatus = (isActive != null) ? isActive : !bundle.isActive();
+        bundle.setActive(targetStatus);
         CoinBundle updated = coinBundleRepository.save(bundle);
         log.info("Toggled active status for bundle id={} to {}", id, updated.isActive());
         return coinBundleMapper.toCoinBundleResponse(updated);

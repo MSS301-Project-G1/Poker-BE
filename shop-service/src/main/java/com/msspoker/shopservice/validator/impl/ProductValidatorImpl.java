@@ -4,6 +4,7 @@ import com.msspoker.shopservice.dto.request.CreateProductRequest;
 import com.msspoker.shopservice.dto.request.UpdateProductRequest;
 import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.entity.Product;
+import com.msspoker.shopservice.enums.ProductStatus;
 import com.msspoker.shopservice.exception.CategoryExceptions;
 import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.repository.InventoryItemRepository;
@@ -11,6 +12,7 @@ import com.msspoker.shopservice.validator.ProductValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -39,6 +41,9 @@ public class ProductValidatorImpl implements ProductValidator {
     @Override
     public void validateForUpdate(UUID productId, Product product, Category category) {
         validateExists(productId, product);
+        if (product.getStatus() != ProductStatus.MAINTAIN) {
+            throw ProductExceptions.mustBeInMaintainBeforeUpdate();
+        }
         if (category == null) {
             throw CategoryExceptions.categoryNotFound();
         }
@@ -47,12 +52,18 @@ public class ProductValidatorImpl implements ProductValidator {
     @Override
     public void validateForDelete(UUID productId, Product product) {
         validateExists(productId, product);
+        if (product.getStatus() != ProductStatus.MAINTAIN && !product.isDeleting()) {
+            throw ProductExceptions.mustBeInMaintainBeforeDelete();
+        }
     }
 
     @Override
     public void validateForPurchase(UUID accountId, Product product) {
         validateExists(product != null ? product.getId() : null, product);
-        if (product.isExclusive()) {
+        if (product.getStatus() == ProductStatus.MAINTAIN) {
+            throw ProductExceptions.productNotPurchasable();
+        }
+        if (product.isExclusive() || (product.getSaleExpiresAt() != null && !product.getSaleExpiresAt().isAfter(Instant.now()))) {
             throw ProductExceptions.productNotPurchasable();
         }
         if (product.getPriceVipCoin() <= 0) {

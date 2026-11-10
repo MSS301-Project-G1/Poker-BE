@@ -39,21 +39,25 @@ public class MatchmakingProperties {
     public Wallet getWallet() { return wallet; }
 
     public static class Normal {
-        @NotNull private Duration fillTimeout = Duration.ofSeconds(10);
+        @NotNull private Duration acceptTimeout = Duration.ofSeconds(30);
+        public Duration getAcceptTimeout() { return acceptTimeout; }
+        public void setAcceptTimeout(Duration acceptTimeout) { this.acceptTimeout = acceptTimeout; }
+        @NotNull private Duration fillTimeout = Duration.ofSeconds(30);
         public Duration getFillTimeout() { return fillTimeout; }
         public void setFillTimeout(Duration fillTimeout) { this.fillTimeout = fillTimeout; }
 
         @AssertTrue(message = "matchmaking.normal.fillTimeout phải lớn hơn 0")
         public boolean isValid() {
-            return fillTimeout != null && !fillTimeout.isZero() && !fillTimeout.isNegative();
+            return fillTimeout != null && !fillTimeout.isZero() && !fillTimeout.isNegative()
+                    && acceptTimeout != null && !acceptTimeout.isZero() && !acceptTimeout.isNegative();
         }
     }
 
     public static class Rank {
         @Min(0) private int eloWindow = 100;
         @Min(0) private long entryFee = 100;
-        @NotNull private Duration fillTimeout = Duration.ofSeconds(10);
-        @NotNull private Duration acceptTimeout = Duration.ofSeconds(10);
+        @NotNull private Duration fillTimeout = Duration.ofSeconds(30);
+        @NotNull private Duration acceptTimeout = Duration.ofSeconds(30);
         @NotNull private Duration cooldown = Duration.ofMinutes(2);
         public int getEloWindow() { return eloWindow; }
         public void setEloWindow(int eloWindow) { this.eloWindow = eloWindow; }

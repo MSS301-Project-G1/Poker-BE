@@ -5,7 +5,7 @@ import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
 import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
 import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
-import com.msspoker.matchmakingservice.service.NormalMatchmakingService;
+import com.msspoker.matchmakingservice.service.normal.NormalMatchmakingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;

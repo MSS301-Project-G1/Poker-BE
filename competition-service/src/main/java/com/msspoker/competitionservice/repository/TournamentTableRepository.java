@@ -18,7 +18,8 @@ public interface TournamentTableRepository extends JpaRepository<TournamentTable
 
     List<TournamentTableEntity> findByTournamentIdAndRoundOrderByTableIndexAsc(UUID tournamentId, TournamentRound round);
 
-    List<TournamentTableEntity> findTop10ByStatusOrderByCreatedAtAscIdAsc(TableStatus status);
+    /** Oldest first; tables drawn together share createdAt, so they open in table order. */
+    List<TournamentTableEntity> findTop10ByStatusOrderByCreatedAtAscTableIndexAscIdAsc(TableStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from TournamentTableEntity t where t.id = :id")

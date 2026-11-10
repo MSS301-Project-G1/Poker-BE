@@ -43,7 +43,7 @@ class RewardDispatcherTest {
 
     @Test
     void walletOutageKeepsRewardPendingAndRetriesWithSameKey() {
-        var event = RatingTestSupport.rank(RatingTestSupport.accounts(3), 100);
+        var event = RatingTestSupport.rank(RatingTestSupport.accounts(6), 100);
         rating.matchFinished(event);
         doThrow(new ResourceAccessException("wallet down")).when(wallet).credit(any());
 

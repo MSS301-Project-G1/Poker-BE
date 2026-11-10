@@ -1,5 +1,6 @@
 package com.msspoker.shopservice.service.impl;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import com.msspoker.shopservice.client.WalletClient;
 import com.msspoker.shopservice.config.PaymentProperties;
 import com.msspoker.shopservice.dto.request.CreateOrderRequest;
@@ -12,7 +13,7 @@ import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.OrderStatus;
 import com.msspoker.shopservice.enums.PaymentProvider;
-import com.msspoker.shopservice.event.VipCoinTopupSuccessEvent;
+import com.msspoker.shopservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.shopservice.exception.OrderExceptions;
 import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.mapper.OrderMapper;
@@ -43,9 +44,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Service
@@ -66,6 +69,60 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentProperties paymentProperties;
     private final PaymentIdempotencyService paymentIdempotencyService;
 
+    /**
+     * Custom Epoch: 2026-01-01T00:00:00Z (1767225600000L).
+     * Giúp rút gọn phần timestamp mili-giây để nhường 5 chữ số cuối (100.000 vị trí/mili-giây)
+     * cho phần ngẫu nhiên của UUIDv7 mà vẫn nằm gọn trong giới hạn 53-bit MAX_SAFE_INTEGER (9007199254740991) của PayOS.
+     */
+    private static final long CUSTOM_EPOCH_MS = 1_767_225_600_000L;
+    private static final long ENTROPY_MODULO = 100_000L;
+    private static final AtomicLong LAST_ORDER_CODE = new AtomicLong(0L);
+
+    /**
+     * Chuyển đổi mã đơn từ UUIDv7 (time-ordered epoch) sang mã giao dịch số PayOS (53-bit safe integer).
+     * - 48-bit đầu của UUIDv7 chứa Unix epoch milliseconds -> đảm bảo mã đơn tăng dần từ thấp đến cao theo thời gian.
+     * - 74-bit ngẫu nhiên (SecureRandom + monotonic counter của UUIDv7) được trộn qua hàm băm SplitMix64
+     *   vào 5 chữ số cuối (100.000 khả năng mỗi mili-giây) -> chống trùng lặp khi nhiều tài khoản hoặc nhiều máy tạo đơn cùng lúc.
+     */
+    public static long generatePayosOrderCodeFromUuid(UUID orderUuid) {
+        long timestampMs = (orderUuid.getMostSignificantBits() >>> 16) & 0xFFFFFFFFFFFFL;
+        if (timestampMs <= CUSTOM_EPOCH_MS) {
+            timestampMs = System.currentTimeMillis();
+        }
+        long relativeMs = Math.floorMod(timestampMs - CUSTOM_EPOCH_MS, 89_000_000_000L);
+        if (relativeMs <= 0) {
+            relativeMs = 1L;
+        }
+
+        // Trích xuất toàn bộ 74 bit ngẫu nhiên & counter của UUIDv7 và khuếch tán đều bằng SplitMix64
+        long rawRandom = orderUuid.getLeastSignificantBits() ^ ((orderUuid.getMostSignificantBits() & 0xFFFFL) << 48);
+        rawRandom = (rawRandom ^ (rawRandom >>> 30)) * 0xbf58476d1ce4e5b9L;
+        rawRandom = (rawRandom ^ (rawRandom >>> 27)) * 0x94d049bb133111ebL;
+        rawRandom = rawRandom ^ (rawRandom >>> 31);
+
+        long uuidEntropy = Math.floorMod(rawRandom, ENTROPY_MODULO);
+        return relativeMs * ENTROPY_MODULO + uuidEntropy;
+    }
+
+    /**
+     * Sinh cặp (orderId UUIDv7, payosOrderCode) đảm bảo không bao giờ trùng lặp kể cả khi nhiều tài khoản
+     * bấm tạo đơn trong cùng 1 mili-giây:
+     * - Kiểm tra chống trùng trong bộ nhớ (LAST_ORDER_CODE) và trong Database (existsByPayosOrderCode).
+     */
+    private UUID allocateUniqueOrderUuid() {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            UUID candidateUuid = UuidCreator.getTimeOrderedEpoch();
+            long candidateCode = generatePayosOrderCodeFromUuid(candidateUuid);
+            long prevCode = LAST_ORDER_CODE.get();
+            if (candidateCode != prevCode
+                    && LAST_ORDER_CODE.compareAndSet(prevCode, candidateCode)
+                    && !orderRepository.existsByPayosOrderCode(candidateCode)) {
+                return candidateUuid;
+            }
+        }
+        return UuidCreator.getTimeOrderedEpoch();
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderResponse createOrder(UUID accountId, CreateOrderRequest request) {
@@ -80,11 +137,18 @@ public class OrderServiceImpl implements OrderService {
             return cachedOrder.get();
         }
 
-        // Database Idempotency Check
-        Optional<Order> existingOrderOpt = orderRepository.findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
+        // Database Idempotency Check (Sort giao dịch theo mã đơn số từ thấp đến cao để tránh race condition)
+        List<Order> pendingOrders = orderRepository.findByAccountIdAndProductIdAndStatusOrderByPayosOrderCodeAsc(
                 accountId, product.getId(), OrderStatus.PENDING);
-        if (existingOrderOpt.isPresent()) {
-            Order pendingOrder = existingOrderOpt.get();
+        if (pendingOrders == null || pendingOrders.isEmpty()) {
+            pendingOrders = orderRepository.findFirstByAccountIdAndProductIdAndStatusOrderByCreatedAtDesc(
+                    accountId, product.getId(), OrderStatus.PENDING).map(List::of).orElse(List.of());
+        }
+        List<Order> sortedPendingOrders = pendingOrders.stream()
+                .sorted(Comparator.comparingLong(Order::getPayosOrderCode))
+                .toList();
+
+        for (Order pendingOrder : sortedPendingOrders) {
             if (pendingOrder.getExpiresAt() != null && pendingOrder.getExpiresAt().isAfter(Instant.now())) {
                 log.info("Idempotent createOrder detected for accountId={}, productId={}. Returning existing order id={}, orderCode={}",
                         accountId, product.getId(), pendingOrder.getId(), pendingOrder.getPayosOrderCode());
@@ -95,7 +159,8 @@ public class OrderServiceImpl implements OrderService {
                 }
                 return response;
             } else {
-                log.info("Expiring stale pending order id={} for accountId={}", pendingOrder.getId(), accountId);
+                log.info("Expiring stale pending order id={}, orderCode={} for accountId={}",
+                        pendingOrder.getId(), pendingOrder.getPayosOrderCode(), accountId);
                 pendingOrder.setStatus(OrderStatus.CANCELLED);
                 orderRepository.save(pendingOrder);
                 paymentIdempotencyService.evictOrder(accountId, product.getId());
@@ -120,11 +185,9 @@ public class OrderServiceImpl implements OrderService {
             // Run validation qua OrderValidator
             orderValidator.validateCreateOrder(accountId, request, product);
 
-            // Generate atomic unique sequence-based PayOS order code
-            Long orderCode = orderRepository.generatePayosOrderCode();
-            if (orderCode == null) {
-                orderCode = System.currentTimeMillis();
-            }
+            // Sinh UUIDv7 duy nhất cho đơn hàng và chuyển đổi sang mã giao dịch PayOS (tăng dần theo thời gian, chống trùng đa tài khoản)
+            UUID orderId = allocateUniqueOrderUuid();
+            long orderCode = generatePayosOrderCodeFromUuid(orderId);
 
             Instant now = Instant.now();
             Instant expiresAt = now.plus(Duration.ofMinutes(paymentProperties.getExpireMinutes()));
@@ -142,7 +205,7 @@ public class OrderServiceImpl implements OrderService {
                         paymentProperties.getVietqrTemplateUrl(), activeConfig.getBankCode(), activeConfig.getAccountNumber(), product.getPriceVnd(), encodedDesc);
                 checkoutUrl = qrUrl;
                 qrCode = qrUrl;
-                log.info("Tạo mã VietQR chuyển khoản trực tiếp cho orderCode={}: {}", orderCode, qrUrl);
+                log.info("Tạo mã VietQR chuyển khoản trực tiếp cho orderId={}, orderCode={}: {}", orderId, orderCode, qrUrl);
             } else {
                 PaymentLinkItem item = PaymentLinkItem.builder()
                         .name(product.getName())
@@ -161,17 +224,18 @@ public class OrderServiceImpl implements OrderService {
                         .build();
 
                 try {
-                    log.info("Requesting PayOS payment link for orderCode={}, amount={}", orderCode, product.getPriceVnd());
+                    log.info("Requesting PayOS payment link for orderId={}, orderCode={}, amount={}", orderId, orderCode, product.getPriceVnd());
                     CreatePaymentLinkResponse payosResponse = payOS.paymentRequests().create(payosRequest);
                     checkoutUrl = payosResponse.getCheckoutUrl();
                     qrCode = payosResponse.getQrCode();
                 } catch (Exception ex) {
-                    log.error("Failed to create PayOS payment link for orderCode={}: {}", orderCode, ex.getMessage(), ex);
+                    log.error("Failed to create PayOS payment link for orderId={}, orderCode={}: {}", orderId, orderCode, ex.getMessage(), ex);
                     throw OrderExceptions.payosServiceError(ex.getMessage());
                 }
             }
 
             Order order = Order.builder()
+                    .id(orderId)
                     .accountId(accountId)
                     .product(product)
                     .amountVnd(product.getPriceVnd())
@@ -212,12 +276,25 @@ public class OrderServiceImpl implements OrderService {
             return cachedOrder.get();
         }
 
-        // 2. Database Idempotency Check
-        Optional<Order> existingBundleOrderOpt = orderRepository.findFirstByAccountIdAndBundleIdAndStatusOrderByCreatedAtDesc(
-                accountId, bundleId, OrderStatus.PENDING);
-        if (existingBundleOrderOpt.isPresent()) {
-            Order pendingOrder = existingBundleOrderOpt.get();
-            if (pendingOrder.getExpiresAt() != null && pendingOrder.getExpiresAt().isAfter(Instant.now())) {
+        // 2. Database & Active Pending Order Check (Sort giao dịch theo mã đơn số từ thấp đến cao để tránh race condition)
+        Instant checkNow = Instant.now();
+        List<Order> activePendingOrders = orderRepository.findByAccountIdAndStatusAndExpiresAtAfterOrderByPayosOrderCodeAsc(
+                accountId, OrderStatus.PENDING, checkNow);
+        if (activePendingOrders == null || activePendingOrders.isEmpty()) {
+            activePendingOrders = orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                    accountId, OrderStatus.PENDING, checkNow).map(List::of).orElse(List.of());
+        }
+        List<Order> sortedActivePending = activePendingOrders.stream()
+                .sorted(Comparator.comparingLong(Order::getPayosOrderCode))
+                .toList();
+
+        for (Order pendingOrder : sortedActivePending) {
+            // Sync with PayOS to see if user has already paid the previous order
+            syncOrderEntity(pendingOrder);
+            if (pendingOrder.getStatus() == OrderStatus.PAID) {
+                log.info("Previous pending order id={}, orderCode={} was already paid. Proceeding.",
+                        pendingOrder.getId(), pendingOrder.getPayosOrderCode());
+            } else if (pendingOrder.getBundle() != null && pendingOrder.getBundle().getId().equals(bundleId)) {
                 log.info("Idempotent createBundleOrder detected for accountId={}, bundleId={}. Returning existing bundle order id={}, orderCode={}",
                         accountId, bundleId, pendingOrder.getId(), pendingOrder.getPayosOrderCode());
                 OrderResponse response = orderMapper.toOrderResponse(pendingOrder);
@@ -227,12 +304,21 @@ public class OrderServiceImpl implements OrderService {
                 }
                 return response;
             } else {
-                log.info("Expiring stale pending bundle order id={} for accountId={}", pendingOrder.getId(), accountId);
+                // User switched bundles; cancel old pending order so user does not have dangling orders
+                log.info("User switched bundle or created new order. Cancelling previous pending order id={}, orderCode={}",
+                        pendingOrder.getId(), pendingOrder.getPayosOrderCode());
+                try {
+                    payOS.paymentRequests().cancel(pendingOrder.getPayosOrderCode(), "User switched to a different bundle");
+                } catch (Exception ex) {
+                    log.warn("Could not cancel previous order on PayOS gateway: {}", ex.getMessage());
+                }
                 pendingOrder.setStatus(OrderStatus.CANCELLED);
                 orderRepository.save(pendingOrder);
-                paymentIdempotencyService.evictOrder(accountId, bundleId);
+                paymentIdempotencyService.evictOrder(accountId,
+                        pendingOrder.getBundle() != null ? pendingOrder.getBundle().getId() : (pendingOrder.getProduct() != null ? pendingOrder.getProduct().getId() : bundleId));
             }
         }
+
 
         // 3. Khóa phân tán Redis chống race condition
         boolean lockAcquired = paymentIdempotencyService.acquireLock(accountId, bundleId, Duration.ofSeconds(10));
@@ -249,10 +335,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         try {
-            Long orderCode = orderRepository.generatePayosOrderCode();
-            if (orderCode == null) {
-                orderCode = System.currentTimeMillis();
-            }
+            UUID orderId = allocateUniqueOrderUuid();
+            long orderCode = generatePayosOrderCodeFromUuid(orderId);
 
             Instant now = Instant.now();
             Instant expiresAt = now.plus(Duration.ofMinutes(paymentProperties.getExpireMinutes()));
@@ -272,7 +356,7 @@ public class OrderServiceImpl implements OrderService {
                         paymentProperties.getVietqrTemplateUrl(), activeConfig.getBankCode(), activeConfig.getAccountNumber(), bundle.getPriceVnd(), encodedDesc);
                 checkoutUrl = qrUrl;
                 qrCode = qrUrl;
-                log.info("Tạo mã VietQR chuyển khoản trực tiếp cho bundle orderCode={}: {}", orderCode, qrUrl);
+                log.info("Tạo mã VietQR chuyển khoản trực tiếp cho bundle orderId={}, orderCode={}: {}", orderId, orderCode, qrUrl);
             } else {
                 PaymentLinkItem item = PaymentLinkItem.builder()
                         .name(bundle.getName())
@@ -291,17 +375,18 @@ public class OrderServiceImpl implements OrderService {
                         .build();
 
                 try {
-                    log.info("Requesting PayOS payment link for bundle orderCode={}, amount={}", orderCode, bundle.getPriceVnd());
+                    log.info("Requesting PayOS payment link for bundle orderId={}, orderCode={}, amount={}", orderId, orderCode, bundle.getPriceVnd());
                     CreatePaymentLinkResponse payosResponse = payOS.paymentRequests().create(payosRequest);
                     checkoutUrl = payosResponse.getCheckoutUrl();
                     qrCode = payosResponse.getQrCode();
                 } catch (Exception ex) {
-                    log.error("Failed to create PayOS payment link for bundle orderCode={}: {}", orderCode, ex.getMessage(), ex);
+                    log.error("Failed to create PayOS payment link for bundle orderId={}, orderCode={}: {}", orderId, orderCode, ex.getMessage(), ex);
                     throw OrderExceptions.payosServiceError(ex.getMessage());
                 }
             }
 
             Order order = Order.builder()
+                    .id(orderId)
                     .accountId(accountId)
                     .bundle(bundle)
                     .vipCoinAmount(bundle.getVipCoinAmount())
@@ -447,6 +532,32 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public OrderResponse getActivePendingOrder(UUID accountId) {
+        log.debug("Checking active pending order for accountId={}", accountId);
+        Instant now = Instant.now();
+        List<Order> pendingOrders = orderRepository.findByAccountIdAndStatusAndExpiresAtAfterOrderByPayosOrderCodeAsc(
+                accountId, OrderStatus.PENDING, now);
+        if (pendingOrders == null || pendingOrders.isEmpty()) {
+            pendingOrders = orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                    accountId, OrderStatus.PENDING, now).map(List::of).orElse(List.of());
+        }
+
+        List<Order> sortedPending = pendingOrders.stream()
+                .sorted(Comparator.comparingLong(Order::getPayosOrderCode))
+                .toList();
+
+        for (Order order : sortedPending) {
+            syncOrderEntity(order);
+            if (order.getStatus() == OrderStatus.PENDING) {
+                return orderMapper.toOrderResponse(order);
+            }
+        }
+
+        return null;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void reconcileOrder(UUID orderId) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null || order.getStatus() != OrderStatus.PENDING) {
@@ -522,24 +633,28 @@ public class OrderServiceImpl implements OrderService {
                     .timestamp(Instant.now())
                     .build();
 
+            // 1. Đồng bộ cộng VIP Coin tức thì qua HTTP để số dư hiển thị ngay lập tức trên FE mà không cần F5
+            try {
+                walletClient.creditVipCoin(
+                        order.getAccountId(),
+                        vipCoinAmount,
+                        "TOPUP_BUNDLE_PAYOS",
+                        String.valueOf(order.getPayosOrderCode()),
+                        "ORDER:" + order.getId()
+                );
+                log.info("Đã đồng bộ cộng {} VIP Coin tức thì cho accountId={}, orderId={}",
+                        vipCoinAmount, order.getAccountId(), order.getId());
+            } catch (Exception httpEx) {
+                log.warn("Đồng bộ HTTP tức thì sang wallet-service chưa hoàn tất (sẽ xử lý qua RabbitMQ): {}", httpEx.getMessage());
+            }
+
+            // 2. Phát sự kiện RabbitMQ đảm bảo tính nhất quán bất đồng bộ (Idempotent theo key ORDER:{orderId})
             try {
                 topupEventProducer.sendTopupSuccessEvent(event);
                 log.info("Đã phát sự kiện nạp VIP Coin cho bundle orderId={}, accountId={}, vipCoin={}",
                         order.getId(), order.getAccountId(), vipCoinAmount);
             } catch (Exception ex) {
-                log.warn("Không thể gửi event RabbitMQ: {}. Kích hoạt HTTP fallback sang wallet-service.", ex.getMessage());
-                try {
-                    walletClient.creditVipCoin(
-                            order.getAccountId(),
-                            vipCoinAmount,
-                            "TOPUP_BUNDLE_PAYOS",
-                            String.valueOf(order.getPayosOrderCode()),
-                            "ORDER:" + order.getId()
-                    );
-                    log.info("HTTP Fallback: Đã cộng {} VIP Coin thành công cho accountId={}", vipCoinAmount, order.getAccountId());
-                } catch (Exception httpEx) {
-                    log.error("HTTP Fallback sang wallet-service cũng thất bại: {}", httpEx.getMessage(), httpEx);
-                }
+                log.warn("Không thể gửi event RabbitMQ cho orderId={}: {}", order.getId(), ex.getMessage());
             }
         } else if (order.getProduct() != null) {
             String grantKey = "ORDER:" + order.getId();
@@ -554,6 +669,7 @@ public class OrderServiceImpl implements OrderService {
                         .source(ItemSource.PURCHASE)
                         .isEquipped(false)
                         .grantKey(grantKey)
+                        .pricePaidVipCoin(order.getProduct().getPriceVipCoin())
                         .build();
                 inventoryItemRepository.save(item);
                 log.info("Đã cấp vật phẩm productId={} cho accountId={} từ orderId={}",

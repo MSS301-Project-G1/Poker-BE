@@ -8,6 +8,7 @@ import com.msspoker.competitionservice.service.client.WalletClient;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -25,13 +26,14 @@ public class WalletClientImpl implements WalletClient {
     private final RestClient wallet;
     private final boolean mock;
 
-    public WalletClientImpl(@Value("${competition.wallet-url:http://localhost:8089}") String url,
+    public WalletClientImpl(@LoadBalanced RestClient.Builder restClients,
+            @Value("${competition.wallet-url:http://wallet-service}") String url,
             @Value("${competition.wallet-timeout-millis:3000}") long timeoutMillis,
             @Value("${competition.wallet.mock:false}") boolean mock) {
         Duration timeout = Duration.ofMillis(timeoutMillis);
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
         factory.setReadTimeout(timeout);
-        wallet = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        wallet = restClients.clone().baseUrl(url).requestFactory(factory).build();
         this.mock = mock;
     }
 
@@ -57,7 +59,8 @@ public class WalletClientImpl implements WalletClient {
                 throw CompetitionExceptions.insufficientBalance();
             }
             throw CompetitionExceptions.walletUnavailable();
-        } catch (RestClientException ex) {
+        } catch (RestClientException | IllegalStateException ex) {
+            // IllegalStateException: no registered instance of the service.
             throw CompetitionExceptions.walletUnavailable();
         }
     }

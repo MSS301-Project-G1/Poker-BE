@@ -7,7 +7,9 @@ import com.msspoker.shopservice.entity.CoinBundle;
 import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.mapper.CoinBundleMapper;
 import com.msspoker.shopservice.repository.CoinBundleRepository;
+import com.msspoker.shopservice.repository.OrderRepository;
 import com.msspoker.shopservice.validator.CoinBundleValidator;
+import com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,9 @@ class CoinBundleServiceImplTest {
     @Mock
     private CoinBundleRepository coinBundleRepository;
 
+    @Mock
+    private OrderRepository orderRepository;
+
     @Spy
     private CoinBundleMapper coinBundleMapper = Mappers.getMapper(CoinBundleMapper.class);
 
@@ -46,7 +51,7 @@ class CoinBundleServiceImplTest {
         coinBundleService = new CoinBundleServiceImpl(
                 coinBundleRepository,
                 coinBundleMapper,
-                new com.msspoker.shopservice.validator.impl.CoinBundleValidatorImpl(coinBundleRepository)
+                new CoinBundleValidatorImpl(coinBundleRepository, orderRepository)
         );
 
         bundleId = UUID.randomUUID();
@@ -134,6 +139,7 @@ class CoinBundleServiceImplTest {
     @Test
     @DisplayName("updateBundle thành công cập nhật thông tin gói nạp")
     void updateBundleSuccess() {
+        bundle.setActive(false);
         UpdateCoinBundleRequest request = UpdateCoinBundleRequest.builder()
                 .name("Gói 50k Siêu Ưu Đãi")
                 .priceVnd(45_000L)
@@ -142,7 +148,7 @@ class CoinBundleServiceImplTest {
                 .bonusPercentage(20)
                 .badgeLabel("SIEU_HOT")
                 .sortOrder(1)
-                .isActive(true)
+                .isActive(false)
                 .build();
 
         when(coinBundleRepository.findById(bundleId)).thenReturn(Optional.of(bundle));
@@ -153,6 +159,21 @@ class CoinBundleServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("Gói 50k Siêu Ưu Đãi");
         assertThat(response.priceVnd()).isEqualTo(45_000L);
+    }
+
+    @Test
+    @DisplayName("updateBundle ném BadRequest khi gói nạp đang ở trạng thái Hoạt Động (active)")
+    void updateBundleThrowsWhenActive() {
+        bundle.setActive(true);
+        when(coinBundleRepository.findById(bundleId)).thenReturn(Optional.of(bundle));
+
+        UpdateCoinBundleRequest request = UpdateCoinBundleRequest.builder()
+                .name("Gói Sửa")
+                .build();
+
+        assertThatThrownBy(() -> coinBundleService.updateBundle(bundleId, request))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("Tắt Bán");
     }
 
     @Test
@@ -172,12 +193,51 @@ class CoinBundleServiceImplTest {
     }
 
     @Test
+    @DisplayName("toggleActive với explicit isActive cập nhật chính xác trạng thái")
+    void toggleActiveWithExplicitStatusSuccess() {
+        when(coinBundleRepository.findById(bundleId)).thenReturn(Optional.of(bundle));
+        when(coinBundleRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CoinBundleResponse response = coinBundleService.toggleActive(bundleId, false);
+        assertThat(response.isActive()).isFalse();
+
+        when(coinBundleRepository.findById(bundleId)).thenReturn(Optional.of(bundle));
+        CoinBundleResponse response2 = coinBundleService.toggleActive(bundleId, true);
+        assertThat(response2.isActive()).isTrue();
+    }
+
+    @Test
     @DisplayName("deleteBundle thành công xóa gói nạp khỏi repository")
     void deleteBundleSuccess() {
+        bundle.setActive(false);
         when(coinBundleRepository.findById(bundleId)).thenReturn(Optional.of(bundle));
+        when(orderRepository.existsByBundleId(bundleId)).thenReturn(false);
 
         coinBundleService.deleteBundle(bundleId);
 
         verify(coinBundleRepository).delete(bundle);
+    }
+
+    @Test
+    @DisplayName("deleteBundle ném BadRequest khi gói nạp đang ở trạng thái Hoạt Động (active)")
+    void deleteBundleThrowsWhenActive() {
+        bundle.setActive(true);
+        when(coinBundleRepository.findById(bundleId)).thenReturn(Optional.of(bundle));
+
+        assertThatThrownBy(() -> coinBundleService.deleteBundle(bundleId))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("Tắt Bán");
+    }
+
+    @Test
+    @DisplayName("deleteBundle ném Conflict khi gói nạp đã từng có người mua (order history)")
+    void deleteBundleThrowsWhenHasOrderHistory() {
+        bundle.setActive(false);
+        when(coinBundleRepository.findById(bundleId)).thenReturn(Optional.of(bundle));
+        when(orderRepository.existsByBundleId(bundleId)).thenReturn(true);
+
+        assertThatThrownBy(() -> coinBundleService.deleteBundle(bundleId))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("lịch sử giao dịch");
     }
 }

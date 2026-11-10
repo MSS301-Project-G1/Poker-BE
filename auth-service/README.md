@@ -1,5 +1,13 @@
 # auth-service
 
+**04/11/2026:** đã có ADMIN quản lý user, ban/unban có thời hạn hoặc đến khi gỡ, lịch sử và
+`GET /internal/accounts/{id}/restrictions`. Xem [ADMIN-USERS.md](ADMIN-USERS.md) để chạy và test;
+auth dùng migration V11, FE nằm ở nhánh `feat/ban-user`.
+
+**01/11/2026:** đã thêm một phiên login/một tab hoạt động, `X-Tab-Id` và API tiếp quản tab.
+Đọc [SESSION-PROTECTION.md](SESSION-PROTECTION.md) trước khi chạy FE hoặc test Swagger;
+lần nâng cấp V10 cần login lại.
+
 Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ với outbox,
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
 Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
@@ -146,7 +154,7 @@ Root `docker-compose.yml` include infra và auth nên dùng được cấu hình
 Các lệnh auth riêng bên dưới ghép file bằng `-f`, không dùng root làm base.
 
 Auth ở `http://localhost:8090`. Cấu hình chính không publish port PostgreSQL;
-RabbitMQ kế thừa port AMQP `127.0.0.1:56729` và UI `http://localhost:15679` từ infra.
+RabbitMQ kế thừa port AMQP `127.0.0.1:5679` và UI `http://localhost:15679` từ infra.
 Auth mặc định dùng `guest`/`guest` để khớp broker chung. Auth trong Docker luôn
 kết nối `rabbitmq:5672`. Nếu `.env` đang đặt `AUTH_RABBIT_USERNAME=poker` và
 `AUTH_RABBIT_PASSWORD=poker_dev`, khi chạy root/cấu hình chung cần đổi thành
@@ -157,7 +165,7 @@ kết nối `rabbitmq:5672`. Nếu `.env` đang đặt `AUTH_RABBIT_USERNAME=pok
 `auth-service/compose.dev.yml` chỉ chứa các khác biệt dành cho dev:
 
 - `auth-service`: bind API vào localhost và đổi credential RabbitMQ mặc định thành `poker`/`poker_dev`.
-- `auth-postgres`: mở PostgreSQL ở `127.0.0.1:54330` để dùng DBeaver/IDE.
+- `auth-postgres`: mở PostgreSQL ở `127.0.0.1:15430` để dùng DBeaver/IDE.
 - `auth-mailpit`: mở SMTP ở `127.0.0.1:1026` khi bật profile `mailpit`.
 - `rabbitmq`: ghi đè broker infra bằng image `4.1-management-alpine`, credential mặc định `poker`/`poker_dev`, volume `auth-rabbit`; port AMQP `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
 
@@ -308,7 +316,7 @@ port DB; file dev chỉ bổ sung port host. Auth trong Docker luôn kết nối
 Cấu hình chính và dev dùng cùng database/volume. Không bật đồng thời app Java
 trên host và container auth trên cùng port 8090.
 
-Flyway áp dụng V1–V6 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
+Flyway áp dụng V1–V11 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
 `password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`, V7 thêm danh mục avatar S3; không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
 không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,
@@ -406,8 +414,8 @@ và bộ đếm cũ. Kiểm tra cấu hình SMTP/log chung nếu không nhận �
 đồng bộ, chưa bảo đảm thời gian phản hồi đồng nhất giữa email tồn tại và không tồn tại.
 
 Reset thành công thu hồi mọi refresh token của đúng account và xóa access/refresh
-cookie trình duyệt hiện tại, chưa tự login. Access JWT đã phát vẫn hợp lệ tới hạn;
-chưa có blacklist. Không ảnh hưởng phiên của account khác.
+cookie trình duyệt hiện tại, chưa tự login. Kiểm tra phiên chặn cả access JWT của
+phiên đã thu hồi dù JWT còn hạn. Không ảnh hưởng phiên của account khác.
 Lỗi reset gồm `AUTH_OTP_INVALID`/`AUTH_OTP_EXPIRED` (400),
 `AUTH_OTP_ATTEMPTS_EXCEEDED` (429), `AUTH_PASSWORD_MISMATCH`/`AUTH_PASSWORD_INVALID` (400).
 Response thành công dùng `ApiResponse` không có `result`; lỗi dùng `ErrorResponse` chung.
@@ -436,47 +444,50 @@ không tự refresh/retry do lỗi này. Sai xác nhận trả 400 `AUTH_PASSWOR
 
 Thành công trả 200 `ApiResponse` không có `result`, đổi password hash, thu hồi mọi
 refresh token của đúng account, hủy OTP khôi phục đang chờ và xóa cookie trình duyệt
-hiện tại. FE xóa cache user và về login, chưa tự đăng nhập lại. Access JWT đã phát vẫn
-sống tới hạn theo cơ chế hiện tại. Thất bại giữ nguyên dữ liệu/phiên/cookie.
+hiện tại. FE xóa cache user và về login, chưa tự đăng nhập lại. Access JWT của phiên
+bị thu hồi cũng bị chặn. Thất bại giữ nguyên dữ liệu/phiên/cookie.
 Không cần migration hoặc biến môi trường mới. Hợp đồng và hướng dẫn FE ở
 [change-password.md](../docs/auth/change-password.md). SPEC chờ Khanh review.
 
 ## Test login/refresh/logout bằng Swagger
 
-1. Dùng tài khoản đã xác thực OTP. Mở nhóm **Phiên đăng nhập**.
+1. Dùng tài khoản đã xác thực OTP. Mở nhóm **Phiên đăng nhập**; Authorize → `tabId`:
+   nhập UUID riêng của tab từ `crypto.randomUUID()` và giữ nguyên khi test.
 2. Gọi `GET /api/auth/csrf`, copy `result.token` vào **Authorize → csrfToken**.
    Trình duyệt tự giữ cookie `XSRF-TOKEN`; khi mất cookie hoặc đổi trình duyệt, lấy lại CSRF token.
 3. Gọi `POST /api/auth/login` với `email`, `password`. Trình duyệt giữ cookie
-   `accessToken` và `refreshToken` HttpOnly; response chỉ chứa accountId/email/role và hạn token.
+   `accessToken` và `refreshToken` HttpOnly; response chứa accountId/email/role, hạn token, sessionId/tabId.
 4. Gọi `GET /api/auth/me` để xem danh tính và profile cơ bản.
 5. Gọi `POST /api/auth/refresh`: đổi cả hai token, giữ nguyên ngày hết hạn của phiên từ lần login.
 6. Gọi `POST /api/auth/logout`: thu hồi refresh token tại BE và xóa cả hai cookie.
-   `me` sau khi trình duyệt xóa cookie trả 401; thiết bị khác vẫn đăng nhập.
+   Access của phiên đã thu hồi cũng bị chặn; login mới đã thay mọi phiên cũ của cùng account.
 
-Không cần nhập access JWT vào Authorize; mục Authorize là **CSRF token**.
+Không cần nhập access JWT vào Authorize; hai mục dùng là **csrfToken** và **tabId**.
 CSRF áp dụng cả login/refresh/logout; các API đăng ký/OTP vẫn public và không cần CSRF token.
 Local dùng HTTP, `AUTH_COOKIE_SECURE=false`, SameSite=Lax; khi deploy HTTPS đặt Secure=true
 và cấu hình CORS bằng origin FE thực tế. Không dùng wildcard CORS với cookie.
 
 FE `http://localhost:5173` dùng `credentials: "include"` với fetch hoặc
 `withCredentials: true` với Axios. Lấy CSRF token từ JSON, gửi header `X-XSRF-TOKEN`
-trong login/refresh/logout. F5 gọi `me`; nếu 401 thì gọi refresh rồi thử lại `me` một lần.
-Các request 401 đồng thời dùng chung một promise refresh; không chạy nhiều refresh song song.
-Nếu refresh trả 401 thì chuyển về login. Refresh lỗi không xóa cookie tự động để tránh
+trong login/refresh/logout/claim. Mỗi document mới tạo `X-Tab-Id`, gọi `session/claim`
+một lần rồi `me`; không claim khi focus. Tab chủ tự refresh khi access hết hạn bình thường.
+Các request 401 đồng thời dùng chung một promise refresh; các tab dùng chung Web Lock.
+`AUTH_SESSION_REPLACED`/`AUTH_TAB_REPLACED` khóa app, không refresh hoặc logout.
+Nếu refresh hết hạn thì chuyển về login. Refresh lỗi không xóa cookie tự động để tránh
 request thua ghi đè cookie của request thắng. Hết 7 ngày từ login phải đăng nhập lại.
 Giới hạn login sai để phase sau theo xác nhận của Khanh; OTP vẫn giữ giới hạn riêng.
 
 `GET /.well-known/jwks.json` trả public RSA key, không trả private key.
-JWT có `iss`, `aud`, UUID `sub`, `role` (USER/ADMIN), `iat`, `nbf`, `exp`, `jti` và ký RS256.
+JWT có `iss`, `aud`, UUID `sub`, `role` (USER/ADMIN), `iat`, `nbf`, `exp`, `jti`, `sid` và ký RS256.
 Issuer/audience mặc định `http://localhost:8090`/`poker`, cần thống nhất khi nối gateway/game ở phase 4.
 `GET /api/auth/ws-token` dùng access cookie để lấy JWT hiện tại cho STOMP
-`CONNECT` header `Authorization: Bearer <token>`. Giữ JWT trong bộ nhớ FE; không lưu localStorage.
-Endpoint hoạt động cả trực tiếp lẫn qua gateway; chưa nối STOMP thật tới game.
+`CONNECT` header `Authorization: Bearer <token>` cùng `X-Tab-Id`. Giữ JWT trong bộ nhớ FE; không lưu localStorage.
+Endpoint hoạt động cả trực tiếp lẫn qua gateway; game/social/chat kiểm tra cả quyền phiên/tab.
 Gateway xác thực access cookie và chuyển nguyên JWT/cookie tới auth.
 
 Refresh token ngẫu nhiên 256 bit; DB chỉ lưu SHA-256 hash. Token cũ sau rotation bị từ chối,
-không có cơ chế tự thu hồi cả chuỗi hoặc logout all. Logout không chặn access JWT đã cấp:
-bản sao vẫn hợp lệ đến hạn, đúng phạm vi phase hiện tại.
+không có cơ chế tự thu hồi cả chuỗi hoặc logout all. Login mới thay mọi phiên cũ;
+logout thu hồi phiên hiện tại và kiểm tra trạng thái phiên chặn bản sao access JWT đã cấp.
 
 Khóa ký được tạo một lần khi `AUTH_JWT_GENERATE_KEY=true`; Compose lưu trong named volume
 `auth-keys` tại `/app/keys/jwt-private.pem`. Java trên host lưu ở `.local/auth/jwt-private.pem`,

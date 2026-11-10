@@ -35,4 +35,12 @@ public final class WalletExceptions {
                 "Xung đột giao dịch đồng thời, vui lòng thử lại."
         );
     }
+
+    public static AppException transactionNotFound() {
+        return AppException.of(
+                HttpStatus.NOT_FOUND,
+                "WALLET_TRANSACTION_NOT_FOUND",
+                "Không tìm thấy giao dịch tương ứng."
+        );
+    }
 }

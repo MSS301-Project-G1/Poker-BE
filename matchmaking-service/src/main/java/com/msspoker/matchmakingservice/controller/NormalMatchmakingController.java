@@ -3,7 +3,7 @@ package com.msspoker.matchmakingservice.controller;
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
-import com.msspoker.matchmakingservice.service.NormalMatchmakingService;
+import com.msspoker.matchmakingservice.service.normal.NormalMatchmakingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;

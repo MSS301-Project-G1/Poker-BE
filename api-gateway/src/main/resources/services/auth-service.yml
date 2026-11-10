@@ -37,6 +37,7 @@ gateway:
           - /api/auth/login
           - /api/auth/refresh
           - /api/auth/logout
+          - /api/auth/session/claim
         - method: GET
           paths:
           - /.well-known/jwks.json

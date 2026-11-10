@@ -151,7 +151,7 @@ Không thêm Eureka hoặc Config Server trong MVP.
 - RabbitMQ dùng chung duy nhất nằm trong `docker/compose.infra.yml` với service name
   `rabbitmq`. Không tạo RabbitMQ riêng trong compose của Matchmaking.
 - Khi chạy trong Docker, kết nối broker bằng `rabbitmq:5672`; cổng
-  `127.0.0.1:56729` chỉ dành cho chương trình chạy trực tiếp từ máy host.
+  `127.0.0.1:5679` chỉ dành cho chương trình chạy trực tiếp từ máy host.
 - `matchmaking-service/compose.yml` tự khai báo PostgreSQL và Redis của Matchmaking.
 - Container Matchmaking nối cả `default` network để gọi RabbitMQ/service khác và
   `matchmaking-net` để truy cập database/Redis riêng.
@@ -221,21 +221,12 @@ matchmaking-service/
     │   │   │   ├── WalletOperationRepository.java
     │   │   │   └── OutboxRepository.java
     │   │   ├── service/
-    │   │   │   ├── NormalMatchmakingService.java
-    │   │   │   ├── QueueStore.java
-    │   │   │   ├── GameClient.java
-    │   │   │   ├── NormalMatchCoordinator.java
-    │   │   │   └── ProposalPersistenceService.java
-    │   │   ├── service/impl/
-    │   │   │   ├── NormalMatchmakingServiceImpl.java
-    │   │   │   ├── RedisQueueStore.java
-    │   │   │   ├── NormalMatchCoordinatorImpl.java
-    │   │   │   ├── ProposalPersistenceServiceImpl.java
-    │   │   │   ├── HttpGameClient.java
-    │   │   │   ├── StubGameClient.java
-    │   │   │   └── worker/
-    │   │   │       ├── NormalMatchWorker.java
-    │   │   │       └── NormalRecoveryWorker.java
+    │   │   │   ├── normal/       # interface + impl/ + worker/
+    │   │   │   ├── rank/         # interface + impl/ + worker/
+    │   │   │   ├── party/        # interface + impl/
+    │   │   │   ├── proposal/     # interface + impl/
+    │   │   │   ├── store/        # interface + redis/
+    │   │   │   └── client/       # interface + http/ + stub/
     │   │   └── util/MatchmakingIds.java
     │   └── resources/
     │       ├── application.properties

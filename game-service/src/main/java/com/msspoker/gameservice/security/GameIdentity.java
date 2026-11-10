@@ -22,6 +22,10 @@ public class GameIdentity {
     @Value("${game.jwt.audience:}") private String audience;
     private volatile JwtDecoder decoder;
 
+    public boolean developmentEnabled() {
+        return environment.acceptsProfiles(Profiles.of(GameHeaders.DEV_PROFILE));
+    }
+
     public Principal authenticate(String authorization, String devUser) {
         try {
             UUID id;

@@ -42,14 +42,18 @@ class ProfileBatchTests {
     @Autowired private ProfileRepository profiles;
     @Autowired private EntityManager entityManager;
     @Autowired private JwtService jwtService;
+    @Autowired private com.msspoker.authservice.repository.RefreshTokenRepository sessionTokens;
     private MockMvc mvc;
     private Cookie access;
+    private Account caller;
 
     @BeforeEach
     void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
-        Account caller = account();
-        access = new Cookie("accessToken", jwtService.issue(caller, Instant.now().plusSeconds(900)));
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
+        caller = account();
+        access = new Cookie("accessToken", TestSessions.issue(jwtService, sessionTokens, caller, Instant.now().plusSeconds(900)));
     }
 
     @Test
@@ -101,6 +105,63 @@ class ProfileBatchTests {
         mvc.perform(get(PATH).param("ids", UUID.randomUUID().toString()).cookie(access))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result", hasSize(0)));
+    }
+
+    @Test
+    void searchesDuplicateNamesUsingPublicCodesAndHidesPrivateFieldsAndUnavailableAccounts() throws Exception {
+        Account first = account();
+        Account second = account();
+        Account deleted = account();
+        Account inactive = account();
+        profile(first, "FindMe");
+        profile(second, "FindMe");
+        profile(caller, "FindMe");
+        profile(deleted, "FindMe");
+        profile(inactive, "FindMe");
+        deleted.setDeleted(true);
+        accounts.saveAndFlush(deleted);
+        inactive.setAccountStatus(AccountStatus.PENDING_VERIFICATION);
+        accounts.saveAndFlush(inactive);
+        entityManager.clear();
+        String code = profiles.findById(first.getId()).orElseThrow().getPlayerCode();
+        org.junit.jupiter.api.Assertions.assertTrue(code.matches("PK[0-9]+"));
+        org.junit.jupiter.api.Assertions.assertNotEquals(code,
+                profiles.findById(second.getId()).orElseThrow().getPlayerCode());
+
+        mvc.perform(get("/api/profiles/search").param("q", "findme").cookie(access))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result", hasSize(2)))
+                .andExpect(jsonPath("$.result[0]", org.hamcrest.Matchers.aMapWithSize(4)))
+                .andExpect(jsonPath("$.result[0].email").doesNotExist());
+        mvc.perform(get("/api/profiles/search").param("q", code.toLowerCase()).cookie(access))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result", hasSize(1)))
+                .andExpect(jsonPath("$.result[0].accountId").value(first.getId().toString()))
+                .andExpect(jsonPath("$.result[0].playerCode").value(code));
+        mvc.perform(get("/api/profiles/search").param("q", "%_").cookie(access))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.result", hasSize(0)));
+    }
+
+    @Test
+    void ownCodeStaysTheSameAfterChangingNameAndSearchRequiresAuthenticationAndValidQuery() throws Exception {
+        profile(caller, "Before");
+        Profile own = profiles.findById(caller.getId()).orElseThrow();
+        String code = own.getPlayerCode();
+        own.setDisplayName("After");
+        profiles.saveAndFlush(own);
+        entityManager.clear();
+        mvc.perform(get("/api/profiles/players/me").cookie(access))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.playerCode").value(code))
+                .andExpect(jsonPath("$.result.displayName").value("After"));
+        mvc.perform(get("/api/profiles/search").param("q", "After"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/profiles/players/me"))
+                .andExpect(status().isUnauthorized());
+        for (String query : new String[]{"", "a", "x".repeat(101)}) {
+            mvc.perform(get("/api/profiles/search").param("q", query).cookie(access))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test

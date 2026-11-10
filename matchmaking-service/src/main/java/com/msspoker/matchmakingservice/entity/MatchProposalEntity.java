@@ -45,6 +45,13 @@ public class MatchProposalEntity {
         return proposal;
     }
 
+    public static MatchProposalEntity normalPending(UUID id, Instant now, Instant deadline) {
+        MatchProposalEntity proposal = normal(id, now);
+        proposal.status = ProposalStatus.WAITING_ACCEPTANCE;
+        proposal.acceptDeadline = deadline;
+        return proposal;
+    }
+
     public static MatchProposalEntity rank(
             UUID id,
             long entryFee,

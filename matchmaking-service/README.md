@@ -18,6 +18,30 @@ kiểm thử E2E qua Gateway.
 
 `Custom room` thuộc `competition-service`, không thuộc Swagger của Matchmaking.
 
+## Cấu trúc service
+
+```text
+service/
+├── normal/       # Interface nghiệp vụ Normal
+│   ├── impl/     # Ghép trận, proposal, coordinator Normal
+│   └── worker/   # Ghép và phục hồi trận Normal
+├── rank/         # Interface nghiệp vụ Rank
+│   ├── impl/     # Ghép Elo, xác nhận, trạng thái và coordinator Rank
+│   └── worker/   # Ghép trận, hết hạn proposal và phục hồi Rank
+├── party/
+│   └── impl/     # Tạo, vào, kick và rời nhóm
+├── proposal/
+│   └── impl/     # Lưu proposal dùng chung trong PostgreSQL
+├── store/        # Interface QueueStore, PartyStore
+│   └── redis/    # RedisQueueStore, RedisPartyStore
+└── client/       # Interface gọi Game, Ranking, Restriction, Wallet
+    ├── http/     # Client HTTP thực tế
+    └── stub/     # Client giả lập
+```
+
+Test phản chiếu cùng cấu trúc package trong `src/test/java`. Controller gọi interface;
+worker nằm cùng nhóm Normal/Rank và gọi service của nhóm đó.
+
 ## API Party
 
 API giữ cách đặt tên hiện tại của module:
@@ -25,15 +49,14 @@ API giữ cách đặt tên hiện tại của module:
 ```http
 GET    /api/party/me
 POST   /api/party/create
-POST   /api/party/invite
 POST   /api/party/join
 POST   /api/party/kick
 DELETE /api/party/leave
 ```
 
-Party được lưu trong Redis. Chỉ chủ party được mời hoặc kick; người được mời vào bằng mã gồm
-8 ký tự; tối đa mặc định 6 thành viên. Khi chủ rời, quyền chủ chuyển cho thành viên vào sớm nhất;
-người cuối cùng rời sẽ giải tán party.
+Party được lưu trong Redis. Chỉ chủ party được kick; người chơi vào bằng mã gồm
+8 ký tự và mật khẩu 6 số; tối đa mặc định 6 thành viên. Khi chủ rời, nhóm giải tán và
+toàn bộ thành viên rời theo. Thành viên thường rời riêng, không đổi chủ nhóm.
 
 Chủ Party dùng chính `POST /api/matchmaking/normal/join` để đưa toàn bộ nhóm vào queue và dùng
 `DELETE /api/matchmaking/normal/leave` để hủy cho cả nhóm. Thành viên thường không được tự gọi
@@ -96,7 +119,7 @@ anchor, chỉ chọn account trong cửa sổ Elo cố định, sau đó ưu ti�
 
 `minPlayers` và `maxPlayers` của cả Normal lẫn Rank được đọc từ Game Match Settings do Admin quản
 lý, mặc định `2–6`. Đủ `minPlayers` thì chạy fill countdown 10 giây; đủ `maxPlayers` thì tạo
-proposal ngay. Proposal Rank trả `PROPOSED` và `acceptDeadline` 10 giây. Người decline hoặc không
+proposal ngay. Proposal Rank trả `PROPOSED` và `acceptDeadline` 30 giây. Người decline hoặc không
 accept bị cooldown 2 phút; người còn lại được requeue giữ `joinedAt` và snapshot Elo/streak.
 
 Khi tất cả accept, Matchmaking debit phí bằng key `rank-fee:{proposalId}:{accountId}`, rồi gọi Game
@@ -133,7 +156,7 @@ Redis hiện chỉ hỗ trợ deployment standalone vì các Lua operation chạ
 | `MATCHMAKING_NORMAL_FILL_TIMEOUT` | `10s` |
 | `MATCHMAKING_RANK_ELO_WINDOW` | `100` |
 | `MATCHMAKING_RANK_FILL_TIMEOUT` | `10s` |
-| `MATCHMAKING_RANK_ACCEPT_TIMEOUT` | `10s` |
+| `MATCHMAKING_RANK_ACCEPT_TIMEOUT` | `30s` |
 | `MATCHMAKING_RANK_COOLDOWN` | `2m` |
 | `MATCHMAKING_RANKING_STUB_ENABLED` | `false` |
 | `MATCHMAKING_RESTRICTION_STUB_ENABLED` | `false` (`true` mặc định trong Compose develop) |
@@ -172,3 +195,12 @@ docker compose -f docker/compose.infra.yml -f matchmaking-service/compose.yml up
 
 Compose dùng PostgreSQL `matchmaking-db`, Redis riêng `matchmaking-redis` và RabbitMQ
 chung từ `docker/compose.infra.yml`.
+
+
+## Match confirmation flow (2026-10-24)
+
+- Normal and Rank: `MATCHMAKING_NORMAL_FILL_TIMEOUT` / `MATCHMAKING_RANK_FILL_TIMEOUT` default to `30s`. At the admin minimum (local: 2), start the fill deadline. Even a full roster waits until the deadline; dropping below minimum cancels it.
+- Both modes now expose `PROPOSED` and require every member to POST `/api/matchmaking/proposals/{proposalId}/accept` before table creation. POST the same resource `/decline` to refuse.
+- Acceptance is a separate deadline: `MATCHMAKING_NORMAL_ACCEPT_TIMEOUT` / `MATCHMAKING_RANK_ACCEPT_TIMEOUT` default `30s`.
+- A Normal refusal/expiry ends the whole proposal, discards all its queue entries and unlocks queued parties; party membership survives. Clients return to the lobby/search screen. Cleanup is retried by the scheduler. Rank keeps its existing cooldown and requeue rules.
+- Normal Game creation begins only on the last acceptance. Recovery continues using the same proposal ID, preserving idempotent table creation.

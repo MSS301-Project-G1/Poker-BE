@@ -7,6 +7,7 @@ import com.msspoker.shopservice.dto.response.CategoryResponse;
 import com.msspoker.shopservice.entity.Category;
 import com.msspoker.shopservice.mapper.ProductMapper;
 import com.msspoker.shopservice.repository.CategoryRepository;
+import com.msspoker.shopservice.repository.ProductRepository;
 import com.msspoker.shopservice.service.CategoryService;
 import com.msspoker.shopservice.validator.CategoryValidator;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ import java.util.UUID;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
     private final ProductMapper productMapper;
     private final CategoryValidator categoryValidator;
 
@@ -75,13 +77,17 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    @CacheEvict(value = RedisConfig.CACHE_CATEGORIES, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_CATEGORIES, allEntries = true),
+            @CacheEvict(value = RedisConfig.CACHE_PRODUCTS_CATALOG, allEntries = true)
+    })
     public void deleteCategory(UUID id) {
         log.info("Deleting category id={}", id);
         Category category = categoryRepository.findById(id).orElse(null);
 
         categoryValidator.validateForDelete(id, category);
 
+        productRepository.deleteAllByCategoryId(id);
         categoryRepository.delete(category);
         log.info("Deleted category id={}", id);
     }

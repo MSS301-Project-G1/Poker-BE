@@ -6,5 +6,5 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record SessionResponse(UUID accountId, String email, AccountRole role,
-        Instant accessExpiresAt, Instant refreshExpiresAt) {
+        Instant accessExpiresAt, Instant refreshExpiresAt, UUID sessionId, UUID tabId) {
 }

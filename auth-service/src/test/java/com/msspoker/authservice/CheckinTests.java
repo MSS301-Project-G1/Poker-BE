@@ -67,6 +67,7 @@ class CheckinTests {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private MutableClock clock;
+    @Autowired private com.msspoker.authservice.repository.RefreshTokenRepository sessionTokens;
     private MockMvc mvc;
     private Account caller;
     private Cookie access;
@@ -89,8 +90,10 @@ class CheckinTests {
         WALLET.onCredit.set(null);
         clock.now.set(NOW);
         caller = account();
-        access = new Cookie("accessToken", jwt.issue(caller, NOW.plusSeconds(3600)));
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        access = new Cookie("accessToken", TestSessions.issue(jwt, sessionTokens, caller, NOW.plusSeconds(3600)));
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+                .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                        .header("X-Tab-Id", TestSessions.TAB)).build();
         var response = mvc.perform(get("/api/auth/csrf")).andReturn().getResponse();
         csrfCookie = response.getCookie("XSRF-TOKEN");
         csrf = json.readTree(response.getContentAsString()).get("result").get("token").asString();
@@ -121,6 +124,7 @@ class CheckinTests {
         mvc.perform(get("/api/checkin/calendar").cookie(access).param("month", "2026-10"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result.days.length()").value(1))
                 .andExpect(jsonPath("$.result.checkedInToday").value(true))
+                .andExpect(jsonPath("$.result.dailyRewardCoins").value(50))
                 .andExpect(jsonPath("$.result.days[0].rewardStatus").value("REWARDED"));
     }
 

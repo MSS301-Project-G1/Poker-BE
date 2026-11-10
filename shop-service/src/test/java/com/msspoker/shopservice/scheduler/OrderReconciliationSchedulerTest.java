@@ -8,7 +8,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -36,24 +38,39 @@ class OrderReconciliationSchedulerTest {
     }
 
     @Test
-    @DisplayName("reconcilePendingOrders - Đối soát các đơn hàng PENDING")
+    @DisplayName("reconcilePendingOrders - Đối soát các đơn hàng PENDING sắp xếp mã đơn từ thấp đến cao")
     void reconcilePendingOrders_Success() {
-        Order order = Order.builder()
+        Order orderHigh = Order.builder()
                 .id(UUID.randomUUID())
                 .status(OrderStatus.PENDING)
-                .payosOrderCode(123456L)
+                .payosOrderCode(300000L)
+                .build();
+        Order orderLow = Order.builder()
+                .id(UUID.randomUUID())
+                .status(OrderStatus.PENDING)
+                .payosOrderCode(100000L)
+                .build();
+        Order orderMid = Order.builder()
+                .id(UUID.randomUUID())
+                .status(OrderStatus.PENDING)
+                .payosOrderCode(200000L)
                 .build();
 
-        when(orderRepository.findByStatus(OrderStatus.PENDING)).thenReturn(List.of(order));
+        when(orderRepository.findByStatusOrderByPayosOrderCodeAsc(OrderStatus.PENDING))
+                .thenReturn(List.of(orderHigh, orderLow, orderMid));
 
         scheduler.reconcilePendingOrders();
 
-        verify(orderService).reconcileOrder(order.getId());
+        InOrder inOrder = Mockito.inOrder(orderService);
+        inOrder.verify(orderService).reconcileOrder(orderLow.getId());
+        inOrder.verify(orderService).reconcileOrder(orderMid.getId());
+        inOrder.verify(orderService).reconcileOrder(orderHigh.getId());
     }
 
     @Test
     @DisplayName("reconcilePendingOrders - Không có đơn PENDING thì không làm gì")
     void reconcilePendingOrders_Empty() {
+        when(orderRepository.findByStatusOrderByPayosOrderCodeAsc(OrderStatus.PENDING)).thenReturn(List.of());
         when(orderRepository.findByStatus(OrderStatus.PENDING)).thenReturn(List.of());
 
         scheduler.reconcilePendingOrders();

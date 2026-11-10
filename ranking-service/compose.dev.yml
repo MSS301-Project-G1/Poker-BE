@@ -6,4 +6,6 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SERVER_ADDRESS: 0.0.0.0
       RABBITMQ_PORT: 5672
+      # The container shares the stack with discovery-service, so service names resolve through Eureka.
+      EUREKA_CLIENT_ENABLED: "true"
       RANKING_DEV_DB_PASSWORD: ${RANKING_DB_PASSWORD:-poker_dev}

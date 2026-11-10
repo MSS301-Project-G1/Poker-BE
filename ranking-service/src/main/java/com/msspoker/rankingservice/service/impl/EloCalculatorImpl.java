@@ -15,11 +15,20 @@ import java.util.List;
 public class EloCalculatorImpl implements EloCalculator {
     private final RankingProperties properties;
 
+    /**
+     * A table at least as large as the list uses it by place; places beyond it reuse the last value. A smaller
+     * table splits in half: the top half takes the first values, the bottom half the last ones (so the last place
+     * always loses most) and the middle seat of an odd table keeps its Elo. 2 players: +20, -15; 3: +20, 0, -15.
+     */
     @Override
-    public int delta(int place) {
+    public int delta(int place, int players) {
         List<Integer> table = properties.getEloByPlace();
-        if (place < 1 || table.isEmpty()) throw RankingExceptions.invalidPlace();
-        return table.get(Math.min(place, table.size()) - 1);
+        if (place < 1 || place > players || table.isEmpty()) throw RankingExceptions.invalidPlace();
+        if (players >= table.size()) return table.get(Math.min(place, table.size()) - 1);
+        int half = players / 2;
+        int fromLast = players - place;
+        if (place <= half) return table.get(place - 1);
+        return fromLast < half ? table.get(table.size() - 1 - fromLast) : 0;
     }
 
     @Override
@@ -45,14 +54,21 @@ public class EloCalculatorImpl implements EloCalculator {
     }
 
     @Override
-    public boolean extendsWinStreak(int place) {
-        return place <= properties.getWinStreakPlaces();
+    public boolean extendsWinStreak(int place, int players) {
+        return place <= properties.getWinStreakPlaces() && delta(place, players) > 0;
     }
 
+    /** 6 players: 3x, 2x, 1x the fee; 2 players: 2x; 4 players: 3x, 1x. Never more than the fees paid in. */
     @Override
-    public long reward(int place, long entryFee) {
+    public long reward(int place, int players, long entryFee) {
         List<Long> multipliers = properties.getRewardMultipliers();
-        return place >= 1 && place <= multipliers.size() ? entryFee * multipliers.get(place - 1) : 0;
+        long feesLeft = players;
+        for (int i = 0; i < Math.min(place, multipliers.size()); i++) {
+            long share = Math.min(multipliers.get(i), feesLeft);
+            if (i == place - 1) return entryFee * share;
+            feesLeft -= share;
+        }
+        return 0;
     }
 
     @Override

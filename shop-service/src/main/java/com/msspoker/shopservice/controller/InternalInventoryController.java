@@ -3,6 +3,7 @@ package com.msspoker.shopservice.controller;
 import com.msspoker.shopservice.dto.request.GrantItemRequest;
 import com.msspoker.shopservice.dto.response.ApiResponse;
 import com.msspoker.shopservice.dto.response.GrantItemResponse;
+import com.msspoker.shopservice.dto.response.OwnedSoundResponse;
 import com.msspoker.shopservice.dto.response.OwnershipResponse;
 import com.msspoker.shopservice.service.InventoryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,18 @@ public class InternalInventoryController {
     ) {
         OwnershipResponse response = inventoryService.checkOwnership(accountId, productId);
         return ResponseEntity.ok(ApiResponse.success("Kiểm tra quyền sở hữu thành công", response));
+    }
+
+    @GetMapping("/{accountId}/sounds/{productId}")
+    @Operation(summary = "Lấy âm thanh trêu chọc đã sở hữu", description = "Trả về soundUrl khi tài khoản sở hữu vật phẩm thuộc danh mục SOUND, để game-service phát cho cả bàn")
+    public ResponseEntity<ApiResponse<OwnedSoundResponse>> getOwnedSound(
+            @Parameter(description = "UUID tài khoản người dùng")
+            @PathVariable UUID accountId,
+            @Parameter(description = "UUID sản phẩm âm thanh")
+            @PathVariable UUID productId
+    ) {
+        OwnedSoundResponse response = inventoryService.getOwnedSound(accountId, productId);
+        return ResponseEntity.ok(ApiResponse.success("Lấy âm thanh thành công", response));
     }
 
     @PostMapping("/grant")

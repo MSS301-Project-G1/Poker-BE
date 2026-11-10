@@ -6,9 +6,12 @@ import com.msspoker.shopservice.dto.response.ApiResponse;
 import com.msspoker.shopservice.dto.response.CardDeckManifest;
 import com.msspoker.shopservice.dto.response.CardSkinUploadResponse;
 import com.msspoker.shopservice.dto.response.ProductResponse;
+import com.msspoker.shopservice.dto.response.ProductSoundResponse;
 import com.msspoker.shopservice.enums.ProductTier;
 import com.msspoker.shopservice.service.CardDeckSkinService;
 import com.msspoker.shopservice.service.ProductService;
+import com.msspoker.shopservice.service.ProductSoundService;
+import com.msspoker.shopservice.service.S3StorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +40,12 @@ class AdminProductControllerTest {
 
     @Mock
     private CardDeckSkinService cardDeckSkinService;
+
+    @Mock
+    private S3StorageService storageService;
+
+    @Mock
+    private ProductSoundService productSoundService;
 
     @InjectMocks
     private AdminProductController controller;
@@ -151,5 +160,48 @@ class AdminProductControllerTest {
         assertThat(result.getBody()).isNotNull();
         assertThat(result.getBody().getData().productId()).isEqualTo(productId);
         verify(cardDeckSkinService).uploadDeckSkinFiles(eq(productId), any());
+    }
+
+    @Test
+    @DisplayName("uploadProductSound gọi ProductSoundService và trả về 200 OK")
+    void uploadProductSound() {
+        UUID productId = UUID.randomUUID();
+        MockMultipartFile soundFile = new MockMultipartFile(
+                "file", "all-in.mp3", "audio/mpeg", "dummy-audio".getBytes()
+        );
+        ProductSoundResponse soundResponse = ProductSoundResponse.builder()
+                .productId(productId)
+                .soundUrl("http://localhost:9000/poker-assets/sounds/all-in.mp3")
+                .message("Tải lên tệp âm thanh thành công")
+                .build();
+
+        when(productSoundService.uploadSound(eq(productId), any())).thenReturn(soundResponse);
+
+        ResponseEntity<ApiResponse<ProductSoundResponse>> result = controller.uploadProductSound(productId, soundFile);
+
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().getData().soundUrl()).isEqualTo("http://localhost:9000/poker-assets/sounds/all-in.mp3");
+        verify(productSoundService).uploadSound(eq(productId), any());
+    }
+
+    @Test
+    @DisplayName("deleteProductSound gọi ProductSoundService và trả về 200 OK")
+    void deleteProductSound() {
+        UUID productId = UUID.randomUUID();
+        ProductSoundResponse soundResponse = ProductSoundResponse.builder()
+                .productId(productId)
+                .soundUrl(null)
+                .message("Đã gỡ tệp âm thanh khỏi sản phẩm")
+                .build();
+
+        when(productSoundService.deleteSound(productId)).thenReturn(soundResponse);
+
+        ResponseEntity<ApiResponse<ProductSoundResponse>> result = controller.deleteProductSound(productId);
+
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().getData().soundUrl()).isNull();
+        verify(productSoundService).deleteSound(productId);
     }
 }

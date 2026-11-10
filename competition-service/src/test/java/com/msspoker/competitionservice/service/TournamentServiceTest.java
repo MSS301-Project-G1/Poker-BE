@@ -1,6 +1,7 @@
 package com.msspoker.competitionservice.service;
 
 import com.msspoker.competitionservice.dto.request.CreateTableRequest;
+import com.msspoker.competitionservice.dto.request.CreateTournamentRequest;
 import com.msspoker.competitionservice.dto.request.WalletTransactionRequest;
 import com.msspoker.competitionservice.dto.response.TableCreatedResponse;
 import com.msspoker.competitionservice.dto.response.TournamentResponse;
@@ -69,6 +70,18 @@ class TournamentServiceTest {
         assertEquals(TournamentStatus.SCHEDULED, created.status());
         assertTrue(created.entries().isEmpty() && created.tables().isEmpty());
         assertError(CompetitionError.COMP_INVALID_REQUEST, () -> tournaments.create(admin, open(100, 33)));
+    }
+
+    @Test
+    void listSplitsUpcomingFromEndedTournaments() {
+        Instant now = Instant.now();
+        List<UUID> ids = IntStream.rangeClosed(1, 3).mapToObj(hours -> tournaments.create(admin, new CreateTournamentRequest(
+                "Giải " + hours, TournamentType.OPEN, now.plusSeconds(hours * 3600L), 0, null, null, null)).id()).toList();
+        tournaments.cancel(ids.get(0));
+        tournaments.cancel(ids.get(2));
+
+        assertEquals(List.of(ids.get(1)), tournaments.list(false, 0, 20).content().stream().map(t -> t.id()).toList());
+        assertEquals(List.of(ids.get(2), ids.get(0)), tournaments.list(true, 0, 20).content().stream().map(t -> t.id()).toList());
     }
 
     @Test

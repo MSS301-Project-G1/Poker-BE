@@ -10,6 +10,7 @@ import org.mapstruct.MappingConstants;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface QueueStatusMapper {
@@ -25,6 +26,7 @@ public interface QueueStatusMapper {
     @Mapping(target = "proposalId", ignore = true)
     @Mapping(target = "tableId", ignore = true)
     @Mapping(target = "matchId", ignore = true)
+    @Mapping(target = "playerIds", source = "playerIds")
     QueueStatusResponse waiting(
             QueueEntry entry,
             String status,
@@ -32,7 +34,8 @@ public interface QueueStatusMapper {
             Long playerCount,
             Integer minPlayers,
             Integer maxPlayers,
-            Instant matchStartDeadline
+            Instant matchStartDeadline,
+            List<UUID> playerIds
     );
 
     @Mapping(target = "status", constant = "MATCHING")
@@ -47,6 +50,7 @@ public interface QueueStatusMapper {
     @Mapping(target = "proposalId", source = "proposalId")
     @Mapping(target = "tableId", ignore = true)
     @Mapping(target = "matchId", ignore = true)
+    @Mapping(target = "playerIds", expression = "java(java.util.List.of(entry.accountId()))")
     QueueStatusResponse matching(QueueEntry entry, UUID proposalId);
 
     @Mapping(target = "status", source = "proposal.status")
@@ -61,6 +65,7 @@ public interface QueueStatusMapper {
     @Mapping(target = "proposalId", source = "proposal.id")
     @Mapping(target = "tableId", source = "proposal.tableId")
     @Mapping(target = "matchId", source = "proposal.matchId")
+    @Mapping(target = "playerIds", source = "proposal.players")
     QueueStatusResponse proposal(MatchProposalPlayerEntity player);
 
     @Mapping(target = "status", constant = "PROPOSED")
@@ -75,6 +80,7 @@ public interface QueueStatusMapper {
     @Mapping(target = "proposalId", source = "proposal.id")
     @Mapping(target = "tableId", ignore = true)
     @Mapping(target = "matchId", ignore = true)
+    @Mapping(target = "playerIds", source = "proposal.players")
     QueueStatusResponse rankProposal(MatchProposalPlayerEntity player);
 
     @Mapping(target = "status", constant = "READY")
@@ -89,5 +95,10 @@ public interface QueueStatusMapper {
     @Mapping(target = "proposalId", source = "proposalId")
     @Mapping(target = "tableId", source = "tableId")
     @Mapping(target = "matchId", source = "matchId")
+    @Mapping(target = "playerIds", expression = "java(java.util.List.of())")
     QueueStatusResponse inGame(InGameSession session);
+
+    default List<UUID> playerIds(List<MatchProposalPlayerEntity> players) {
+        return players == null ? List.of() : players.stream().map(MatchProposalPlayerEntity::getAccountId).toList();
+    }
 }

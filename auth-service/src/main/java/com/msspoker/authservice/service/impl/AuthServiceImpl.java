@@ -8,6 +8,8 @@ import com.msspoker.authservice.dto.auth.request.ResendRegistrationOtpRequest;
 import com.msspoker.authservice.dto.auth.request.ResetPasswordRequest;
 import com.msspoker.authservice.dto.auth.request.VerifyRegistrationOtpRequest;
 import com.msspoker.authservice.dto.auth.response.CurrentUserResponse;
+import com.msspoker.authservice.dto.auth.response.AccountRestrictionsResponse;
+import com.msspoker.authservice.dto.auth.response.SessionStateResponse;
 import com.msspoker.authservice.dto.auth.response.EmailVerificationResponse;
 import com.msspoker.authservice.dto.auth.response.RegistrationResponse;
 import com.msspoker.authservice.dto.auth.response.SessionResponse;
@@ -34,6 +36,7 @@ import com.msspoker.authservice.shared.infrastructure.config.OtpProperties;
 import com.msspoker.authservice.shared.infrastructure.mail.AuthMailSender;
 import com.msspoker.authservice.shared.infrastructure.security.JwtService;
 import com.msspoker.authservice.shared.infrastructure.security.SessionTokens;
+import com.msspoker.authservice.shared.infrastructure.security.SessionGuard;
 import com.msspoker.authservice.shared.infrastructure.storage.S3AvatarStorage;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
@@ -69,6 +72,7 @@ public class AuthServiceImpl implements AuthService {
     private final S3AvatarStorage s3Storage;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final SessionGuard sessionGuard;
     private final AuthJwtProperties jwtProperties;
     private final Validator validator;
     private final Clock clock;
@@ -218,7 +222,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public SessionTokens login(LoginRequest request, String previousRefreshToken) {
+    public SessionTokens login(LoginRequest request, UUID tabId) {
         if (request == null || !validator.validate(request).isEmpty()) {
             throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
         }
@@ -233,12 +237,13 @@ public class AuthServiceImpl implements AuthService {
             throw new ApiException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
         requireActive(account);
-        revoke(previousRefreshToken);
+        if (tabId == null) throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
+        refreshTokenRepository.replaceAllByAccountId(account.getId(), clock.instant());
 
-        Instant now = clock.instant();
+        Instant now = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         String rawRefreshToken = newRefreshToken();
         RefreshToken token = RefreshToken.builder()
-                .accountId(account.getId()).tokenHash(hash(rawRefreshToken)).createdAt(now)
+                .accountId(account.getId()).activeTabId(tabId).tokenHash(hash(rawRefreshToken)).createdAt(now)
                 .expiresAt(now.plus(jwtProperties.refreshTtl())).build();
         refreshTokenRepository.save(token);
         return issueTokens(account, token, rawRefreshToken);
@@ -246,7 +251,18 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public SessionTokens refresh(String rawRefreshToken) {
+    public SessionTokens refresh(String rawRefreshToken, UUID tabId) {
+        return rotate(rawRefreshToken, tabId, false);
+    }
+
+    @Override
+    @Transactional
+    public SessionTokens claimTab(String rawRefreshToken, UUID tabId) {
+        return rotate(rawRefreshToken, tabId, true);
+    }
+
+    private SessionTokens rotate(String rawRefreshToken, UUID tabId, boolean claim) {
+        if (tabId == null) throw new ApiException(ErrorCode.AUTH_INVALID_REQUEST);
         if (!validFormat(rawRefreshToken)) {
             throw new ApiException(ErrorCode.AUTH_REFRESH_INVALID);
         }
@@ -258,10 +274,10 @@ public class AuthServiceImpl implements AuthService {
         // Serialize rotation/logout for the matching token. A concurrent refresh can win only once.
         RefreshToken token = refreshTokenRepository.findByTokenHashForUpdate(hash(rawRefreshToken))
                 .orElseThrow(() -> new ApiException(ErrorCode.AUTH_REFRESH_INVALID));
-        if (token.getRevokedAt() != null || !token.getExpiresAt().isAfter(clock.instant())) {
-            throw new ApiException(ErrorCode.AUTH_REFRESH_INVALID);
-        }
         requireActive(account);
+        sessionGuard.requireLive(token);
+        if (claim) token.setActiveTabId(tabId);
+        else sessionGuard.requireTab(token, tabId.toString());
         String replacement = newRefreshToken();
         token.setTokenHash(hash(replacement));
         // Preserve the original seven-day deadline; rotation does not prolong the login.
@@ -270,8 +286,21 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void logout(String rawRefreshToken) {
-        revoke(rawRefreshToken);
+    public void logout(String rawRefreshToken, UUID tabId) {
+        if (!validFormat(rawRefreshToken)) return;
+        UUID accountId = refreshTokenRepository.findAccountIdByTokenHash(hash(rawRefreshToken)).orElse(null);
+        if (accountId == null) return;
+        accountRepository.findByIdForUpdate(accountId).orElseThrow(() -> new ApiException(ErrorCode.AUTH_REFRESH_INVALID));
+        refreshTokenRepository.findByTokenHashForUpdate(hash(rawRefreshToken)).ifPresent(token -> {
+            if (token.getRevokedAt() != null) return;
+            sessionGuard.requireTab(token, tabId == null ? null : tabId.toString());
+            token.setRevokedAt(clock.instant());
+        });
+    }
+
+    @Override
+    public SessionStateResponse sessionState(UUID accountId, UUID sessionId, UUID tabId) {
+        return new SessionStateResponse(accountId, sessionId, tabId);
     }
 
     @Override
@@ -290,6 +319,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void requireActive(Account account) {
+        sessionGuard.requireNotBanned(account);
         if (!account.isEmailVerified() || account.getAccountStatus() == AccountStatus.PENDING_VERIFICATION) {
             throw new ApiException(ErrorCode.AUTH_EMAIL_VERIFICATION_PENDING);
         }
@@ -298,21 +328,23 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public AccountRestrictionsResponse restrictions(UUID accountId) {
+        Account account = accountRepository.findByIdAndDeletedFalse(accountId)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_NOT_FOUND));
+        return new AccountRestrictionsResponse(sessionGuard.isBanned(account),
+                account.getChatBannedUntil(), account.getRankBannedUntil());
+    }
+
     private SessionTokens issueTokens(Account account, RefreshToken refreshToken, String rawRefreshToken) {
         Instant accessExpiresAt = clock.instant().plus(jwtProperties.accessTtl());
         if (accessExpiresAt.isAfter(refreshToken.getExpiresAt())) {
             accessExpiresAt = refreshToken.getExpiresAt();
         }
-        return new SessionTokens(jwtService.issue(account, accessExpiresAt), rawRefreshToken,
+        return new SessionTokens(jwtService.issue(account, refreshToken.getId(), accessExpiresAt), rawRefreshToken,
                 new SessionResponse(account.getId(), account.getEmail(), account.getRole(),
-                        accessExpiresAt, refreshToken.getExpiresAt()));
-    }
-
-    private void revoke(String rawRefreshToken) {
-        if (!validFormat(rawRefreshToken)) return;
-        refreshTokenRepository.findByTokenHashForUpdate(hash(rawRefreshToken)).ifPresent(token -> {
-            if (token.getRevokedAt() == null) token.setRevokedAt(clock.instant());
-        });
+                        accessExpiresAt, refreshToken.getExpiresAt(), refreshToken.getId(), refreshToken.getActiveTabId()));
     }
 
     private String newRefreshToken() {

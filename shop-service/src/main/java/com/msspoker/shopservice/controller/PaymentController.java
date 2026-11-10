@@ -65,6 +65,15 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn hàng thành công", orders));
     }
 
+    @GetMapping("/orders/pending")
+    @Operation(summary = "Lấy đơn hàng đang chờ thanh toán gần nhất", description = "Lấy đơn hàng PENDING còn hiệu lực (chưa hết hạn) để người dùng tiếp tục thanh toán")
+    public ResponseEntity<ApiResponse<OrderResponse>> getPendingOrder(
+            @CurrentUser UUID accountId
+    ) {
+        OrderResponse order = orderService.getActivePendingOrder(accountId);
+        return ResponseEntity.ok(ApiResponse.success("Lấy đơn hàng chờ thanh toán thành công", order));
+    }
+
     @GetMapping("/orders/{orderId}")
     @Operation(summary = "Chi tiết đơn hàng", description = "Lấy thông tin chi tiết một đơn hàng theo ID")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderDetail(

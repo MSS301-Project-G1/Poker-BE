@@ -5,4 +5,6 @@ for i = 1, count do
     redis.call('ZREM', KEYS[1], account)
     redis.call('DEL', KEYS[offset + 2], KEYS[offset + 3])
 end
+-- All members of discarded Normal parties leave together.
+for i = 2 + count * 2, #KEYS do redis.call('DEL', KEYS[i]) end
 return count

@@ -67,7 +67,8 @@ class CardDeckSkinServiceImplTest {
                 s3StorageService,
                 textureAtlasGenerator,
                 cardDeckValidator,
-                objectMapper
+                objectMapper,
+                new com.msspoker.shopservice.util.MetadataJsonMerger(objectMapper)
         );
 
         productId = UUID.randomUUID();

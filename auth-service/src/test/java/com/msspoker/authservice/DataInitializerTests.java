@@ -8,6 +8,9 @@ import com.msspoker.authservice.repository.AccountRepository;
 import com.msspoker.authservice.repository.ProfileRepository;
 import com.msspoker.authservice.repository.RegistrationEventRepository;
 import com.msspoker.authservice.repository.RegistrationOtpRepository;
+import com.msspoker.authservice.service.DemoAccountService;
+import com.msspoker.authservice.shared.common.exception.ApiException;
+import com.msspoker.authservice.shared.common.exception.ErrorCode;
 import com.msspoker.authservice.shared.infrastructure.datainit.DataInitializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(properties = {
         "auth.data-init.enabled=true",
@@ -46,6 +50,7 @@ class DataInitializerTests {
     @Autowired private RegistrationOtpRepository otps;
     @Autowired private RegistrationEventRepository events;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private DemoAccountService demoAccounts;
 
     @Test
     void startupCreatesLoginReadyDemoAccountsWithRegistrationEvents() {
@@ -69,6 +74,18 @@ class DataInitializerTests {
         assertThat(unverified.isEmailVerified()).isFalse();
         // Already expired, so the resend cooldown has passed and verification needs a fresh code.
         assertThat(otps.findById(unverified.getId()).orElseThrow().getExpiresAt()).isBeforeOrEqualTo(Instant.now());
+    }
+
+    @Test
+    void demoAccountLookupResolvesOnlyConfiguredDemoEmails() {
+        Account user = accounts.findByEmail("user@demo.local").orElseThrow();
+
+        assertThat(demoAccounts.findDemoAccount(" User@Demo.local ").accountId()).isEqualTo(user.getId());
+        // A real player's email must not resolve, even though the account exists.
+        accounts.save(Account.builder().email("player@demo.local").passwordHash("x")
+                .role(AccountRole.USER).accountStatus(AccountStatus.ACTIVE).emailVerified(true).build());
+        assertThatThrownBy(() -> demoAccounts.findDemoAccount("player@demo.local"))
+                .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.AUTH_NOT_FOUND));
     }
 
     @Test
