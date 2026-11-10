@@ -11,7 +11,6 @@ cd "$APP_DIR"
 COMPOSE=(docker compose -f docker-compose.yml -f deploy/compose.prod.yml)
 GATEWAY_HEALTH_URL="http://127.0.0.1:8080/actuator/health"
 HEALTH_ATTEMPTS=72   # x5s = 6 minutes: twelve JVMs starting together on a 2-core VPS are slow
-FE_PROJECT="poker-fe"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "::error::Docker is not installed on the VPS. Run deploy/setup-vps.sh once."
@@ -72,14 +71,6 @@ for path in /ws/game /ws/social /ws/chat; do
     *" 101"*) echo "==> WebSocket $path ✅" ;;
     *) echo "::error::WebSocket $path did not upgrade through the gateway (got: ${status:-no response})"; exit 1 ;;
   esac
-done
-
-# nginx in the FE container resolves service names only when it loads its config, and recreated
-# backend containers may get new IPs. A reload picks them up; if a name does not resolve, nginx
-# keeps serving with the old config instead of going down like a restart would.
-for container in $(docker ps -q --filter "label=com.docker.compose.project=$FE_PROJECT"); do
-  echo "==> Reloading nginx in the FE container"
-  docker exec "$container" nginx -s reload || true
 done
 
 docker image prune -af --filter "until=168h" >/dev/null
