@@ -25,7 +25,8 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - run: ./mvnw -B -ntp verify
+      # --fail-at-end: report every module's test failures in one run.
+      - run: ./mvnw -B -ntp --fail-at-end verify
 
   deploy:
     name: Build images & deploy to VPS
