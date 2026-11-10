@@ -7,6 +7,7 @@ services:
     ports:
       - "${RANKING_SERVICE_PORT:-8086}:8086"
     environment:
+      WALLET_INTERNAL_KEY: ${WALLET_INTERNAL_KEY:?Set WALLET_INTERNAL_KEY in .env}
       EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
       EUREKA_INSTANCE_HOSTNAME: ranking-service
       RANKING_DB_URL: jdbc:postgresql://ranking-db:5432/ranking_db

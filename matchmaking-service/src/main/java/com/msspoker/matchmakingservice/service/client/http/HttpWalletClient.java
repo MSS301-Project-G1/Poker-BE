@@ -20,6 +20,8 @@ import java.time.Duration;
 @ConditionalOnProperty(name = "matchmaking.wallet.stub-enabled", havingValue = "false", matchIfMissing = true)
 public class HttpWalletClient implements WalletClient {
     private final RestClient wallet;
+    @Value("${wallet.internal-key:}")
+    private String walletInternalKey = "";
 
     public HttpWalletClient(
             @Value("${matchmaking.wallet-url:http://localhost:8089}") String walletUrl,
@@ -45,7 +47,7 @@ public class HttpWalletClient implements WalletClient {
 
     private void transfer(String path, WalletTransferRequest request, boolean debit) {
         try {
-            wallet.post().uri(path).contentType(MediaType.APPLICATION_JSON)
+            wallet.post().uri(path).header("X-Wallet-Internal-Key", walletInternalKey).contentType(MediaType.APPLICATION_JSON)
                     .body(request).retrieve().toBodilessEntity();
         } catch (RestClientResponseException exception) {
             if (debit && insufficientBalance(exception)) {

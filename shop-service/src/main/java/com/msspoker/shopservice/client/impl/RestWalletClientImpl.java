@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,8 @@ public class RestWalletClientImpl implements WalletClient {
     private static final String REASON_SHOP_BUY_ITEM = "SHOP_BUY_ITEM";
 
     private final RestTemplate restTemplate;
+    @Value("${wallet.internal-key:}")
+    private String walletInternalKey = "";
 
     @Value("${wallet.service.url}")
     private String walletServiceUrl;
@@ -50,7 +53,8 @@ public class RestWalletClientImpl implements WalletClient {
     public Optional<Long> findDebitAmountByIdempotencyKey(String idempotencyKey) {
         String url = walletServiceUrl + "/internal/wallet/transactions/by-idempotency-key?key=" + idempotencyKey;
         try {
-            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET,
+                    new HttpEntity<>(internalHeaders()), Map.class);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Map result = (Map) response.getBody().get("result");
                 if (result != null && result.get("amount") != null) {
@@ -84,8 +88,7 @@ public class RestWalletClientImpl implements WalletClient {
                 accountId, amount, currencyType, reason, refId, idempotencyKey
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpHeaders headers = internalHeaders();
         HttpEntity<WalletTransactionRequest> entity = new HttpEntity<>(body, headers);
 
         try {
@@ -125,8 +128,7 @@ public class RestWalletClientImpl implements WalletClient {
                 accountId, amount, currencyType, reason, refId, idempotencyKey
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpHeaders headers = internalHeaders();
         HttpEntity<WalletTransactionRequest> entity = new HttpEntity<>(body, headers);
 
         try {
@@ -145,5 +147,13 @@ public class RestWalletClientImpl implements WalletClient {
             );
         }
     }
+
+    private HttpHeaders internalHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Wallet-Internal-Key", walletInternalKey);
+        return headers;
+    }
+
 }
 

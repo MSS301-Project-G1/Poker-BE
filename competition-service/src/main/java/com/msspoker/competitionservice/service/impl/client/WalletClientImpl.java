@@ -24,6 +24,8 @@ import java.time.Duration;
 @Component
 public class WalletClientImpl implements WalletClient {
     private final RestClient wallet;
+    @Value("${wallet.internal-key:}")
+    private String walletInternalKey = "";
     private final boolean mock;
 
     public WalletClientImpl(@LoadBalanced RestClient.Builder restClients,
@@ -53,7 +55,7 @@ public class WalletClientImpl implements WalletClient {
             return;
         }
         try {
-            wallet.post().uri(path).contentType(MediaType.APPLICATION_JSON).body(request).retrieve().toBodilessEntity();
+            wallet.post().uri(path).header("X-Wallet-Internal-Key", walletInternalKey).contentType(MediaType.APPLICATION_JSON).body(request).retrieve().toBodilessEntity();
         } catch (HttpClientErrorException ex) {
             if (CompetitionConstants.WALLET_INSUFFICIENT_BALANCE.equals(errorCode(ex))) {
                 throw CompetitionExceptions.insufficientBalance();
