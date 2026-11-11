@@ -77,6 +77,7 @@ class CheckinTests {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("auth.wallet.base-url", WALLET::url);
+        registry.add("wallet.internal-key", () -> "wallet-test-key");
         registry.add("auth.wallet.request-timeout", () -> "500ms");
     }
 
@@ -272,6 +273,7 @@ class CheckinTests {
         void credit(HttpExchange exchange) throws IOException {
             try (exchange) {
                 assertThat(exchange.getRequestMethod()).isEqualTo("POST");
+                assertThat(exchange.getRequestHeaders().getFirst("X-Wallet-Internal-Key")).isEqualTo("wallet-test-key");
                 JsonNode command = JSON.readTree(exchange.getRequestBody().readAllBytes());
                 last.set(command);
                 requests.incrementAndGet();

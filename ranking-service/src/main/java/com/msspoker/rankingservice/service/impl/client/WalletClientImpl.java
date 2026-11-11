@@ -19,6 +19,8 @@ import java.time.Duration;
 @Component
 public class WalletClientImpl implements WalletClient {
     private final RestClient wallet;
+    @Value("${wallet.internal-key:}")
+    private String walletInternalKey = "";
     private final boolean mock;
 
     public WalletClientImpl(@LoadBalanced RestClient.Builder restClients,
@@ -38,7 +40,7 @@ public class WalletClientImpl implements WalletClient {
             log.info("Mock wallet credit {} coins to {} ({})", request.amount(), request.accountId(), request.idempotencyKey());
             return;
         }
-        wallet.post().uri("/internal/wallet/credit").contentType(MediaType.APPLICATION_JSON)
+        wallet.post().uri("/internal/wallet/credit").header("X-Wallet-Internal-Key", walletInternalKey).contentType(MediaType.APPLICATION_JSON)
                 .body(request).retrieve().toBodilessEntity();
     }
 }

@@ -42,6 +42,14 @@ public final class ProductExceptions {
         );
     }
 
+    public static AppException walletServiceUnavailable() {
+        return AppException.of(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "WALLET_SERVICE_UNAVAILABLE",
+                "Dịch vụ ví tạm thời không khả dụng. Vui lòng thử lại sau."
+        );
+    }
+
     public static AppException productNoVipPrice() {
         return AppException.of(
                 HttpStatus.BAD_REQUEST,

@@ -18,6 +18,7 @@ class HttpWalletClientContractTest {
     private String response = "{}";
     private String body;
     private String path;
+    private String suppliedKey;
 
     @BeforeEach
     void start() throws Exception {
@@ -25,6 +26,7 @@ class HttpWalletClientContractTest {
         server.createContext("/internal/wallet/", exchange -> {
             body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             path = exchange.getRequestURI().getPath();
+            suppliedKey = exchange.getRequestHeaders().getFirst("X-Wallet-Internal-Key");
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, bytes.length);
@@ -33,6 +35,7 @@ class HttpWalletClientContractTest {
         });
         server.start();
         client = new HttpWalletClient("http://127.0.0.1:" + server.getAddress().getPort(), new MatchmakingProperties());
+        org.springframework.test.util.ReflectionTestUtils.setField(client, "walletInternalKey", "wallet-test-key");
     }
 
     @AfterEach void stop() { server.stop(0); }
@@ -41,10 +44,12 @@ class HttpWalletClientContractTest {
         var account = UUID.randomUUID();
         client.debit(new WalletTransferRequest(account, 100, "RANK_ENTRY_FEE", "proposal", "fee-key"));
         assertEquals("/internal/wallet/debit", path);
+        assertEquals("wallet-test-key", suppliedKey);
         assertTrue(body.contains("RANK_ENTRY_FEE"));
         assertTrue(body.contains("fee-key"));
         client.refund(new WalletTransferRequest(account, 100, "RANK_ENTRY_REFUND", "proposal", "refund-key"));
         assertEquals("/internal/wallet/credit", path);
+        assertEquals("wallet-test-key", suppliedKey);
         assertTrue(body.contains("RANK_ENTRY_REFUND"));
     }
 

@@ -24,6 +24,8 @@ public class RankingClientImpl implements RankingClient {
             };
 
     private final RestClient ranking;
+    @Value("${ranking.internal-key:}")
+    private String rankingInternalKey = "";
 
     public RankingClientImpl(@LoadBalanced RestClient.Builder restClients,
             @Value("${competition.ranking-url:http://ranking-service}") String url,
@@ -38,6 +40,7 @@ public class RankingClientImpl implements RankingClient {
     public List<RankedPlayerResponse> top(int limit) {
         try {
             List<RankedPlayerResponse> top = ranking.get().uri("/internal/ranking/top?limit={limit}", limit)
+                    .header("X-Ranking-Internal-Key", rankingInternalKey)
                     .retrieve().body(RANKED_PLAYERS);
             if (top == null) throw CompetitionExceptions.rankingUnavailable();
             return top;

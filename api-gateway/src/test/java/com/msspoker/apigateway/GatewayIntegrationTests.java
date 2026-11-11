@@ -97,6 +97,7 @@ class GatewayIntegrationTests {
                 });
             }).bindNow();
     private static final Map<String, DisposableServer> CONTRACT_UPSTREAMS = Map.of(
+            "matchmaking-service", contractUpstream("matchmaking-service"),
             "ranking-service", contractUpstream("ranking-service"),
             "competition-service", contractUpstream("competition-service"),
             "shop-service", contractUpstream("shop-service"),
@@ -115,11 +116,20 @@ class GatewayIntegrationTests {
         registry.add("SOCIAL_GATEWAY_KEY", () -> "gateway-social-test-secret");
         registry.add("CHAT_GATEWAY_KEY", () -> "gateway-chat-test-secret");
         registry.add("RANKING_SERVICE_URL", () -> upstreamUrl("ranking-service"));
+        registry.add("RANKING_GATEWAY_KEY", () -> "gateway-ranking-test-secret");
         registry.add("COMPETITION_SERVICE_URL", () -> upstreamUrl("competition-service"));
+        registry.add("COMPETITION_GATEWAY_KEY", () -> "gateway-competition-test-secret");
         registry.add("SHOP_SERVICE_URL", () -> upstreamUrl("shop-service"));
+        registry.add("SHOP_GATEWAY_KEY", () -> "gateway-shop-test-secret");
+        registry.add("WALLET_GATEWAY_KEY", () -> "gateway-wallet-test-secret");
         registry.add("WALLET_SERVICE_URL", () -> upstreamUrl("wallet-service"));
         registry.add("spring.cloud.gateway.server.webflux.httpclient.response-timeout", () -> "2s");
-        registry.add("MATCHMAKING_SERVICE_URL", () -> "http://127.0.0.1:" + unusedPort());
+        registry.add("MATCHMAKING_SERVICE_URL", () -> upstreamUrl("matchmaking-service"));
+        registry.add("MATCHMAKING_GATEWAY_KEY", () -> "gateway-matchmaking-test-secret");
+        String unavailable = "gateway.catalog.services.unavailable-fixture.";
+        registry.add(unavailable + "uri", () -> "http://127.0.0.1:" + unusedPort());
+        registry.add(unavailable + "routes[0].id", () -> "unavailable-fixture");
+        registry.add(unavailable + "routes[0].paths[0]", () -> "/api/unavailable-fixture");
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -195,10 +205,23 @@ class GatewayIntegrationTests {
                 client.get().uri(path).exchange().expectStatus().isOk()
                         .expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 client.get().uri(path).cookie("accessToken", token("USER", "expired"))
+                        .header("X-Ranking-Gateway-Key", "spoofed").header("X-Ranking-Internal-Key", "spoofed")
+                        .header("X-Competition-Gateway-Key", "spoofed")
                         .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN").header("X-Dev-User", ACCOUNT_ID)
                         .exchange().expectStatus().isOk();
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-Dev-User");
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Internal-Key");
+                if (service.getKey().equals("competition-service")) {
+                    assertThat(LAST.get().headers().get("X-Competition-Gateway-Key")).isEqualTo("gateway-competition-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Competition-Gateway-Key");
+                }
+                if (service.getKey().equals("ranking-service")) {
+                    assertThat(LAST.get().headers().get("X-Ranking-Gateway-Key")).isEqualTo("gateway-ranking-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Gateway-Key");
+                }
             }
         }
         for (String path : List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me",
@@ -214,6 +237,8 @@ class GatewayIntegrationTests {
     @Test
     void protectedServiceReadsKeepPathsQueriesAndVerifiedUserHeaders() {
         Map<String, List<String>> routes = Map.of(
+                "matchmaking-service", List.of("/api/matchmaking/normal/status", "/api/matchmaking/normal/reconnect",
+                        "/api/matchmaking/rank/status", "/api/matchmaking/rank/reconnect", "/api/party/me"),
                 "ranking-service", List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me", "/api/tutorial/me"),
                 "competition-service", List.of("/api/rooms/me", "/api/rooms/ROOM01"),
                 "shop-service", List.of("/api/inventory/me", "/api/payments/orders/me"),
@@ -228,11 +253,44 @@ class GatewayIntegrationTests {
                         .header("X-User-Id", UUID.randomUUID().toString()).header("X-User-Role", "ADMIN")
                         .header("X-Dev-User", "fake").header("X-Game-Service-Key", "fake")
                         .header("Authorization", "Bearer fake")
+                        .header("X-Wallet-Gateway-Key", "spoofed").header("X-Wallet-Internal-Key", "spoofed")
+                        .header("X-Shop-Gateway-Key", "spoofed").header("X-Shop-Internal-Key", "spoofed")
+                        .header("X-Matchmaking-Gateway-Key", "spoofed")
+                        .header("X-Ranking-Gateway-Key", "spoofed").header("X-Ranking-Internal-Key", "spoofed")
+                        .header("X-Competition-Gateway-Key", "spoofed")
                         .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", service.getKey());
                 assertThat(LAST.get().uri()).isEqualTo(path);
                 assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
                 assertThat(LAST.get().headers().get("X-User-Role")).isEqualTo("USER");
                 assertThat(LAST.get().headers()).doesNotContainKeys("X-Dev-User", "X-Game-Service-Key", "Authorization");
+                if (service.getKey().equals("wallet-service")) {
+                    assertThat(LAST.get().headers().get("X-Wallet-Gateway-Key")).isEqualTo("gateway-wallet-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Wallet-Gateway-Key");
+                }
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Wallet-Internal-Key");
+                if (service.getKey().equals("shop-service")) {
+                    assertThat(LAST.get().headers().get("X-Shop-Gateway-Key")).isEqualTo("gateway-shop-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Gateway-Key");
+                }
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Internal-Key");
+                if (service.getKey().equals("competition-service")) {
+                    assertThat(LAST.get().headers().get("X-Competition-Gateway-Key")).isEqualTo("gateway-competition-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Competition-Gateway-Key");
+                }
+                assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Internal-Key");
+                if (service.getKey().equals("ranking-service")) {
+                    assertThat(LAST.get().headers().get("X-Ranking-Gateway-Key")).isEqualTo("gateway-ranking-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Ranking-Gateway-Key");
+                }
+                if (service.getKey().equals("matchmaking-service")) {
+                    assertThat(LAST.get().headers().get("X-Matchmaking-Gateway-Key")).isEqualTo("gateway-matchmaking-test-secret");
+                } else {
+                    assertThat(LAST.get().headers()).doesNotContainKey("X-Matchmaking-Gateway-Key");
+                }
                 assertThat(LAST.get().headers().get("X-Request-Id")).isNotBlank();
             }
         }
@@ -243,10 +301,13 @@ class GatewayIntegrationTests {
         for (String path : List.of("/api/shop/products?category=CARDS&page=0&size=20",
                 "/api/shop/products/" + UUID.randomUUID(), "/api/shop/categories", "/api/shop/bundles")) {
             client.get().uri(path).header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
+                    .header("X-Shop-Gateway-Key", "spoofed").header("X-Shop-Internal-Key", "spoofed")
                     .header("Authorization", "Bearer " + token("USER", "valid"))
                     .exchange().expectStatus().isOk().expectHeader().valueEquals("X-Test-Upstream", "shop-service");
             assertThat(LAST.get().uri()).isEqualTo(path);
             assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "Authorization");
+            assertThat(LAST.get().headers().get("X-Shop-Gateway-Key")).isEqualTo("gateway-shop-test-secret");
+            assertThat(LAST.get().headers()).doesNotContainKey("X-Shop-Internal-Key");
             for (String variant : List.of("expired", "signature", "role")) {
                 client.get().uri(path).cookie("accessToken", token("USER", variant))
                         .header("X-User-Id", ACCOUNT_ID).header("X-User-Role", "ADMIN")
@@ -275,12 +336,28 @@ class GatewayIntegrationTests {
     @Test
     void serviceWritesRequireCsrfAndKeepTheDestinationMethodAndBody() {
         List<ServiceWrite> writes = List.of(
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/normal/join"),
+                new ServiceWrite("matchmaking-service", HttpMethod.DELETE, "/api/matchmaking/normal/leave"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/rank/join"),
+                new ServiceWrite("matchmaking-service", HttpMethod.DELETE, "/api/matchmaking/rank/leave"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/proposals/" + UUID.randomUUID() + "/accept"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/matchmaking/proposals/" + UUID.randomUUID() + "/decline"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/party/create"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/party/join"),
+                new ServiceWrite("matchmaking-service", HttpMethod.POST, "/api/party/kick"),
+                new ServiceWrite("matchmaking-service", HttpMethod.DELETE, "/api/party/leave"),
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/seasons/" + UUID.randomUUID() + "/rewards/claim"),
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/tutorial/complete"),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/join"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/leave"),
+                new ServiceWrite("competition-service", HttpMethod.PUT, "/api/rooms/ROOM01/owner"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/invitations"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/rooms/ROOM01/start"),
                 new ServiceWrite("competition-service", HttpMethod.PUT, "/api/rooms/ROOM01/ready"),
                 new ServiceWrite("competition-service", HttpMethod.DELETE, "/api/rooms/ROOM01/members/" + UUID.randomUUID()),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/tournaments/" + UUID.randomUUID() + "/register"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/tournaments/" + UUID.randomUUID() + "/confirm"),
                 new ServiceWrite("shop-service", HttpMethod.POST, "/api/shop/products/" + UUID.randomUUID() + "/purchase"),
                 new ServiceWrite("shop-service", HttpMethod.PUT, "/api/inventory/" + UUID.randomUUID() + "/equip"),
                 new ServiceWrite("shop-service", HttpMethod.DELETE, "/api/inventory/" + UUID.randomUUID() + "/equip"),
@@ -301,6 +378,12 @@ class GatewayIntegrationTests {
             assertThat(LAST.get().method()).isEqualTo(write.method().name());
             assertThat(LAST.get().body()).isEqualTo(body);
             assertThat(LAST.get().headers().get("X-User-Id")).isEqualTo(ACCOUNT_ID);
+            if (write.service().equals("matchmaking-service")) {
+                assertThat(LAST.get().headers().get("X-Matchmaking-Gateway-Key")).isEqualTo("gateway-matchmaking-test-secret");
+            }
+            if (write.service().equals("competition-service")) {
+                assertThat(LAST.get().headers().get("X-Competition-Gateway-Key")).isEqualTo("gateway-competition-test-secret");
+            }
         }
     }
 
@@ -312,6 +395,7 @@ class GatewayIntegrationTests {
                 new ServiceWrite("ranking-service", HttpMethod.POST, "/api/admin/seasons/close"),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments"),
                 new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments/" + UUID.randomUUID() + "/start"),
+                new ServiceWrite("competition-service", HttpMethod.POST, "/api/admin/tournaments/" + UUID.randomUUID() + "/cancel"),
                 new ServiceWrite("shop-service", HttpMethod.POST, "/api/shop/categories"),
                 new ServiceWrite("shop-service", HttpMethod.PUT, "/api/shop/categories/" + UUID.randomUUID()),
                 new ServiceWrite("shop-service", HttpMethod.DELETE, "/api/shop/categories/" + UUID.randomUUID()),
@@ -355,6 +439,7 @@ class GatewayIntegrationTests {
                 .expectHeader().doesNotExist(HttpHeaders.SET_COOKIE).expectBody(String.class).isEqualTo(reply);
         assertThat(LAST.get().uri()).isEqualTo(path);
         assertThat(LAST.get().body()).isEqualTo(body);
+        assertThat(LAST.get().headers().get("X-Shop-Gateway-Key")).isEqualTo("gateway-shop-test-secret");
         assertThat(LAST.get().headers()).doesNotContainKeys("X-User-Id", "X-User-Role", "X-XSRF-TOKEN");
         REPLY.set(new Reply(400, "{\"code\":\"SHOP_PAYOS_INVALID_SIGNATURE\"}", List.of()));
         client.post().uri(path).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
@@ -709,9 +794,12 @@ class GatewayIntegrationTests {
 
     @Test
     void internalEndpointsAreBlockedForAnonymousAndAdmin() {
-        client.get().uri("/internal/accounts/" + ACCOUNT_ID + "/restrictions").exchange().expectStatus().isForbidden();
-        client.get().uri("/internal/accounts/" + ACCOUNT_ID + "/restrictions")
-                .cookie("accessToken", token("ADMIN", "valid")).exchange().expectStatus().isForbidden();
+        for (String path : List.of("/internal/accounts/" + ACCOUNT_ID + "/restrictions",
+                "/internal/ranking/" + ACCOUNT_ID, "/internal/ranking/top?limit=7")) {
+            client.get().uri(path).exchange().expectStatus().isForbidden();
+            client.get().uri(path).cookie("accessToken", token("ADMIN", "valid"))
+                    .header("X-Ranking-Internal-Key", "spoofed").exchange().expectStatus().isForbidden();
+        }
         assertThat(LAST.get()).isNull();
     }
 
@@ -750,7 +838,7 @@ class GatewayIntegrationTests {
 
     @Test
     void unreachableUpstreamReturnsServiceUnavailableWithRequestId() {
-        client.get().uri("/api/matchmaking/queue").cookie("accessToken", token("USER", "valid"))
+        client.get().uri("/api/unavailable-fixture").cookie("accessToken", token("USER", "valid"))
                 .exchange().expectStatus().isEqualTo(503).expectHeader().exists("X-Request-Id")
                 .expectBody().jsonPath("$.code").isEqualTo("GATEWAY_UPSTREAM_UNAVAILABLE")
                 .jsonPath("$.timestamp").exists().jsonPath("$.requestId").exists();

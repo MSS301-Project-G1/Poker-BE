@@ -12,9 +12,11 @@ import com.msspoker.shopservice.entity.PaymentConfig;
 import com.msspoker.shopservice.entity.Product;
 import com.msspoker.shopservice.enums.ItemSource;
 import com.msspoker.shopservice.enums.OrderStatus;
+import com.msspoker.shopservice.enums.OrderFulfillmentStatus;
 import com.msspoker.shopservice.enums.PaymentProvider;
 import com.msspoker.shopservice.dto.event.VipCoinTopupSuccessEvent;
 import com.msspoker.shopservice.exception.OrderExceptions;
+import com.msspoker.shopservice.exception.AppException;
 import com.msspoker.shopservice.exception.ProductExceptions;
 import com.msspoker.shopservice.mapper.OrderMapper;
 import com.msspoker.shopservice.producer.TopupEventProducer;
@@ -161,9 +163,10 @@ public class OrderServiceImpl implements OrderService {
             } else {
                 log.info("Expiring stale pending order id={}, orderCode={} for accountId={}",
                         pendingOrder.getId(), pendingOrder.getPayosOrderCode(), accountId);
-                pendingOrder.setStatus(OrderStatus.CANCELLED);
-                orderRepository.save(pendingOrder);
-                paymentIdempotencyService.evictOrder(accountId, product.getId());
+                syncOrderEntity(pendingOrder);
+                if (pendingOrder.getStatus() == OrderStatus.PENDING || pendingOrder.getStatus() == OrderStatus.PAID) {
+                    return orderMapper.toOrderResponse(pendingOrder);
+                }
             }
         }
 
@@ -277,13 +280,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 2. Database & Active Pending Order Check (Sort giao dịch theo mã đơn số từ thấp đến cao để tránh race condition)
-        Instant checkNow = Instant.now();
-        List<Order> activePendingOrders = orderRepository.findByAccountIdAndStatusAndExpiresAtAfterOrderByPayosOrderCodeAsc(
-                accountId, OrderStatus.PENDING, checkNow);
-        if (activePendingOrders == null || activePendingOrders.isEmpty()) {
-            activePendingOrders = orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
-                    accountId, OrderStatus.PENDING, checkNow).map(List::of).orElse(List.of());
-        }
+        List<Order> activePendingOrders = orderRepository.findByAccountIdAndStatusOrderByPayosOrderCodeAsc(
+                accountId, OrderStatus.PENDING);
         List<Order> sortedActivePending = activePendingOrders.stream()
                 .sorted(Comparator.comparingLong(Order::getPayosOrderCode))
                 .toList();
@@ -294,6 +292,8 @@ public class OrderServiceImpl implements OrderService {
             if (pendingOrder.getStatus() == OrderStatus.PAID) {
                 log.info("Previous pending order id={}, orderCode={} was already paid. Proceeding.",
                         pendingOrder.getId(), pendingOrder.getPayosOrderCode());
+            } else if (pendingOrder.getStatus() != OrderStatus.PENDING) {
+                continue;
             } else if (pendingOrder.getBundle() != null && pendingOrder.getBundle().getId().equals(bundleId)) {
                 log.info("Idempotent createBundleOrder detected for accountId={}, bundleId={}. Returning existing bundle order id={}, orderCode={}",
                         accountId, bundleId, pendingOrder.getId(), pendingOrder.getPayosOrderCode());
@@ -307,15 +307,7 @@ public class OrderServiceImpl implements OrderService {
                 // User switched bundles; cancel old pending order so user does not have dangling orders
                 log.info("User switched bundle or created new order. Cancelling previous pending order id={}, orderCode={}",
                         pendingOrder.getId(), pendingOrder.getPayosOrderCode());
-                try {
-                    payOS.paymentRequests().cancel(pendingOrder.getPayosOrderCode(), "User switched to a different bundle");
-                } catch (Exception ex) {
-                    log.warn("Could not cancel previous order on PayOS gateway: {}", ex.getMessage());
-                }
-                pendingOrder.setStatus(OrderStatus.CANCELLED);
-                orderRepository.save(pendingOrder);
-                paymentIdempotencyService.evictOrder(accountId,
-                        pendingOrder.getBundle() != null ? pendingOrder.getBundle().getId() : (pendingOrder.getProduct() != null ? pendingOrder.getProduct().getId() : bundleId));
+                cancelOrderEntity(pendingOrder, "User switched to a different bundle", OrderStatus.CANCELLED);
             }
         }
 
@@ -418,13 +410,11 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public OrderResponse getOrderDetail(UUID accountId, UUID orderId) {
         log.debug("Fetching order detail for accountId={}, orderId={}", accountId, orderId);
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdForUpdate(orderId)
                 .filter(o -> o.getAccountId().equals(accountId))
                 .orElseThrow(OrderExceptions::orderNotFound);
 
-        if (order.getStatus() == OrderStatus.PENDING) {
-            syncOrderEntity(order);
-        }
+        syncOrderEntity(order);
 
         return orderMapper.toOrderResponse(order);
     }
@@ -440,7 +430,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public OrderResponse cancelOrder(UUID accountId, UUID orderId) {
         log.info("Cancelling order orderId={} by accountId={}", orderId, accountId);
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdForUpdate(orderId)
                 .filter(o -> o.getAccountId().equals(accountId))
                 .orElseThrow(OrderExceptions::orderNotFound);
 
@@ -448,18 +438,8 @@ public class OrderServiceImpl implements OrderService {
             throw OrderExceptions.orderNotPending();
         }
 
-        try {
-            payOS.paymentRequests().cancel(order.getPayosOrderCode(), "User cancelled");
-        } catch (Exception ex) {
-            log.warn("Could not cancel order on PayOS gateway for orderCode={}: {}",
-                    order.getPayosOrderCode(), ex.getMessage());
-        }
-
-        order.setStatus(OrderStatus.CANCELLED);
-        Order savedOrder = orderRepository.save(order);
-        evictOrderCache(savedOrder);
-        log.info("Order id={} successfully marked as CANCELLED", orderId);
-        return orderMapper.toOrderResponse(savedOrder);
+        cancelOrderEntity(order, "User cancelled", OrderStatus.CANCELLED);
+        return orderMapper.toOrderResponse(order);
     }
 
     @Override
@@ -498,6 +478,7 @@ public class OrderServiceImpl implements OrderService {
         // 3. Idempotency Check: if already paid, acknowledge 200 without duplicate side effects
         if (order.getStatus() == OrderStatus.PAID) {
             log.info("Order code={} is already marked as PAID. Acknowledging webhook idempotently.", orderCode);
+            retryFulfillment(order);
             return;
         }
 
@@ -510,12 +491,7 @@ public class OrderServiceImpl implements OrderService {
                 return;
             }
 
-            order.setStatus(OrderStatus.PAID);
-            order.setPaidAt(Instant.now());
-            orderRepository.save(order);
-            evictOrderCache(order);
-
-            fulfillOrder(order);
+            completePayment(order);
         } else {
             log.warn("Payment webhook received non-success code={} for orderCode={}", webhook.getCode(), orderCode);
         }
@@ -525,13 +501,11 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public OrderResponse syncOrder(UUID accountId, UUID orderId) {
         log.info("Chủ động đồng bộ trạng thái đơn hàng từ PayOS: orderId={}, accountId={}", orderId, accountId);
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdForUpdate(orderId)
                 .filter(o -> o.getAccountId().equals(accountId))
                 .orElseThrow(OrderExceptions::orderNotFound);
 
-        if (order.getStatus() == OrderStatus.PENDING) {
-            syncOrderEntity(order);
-        }
+        syncOrderEntity(order);
 
         return orderMapper.toOrderResponse(order);
     }
@@ -540,13 +514,8 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public OrderResponse getActivePendingOrder(UUID accountId) {
         log.debug("Checking active pending order for accountId={}", accountId);
-        Instant now = Instant.now();
-        List<Order> pendingOrders = orderRepository.findByAccountIdAndStatusAndExpiresAtAfterOrderByPayosOrderCodeAsc(
-                accountId, OrderStatus.PENDING, now);
-        if (pendingOrders == null || pendingOrders.isEmpty()) {
-            pendingOrders = orderRepository.findFirstByAccountIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
-                    accountId, OrderStatus.PENDING, now).map(List::of).orElse(List.of());
-        }
+        List<Order> pendingOrders = orderRepository.findByAccountIdAndStatusOrderByPayosOrderCodeAsc(
+                accountId, OrderStatus.PENDING);
 
         List<Order> sortedPending = pendingOrders.stream()
                 .sorted(Comparator.comparingLong(Order::getPayosOrderCode))
@@ -565,54 +534,81 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void reconcileOrder(UUID orderId) {
-        Order order = orderRepository.findById(orderId).orElse(null);
-        if (order == null || order.getStatus() != OrderStatus.PENDING) {
-            return;
-        }
-        syncOrderEntity(order);
+        orderRepository.findByIdForUpdate(orderId).ifPresent(this::syncOrderEntity);
     }
 
     private void syncOrderEntity(Order order) {
+        if (order.getStatus() == OrderStatus.PAID) {
+            retryFulfillment(order);
+            return;
+        }
         if (order.getStatus() != OrderStatus.PENDING) {
             return;
         }
 
+        PaymentLink link;
         try {
-            PaymentLink link = payOS.paymentRequests().get(order.getPayosOrderCode());
-            PaymentLinkStatus status = link.getStatus();
-            log.info("Kiểm tra trạng thái từ PayOS: orderCode={}, status={}", order.getPayosOrderCode(), status);
-
-            if (PaymentLinkStatus.PAID.equals(status)) {
-                log.info("Đơn hàng code={} đã thanh toán thành công (PAID). Cập nhật và hoàn tất đơn hàng.", order.getPayosOrderCode());
-                order.setStatus(OrderStatus.PAID);
-                order.setPaidAt(Instant.now());
-                orderRepository.save(order);
-                evictOrderCache(order);
-                fulfillOrder(order);
-            } else if (PaymentLinkStatus.CANCELLED.equals(status)) {
-                order.setStatus(OrderStatus.CANCELLED);
-                orderRepository.save(order);
-                evictOrderCache(order);
-            } else if (PaymentLinkStatus.EXPIRED.equals(status) || (order.getExpiresAt() != null && order.getExpiresAt().isBefore(Instant.now()))) {
-                log.info("Đơn hàng code={} đã hết hạn. Đánh dấu EXPIRED.", order.getPayosOrderCode());
-                order.setStatus(OrderStatus.EXPIRED);
-                orderRepository.save(order);
-                evictOrderCache(order);
-                if (PaymentLinkStatus.PENDING.equals(status)) {
-                    try {
-                        payOS.paymentRequests().cancel(order.getPayosOrderCode(), "Expired");
-                    } catch (Exception ignored) {
-                    }
-                }
-            }
+            link = payOS.paymentRequests().get(order.getPayosOrderCode());
         } catch (Exception ex) {
             log.warn("Không thể truy vấn PayOS cho orderCode={}: {}", order.getPayosOrderCode(), ex.getMessage());
-            if (order.getExpiresAt() != null && order.getExpiresAt().isBefore(Instant.now())) {
-                order.setStatus(OrderStatus.EXPIRED);
-                orderRepository.save(order);
-                evictOrderCache(order);
+            return;
+        }
+        applyProviderState(order, link, OrderStatus.CANCELLED);
+        if (order.getStatus() == OrderStatus.PENDING && link.getStatus() == PaymentLinkStatus.PENDING
+                && order.getExpiresAt() != null && order.getExpiresAt().isBefore(Instant.now())) {
+            try {
+                cancelOrderEntity(order, "Expired", OrderStatus.EXPIRED);
+            } catch (AppException ex) {
+                log.warn("Chưa xác nhận hủy đơn hết hạn orderCode={}: {}", order.getPayosOrderCode(), ex.getMessage());
             }
         }
+    }
+
+    private void cancelOrderEntity(Order order, String reason, OrderStatus cancelledStatus) {
+        PaymentLink link;
+        try {
+            link = payOS.paymentRequests().cancel(order.getPayosOrderCode(), reason);
+        } catch (Exception ex) {
+            log.warn("Không thể xác nhận hủy đơn PayOS orderCode={}: {}", order.getPayosOrderCode(), ex.getMessage());
+            throw OrderExceptions.payosServiceError("Chưa xác nhận được trạng thái hủy đơn. Vui lòng thử lại.");
+        }
+        applyProviderState(order, link, cancelledStatus);
+        if (order.getStatus() == OrderStatus.PENDING) {
+            throw OrderExceptions.payosServiceError("Đơn hàng chưa được PayOS xác nhận hủy.");
+        }
+    }
+
+    private void applyProviderState(Order order, PaymentLink link, OrderStatus cancelledStatus) {
+        if (link == null || link.getStatus() == null || link.getOrderCode() == null
+                || link.getOrderCode() != order.getPayosOrderCode() || link.getAmount() == null
+                || link.getAmount() != order.getAmountVnd()) {
+            throw OrderExceptions.payosServiceError("Thông tin đơn hàng PayOS không khớp. Chưa thể xác nhận thanh toán.");
+        }
+        if (link.getStatus() == PaymentLinkStatus.PAID) {
+            if (link.getAmountPaid() == null || link.getAmountPaid() < order.getAmountVnd()) {
+                throw OrderExceptions.payosServiceError("Chưa xác nhận đủ số tiền thanh toán.");
+            }
+            completePayment(order);
+        } else if (link.getStatus() == PaymentLinkStatus.CANCELLED || link.getStatus() == PaymentLinkStatus.EXPIRED) {
+            order.setStatus(link.getStatus() == PaymentLinkStatus.EXPIRED ? OrderStatus.EXPIRED : cancelledStatus);
+            orderRepository.save(order);
+            evictOrderCache(order);
+        }
+    }
+
+    private void completePayment(Order order) {
+        order.setStatus(OrderStatus.PAID);
+        if (order.getPaidAt() == null) order.setPaidAt(Instant.now());
+        fulfillOrder(order);
+        orderRepository.save(order);
+        evictOrderCache(order);
+    }
+
+    private void retryFulfillment(Order order) {
+        if (order.getFulfillmentStatus() != OrderFulfillmentStatus.PENDING) return;
+        fulfillOrder(order);
+        orderRepository.save(order);
+        evictOrderCache(order);
     }
 
     private void evictOrderCache(Order order) {
@@ -624,10 +620,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void fulfillOrder(Order order) {
+        if (order.getFulfillmentStatus() != OrderFulfillmentStatus.PENDING) return;
         if (order.getBundle() != null) {
-            long vipCoinAmount = order.getVipCoinAmount() != null
-                    ? order.getVipCoinAmount()
-                    : order.getBundle().getVipCoinAmount();
+            if (order.getVipCoinAmount() == null || order.getVipCoinAmount() <= 0) {
+                order.setFulfillmentStatus(OrderFulfillmentStatus.REVIEW_REQUIRED);
+                log.error("Đơn đã thanh toán thiếu snapshot VIP Coin, cần đối soát orderId={}", order.getId());
+                return;
+            }
+            long vipCoinAmount = order.getVipCoinAmount();
 
             VipCoinTopupSuccessEvent event = VipCoinTopupSuccessEvent.builder()
                     .orderId(order.getId())
@@ -640,6 +640,7 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             // 1. Đồng bộ cộng VIP Coin tức thì qua HTTP để số dư hiển thị ngay lập tức trên FE mà không cần F5
+            boolean walletConfirmed = false;
             try {
                 walletClient.creditVipCoin(
                         order.getAccountId(),
@@ -648,6 +649,7 @@ public class OrderServiceImpl implements OrderService {
                         String.valueOf(order.getPayosOrderCode()),
                         "ORDER:" + order.getId()
                 );
+                walletConfirmed = true;
                 log.info("Đã đồng bộ cộng {} VIP Coin tức thì cho accountId={}, orderId={}",
                         vipCoinAmount, order.getAccountId(), order.getId());
             } catch (Exception httpEx) {
@@ -662,6 +664,9 @@ public class OrderServiceImpl implements OrderService {
             } catch (Exception ex) {
                 log.warn("Không thể gửi event RabbitMQ cho orderId={}: {}", order.getId(), ex.getMessage());
             }
+            // Publishing a message is not confirmation that the wallet credited it.
+            // A later HTTP retry uses the same key, including when RabbitMQ already delivered it.
+            if (!walletConfirmed) return;
         } else if (order.getProduct() != null) {
             String grantKey = "ORDER:" + order.getId();
             boolean alreadyOwned = inventoryItemRepository.existsByAccountIdAndProductId(
@@ -684,6 +689,12 @@ public class OrderServiceImpl implements OrderService {
                 log.warn("Tài khoản {} đã sở hữu sản phẩm {} khi hoàn tất đơn hàng {}. Bỏ qua cấp trùng.",
                         order.getAccountId(), order.getProduct().getId(), order.getId());
             }
+        } else {
+            order.setFulfillmentStatus(OrderFulfillmentStatus.REVIEW_REQUIRED);
+            log.error("Đơn đã thanh toán không có vật phẩm/gói nạp, cần đối soát orderId={}", order.getId());
+            return;
         }
+        order.setFulfillmentStatus(OrderFulfillmentStatus.FULFILLED);
+        order.setFulfilledAt(Instant.now());
     }
 }

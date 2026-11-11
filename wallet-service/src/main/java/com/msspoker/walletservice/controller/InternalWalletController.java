@@ -8,6 +8,10 @@ import com.msspoker.walletservice.dto.response.TransactionResponse;
 import com.msspoker.walletservice.service.WalletService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +27,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/internal/wallet")
 @Tag(name = "Internal Wallet APIs", description = "API nội bộ giữa các microservices")
+@SecurityScheme(name = "walletInternalKey", type = SecuritySchemeType.APIKEY,
+        in = SecuritySchemeIn.HEADER, paramName = "X-Wallet-Internal-Key")
+@SecurityRequirement(name = "walletInternalKey")
 public class InternalWalletController {
 
     private final WalletService walletService;
