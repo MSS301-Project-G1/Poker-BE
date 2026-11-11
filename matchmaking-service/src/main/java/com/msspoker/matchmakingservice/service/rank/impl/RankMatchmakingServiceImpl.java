@@ -20,6 +20,8 @@ import com.msspoker.matchmakingservice.service.store.QueueStore;
 import com.msspoker.matchmakingservice.service.rank.RankMatchmakingService;
 import com.msspoker.matchmakingservice.service.client.RankingClient;
 import com.msspoker.matchmakingservice.service.client.RestrictionClient;
+import com.msspoker.matchmakingservice.service.client.WalletClient;
+import com.msspoker.matchmakingservice.config.MatchmakingProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -44,6 +46,8 @@ public class RankMatchmakingServiceImpl implements RankMatchmakingService {
     private final QueueStatusMapper statusMapper;
     private final Clock clock;
     private final RestrictionClient restrictions;
+    private final WalletClient wallet;
+    private final MatchmakingProperties properties;
 
     public RankMatchmakingServiceImpl(
             QueueStore queueStore,
@@ -53,7 +57,9 @@ public class RankMatchmakingServiceImpl implements RankMatchmakingService {
             PartyStore parties,
             QueueStatusMapper statusMapper,
             Clock clock,
-            RestrictionClient restrictions
+            RestrictionClient restrictions,
+            WalletClient wallet,
+            MatchmakingProperties properties
     ) {
         this.queueStore = queueStore;
         this.players = players;
@@ -63,6 +69,8 @@ public class RankMatchmakingServiceImpl implements RankMatchmakingService {
         this.statusMapper = statusMapper;
         this.clock = clock;
         this.restrictions = restrictions;
+        this.wallet = wallet;
+        this.properties = properties;
     }
 
     @Override
@@ -95,6 +103,12 @@ public class RankMatchmakingServiceImpl implements RankMatchmakingService {
                 && restriction.rankBannedUntil().isAfter(clock.instant()))) {
             throw error(MatchmakingError.MM_RANK_RESTRICTED, HttpStatus.FORBIDDEN,
                     "Tài khoản đang bị hạn chế tham gia Rank.");
+        }
+
+        long entryFee = properties.getRank().getEntryFee();
+        if (entryFee > 0 && wallet.coinBalance(accountId) < entryFee) {
+            throw error(MatchmakingError.MM_INSUFFICIENT_BALANCE, HttpStatus.PAYMENT_REQUIRED,
+                    "Không đủ COIN để tham gia Rank. Cần tối thiểu " + entryFee + " COIN.");
         }
 
         PlayerRankingResponse snapshot = ranking.ranking(accountId);
