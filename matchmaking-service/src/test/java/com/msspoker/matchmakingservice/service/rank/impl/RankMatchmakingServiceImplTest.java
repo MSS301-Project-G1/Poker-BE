@@ -19,6 +19,9 @@ import com.msspoker.matchmakingservice.service.store.PartyStore;
 import com.msspoker.matchmakingservice.service.store.QueueStore;
 import com.msspoker.matchmakingservice.service.client.RankingClient;
 import com.msspoker.matchmakingservice.service.client.RestrictionClient;
+import com.msspoker.matchmakingservice.service.client.WalletClient;
+import com.msspoker.matchmakingservice.config.MatchmakingProperties;
+import org.springframework.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,10 +53,13 @@ class RankMatchmakingServiceImplTest {
     @Mock private GameClient game;
     @Mock private PartyStore parties;
     @Mock private RestrictionClient restrictions;
+    @Mock private WalletClient wallet;
+    private MatchmakingProperties properties;
     private RankMatchmakingServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        properties = new MatchmakingProperties();
         org.mockito.Mockito.lenient().when(restrictions.restrictions(any()))
                 .thenReturn(new AccountRestrictionsResponse(false, null, null));
         service = new RankMatchmakingServiceImpl(
@@ -64,13 +70,16 @@ class RankMatchmakingServiceImplTest {
                 parties,
                 Mappers.getMapper(QueueStatusMapper.class),
                 Clock.fixed(NOW, ZoneOffset.UTC),
-                restrictions
+                restrictions,
+                wallet,
+                properties
         );
     }
 
     @Test
     void eloZeroCanJoinAndKeepsRankingSnapshot() {
         UUID accountId = UUID.randomUUID();
+        when(wallet.coinBalance(accountId)).thenReturn(100L);
         when(ranking.ranking(accountId)).thenReturn(new PlayerRankingResponse(accountId, 0, 2, 1));
         when(queueStore.enqueue(any())).thenReturn(true);
         when(game.matchSettings(MatchMode.RANK))
@@ -85,6 +94,63 @@ class RankMatchmakingServiceImplTest {
         assertThat(response.mode()).isEqualTo(MatchMode.RANK);
         assertThat(response.minPlayers()).isEqualTo(2);
         assertThat(response.maxPlayers()).isEqualTo(6);
+        verify(wallet).coinBalance(accountId);
+        verify(wallet, never()).debit(any());
+    }
+
+    @Test
+    void zeroOrInsufficientCoinsCannotEnterTheQueue() {
+        UUID accountId = UUID.randomUUID();
+        for (long coins : new long[]{0, 99}) {
+            when(wallet.coinBalance(accountId)).thenReturn(coins);
+            assertThatThrownBy(() -> service.join(accountId))
+                    .isInstanceOfSatisfying(MatchmakingApiException.class, exception -> {
+                        assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_INSUFFICIENT_BALANCE);
+                        assertThat(exception.getStatus()).isEqualTo(HttpStatus.PAYMENT_REQUIRED);
+                    });
+        }
+        verify(queueStore, never()).enqueue(any());
+        verify(ranking, never()).ranking(any());
+        verify(wallet, never()).debit(any());
+    }
+
+    @Test
+    void checksTheConfiguredRankFeeInsteadOfAHardCodedMinimum() {
+        UUID accountId = UUID.randomUUID();
+        properties.getRank().setEntryFee(375);
+        when(wallet.coinBalance(accountId)).thenReturn(374L);
+        assertThatThrownBy(() -> service.join(accountId))
+                .isInstanceOfSatisfying(MatchmakingApiException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_INSUFFICIENT_BALANCE);
+                    assertThat(exception.getMessage()).contains("375 COIN");
+                });
+        verify(queueStore, never()).enqueue(any());
+    }
+
+    @Test
+    void unreadableWalletIsADependencyFailureAndDoesNotEnqueue() {
+        UUID accountId = UUID.randomUUID();
+        when(wallet.coinBalance(accountId)).thenThrow(new MatchmakingApiException(
+                MatchmakingError.MM_DEPENDENCY_UNAVAILABLE, HttpStatus.BAD_GATEWAY, "Wallet unavailable"));
+        assertThatThrownBy(() -> service.join(accountId))
+                .isInstanceOfSatisfying(MatchmakingApiException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_DEPENDENCY_UNAVAILABLE);
+                    assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY);
+                });
+        verify(queueStore, never()).enqueue(any());
+        verify(ranking, never()).ranking(any());
+    }
+
+    @Test
+    void aZeroEntryFeeDoesNotRequireWalletAvailability() {
+        UUID accountId = UUID.randomUUID();
+        properties.getRank().setEntryFee(0);
+        when(ranking.ranking(accountId)).thenReturn(new PlayerRankingResponse(accountId, 0, 0, 0));
+        when(queueStore.enqueue(any())).thenReturn(true);
+        when(game.matchSettings(MatchMode.RANK)).thenReturn(new GameMatchSettingsResponse(MatchMode.RANK, 2, 6));
+        assertThat(service.join(accountId).status()).isEqualTo("WAITING");
+        verify(wallet, never()).coinBalance(any());
+        verify(wallet, never()).debit(any());
     }
 
     @Test
@@ -114,6 +180,7 @@ class RankMatchmakingServiceImplTest {
                         assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_RANK_RESTRICTED));
 
         verify(ranking, never()).ranking(accountId);
+        verify(wallet, never()).coinBalance(accountId);
     }
 
     @Test

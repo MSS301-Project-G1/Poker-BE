@@ -827,13 +827,15 @@ class GatewayIntegrationTests {
     }
 
     @Test
-    void jwksAndSwaggerArePublicAndKeepTheirPaths() {
+    void jwksKeepsItsPathAndSwaggerIsServedByTheGateway() {
         client.get().uri("/.well-known/jwks.json").exchange().expectStatus().isOk()
                 .expectBody().jsonPath("$.keys[0].kid").isEqualTo("auth-key").jsonPath("$.keys[0].d").doesNotExist();
-        for (String path : List.of("/swagger-ui.html", "/swagger-ui/index.html", "/v3/api-docs", "/v3/api-docs/swagger-config")) {
-            client.get().uri(path).exchange().expectStatus().isOk();
-            assertThat(LAST.get().uri()).isEqualTo(path);
-        }
+        client.get().uri("/swagger-ui.html").exchange().expectStatus().isFound()
+                .expectHeader().valueEquals("Location", "/swagger-ui/index.html");
+        client.get().uri("/swagger-ui/index.html").exchange().expectStatus().isOk();
+        client.get().uri("/v3/api-docs/swagger-config").exchange().expectStatus().isOk()
+                .expectBody().jsonPath("$.urls[?(@.name == 'wallet-service')].url").isEqualTo("/v3/api-docs/wallet-service");
+        assertThat(LAST.get()).isNull();
     }
 
     @Test
