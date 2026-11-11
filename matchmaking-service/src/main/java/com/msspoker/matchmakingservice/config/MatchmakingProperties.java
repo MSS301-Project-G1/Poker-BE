@@ -26,6 +26,7 @@ public class MatchmakingProperties {
     @Valid private final Ranking ranking = new Ranking();
     @Valid private final Restriction restriction = new Restriction();
     @Valid private final Wallet wallet = new Wallet();
+    @Valid private final Presence presence = new Presence();
 
     public Normal getNormal() { return normal; }
     public Rank getRank() { return rank; }
@@ -37,6 +38,7 @@ public class MatchmakingProperties {
     public Ranking getRanking() { return ranking; }
     public Restriction getRestriction() { return restriction; }
     public Wallet getWallet() { return wallet; }
+    public Presence getPresence() { return presence; }
 
     public static class Normal {
         @NotNull private Duration acceptTimeout = Duration.ofSeconds(30);
@@ -151,6 +153,24 @@ public class MatchmakingProperties {
         public void setTimeout(Duration timeout) { this.timeout = timeout; }
         public boolean isStubEnabled() { return stubEnabled; }
         public void setStubEnabled(boolean stubEnabled) { this.stubEnabled = stubEnabled; }
+    }
+
+    /**
+     * FE hỏi trạng thái hàng chờ mỗi giây; im lặng quá timeout nghĩa là người chơi đã đóng tab hoặc trình duyệt.
+     * Phải ngắn hơn nhiều so với fill-timeout (30s) để người đã rời không kịp bị ghép vào trận.
+     */
+    public static class Presence {
+        @NotNull private Duration timeout = Duration.ofSeconds(10);
+        @Min(1000) private long sweepDelayMs = 2000;
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
+        public long getSweepDelayMs() { return sweepDelayMs; }
+        public void setSweepDelayMs(long sweepDelayMs) { this.sweepDelayMs = sweepDelayMs; }
+
+        @AssertTrue(message = "matchmaking.presence.timeout phải lớn hơn 0")
+        public boolean isValid() {
+            return timeout != null && !timeout.isZero() && !timeout.isNegative();
+        }
     }
 
     public static class Wallet {
