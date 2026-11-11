@@ -64,6 +64,14 @@ docker compose up --build
 
 Các port public trong `.env` có thể đổi để tránh xung đột trên máy. Gateway có health endpoint tại `http://localhost:8080/actuator/health`; mỗi service cũng có `/actuator/health` trên port của mình. Test auth trực tiếp bằng Swagger tại `http://localhost:8090/swagger-ui.html`; login/refresh/logout cần CSRF token theo README auth. Root Compose có DB riêng cho auth; hạ tầng và cấu hình riêng của game xem README game trước khi chạy cả nhóm.
 
+Chạy Java trong IntelliJ, chỉ để DB/Redis/RabbitMQ trong Docker:
+
+```powershell
+docker compose up -d rabbitmq auth-postgres game-db matchmaking-db matchmaking-redis social-db chat-db ranking-db competition-db shop-postgres shop-redis shop-minio wallet-postgres
+```
+
+Đặt Active profiles = `local` cho mọi run config Spring Boot (Run → Edit Configurations → Edit configuration templates → Spring Boot, rồi xoá run config cũ để IntelliJ tạo lại). Profile `local` của mỗi service trỏ tới port Docker mở ra trên máy (154xx, Redis 6383, RabbitMQ 5679) và tự đọc key trong `.env` ở thư mục gốc. Trước khi chuyển sang `docker compose up --build`, tắt các service đang chạy trong IntelliJ để không trùng port.
+
 ## Deploy (CI/CD)
 
 Workflow `.github/workflows/ci-cd.yml` chạy `./mvnw verify` cho mọi pull request. Push lên `main` thì sau khi test qua, workflow build image ARM cho từng service, đẩy lên GHCR (`ghcr.io/mss301-project-g1/poker-<service>`) rồi SSH vào VPS chạy `deploy/remote-deploy.sh`: pull image, `docker compose up` với `deploy/compose.prod.yml`, đợi gateway healthy và kiểm tra `/ws/game`, `/ws/social`, `/ws/chat` upgrade được (101) qua gateway.

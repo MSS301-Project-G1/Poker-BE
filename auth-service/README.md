@@ -268,18 +268,17 @@ Cấu hình chính và dev đều dùng service `auth-mailpit`, port nội bộ 
 ## Chạy Java trên máy
 
 ```bash
-docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml up -d auth-postgres rabbitmq
+docker compose up -d auth-postgres rabbitmq
 mvn -B -pl auth-service -am install -DskipTests
-# Export AUTH_* và JWT_* trong .env vào môi trường Java trước khi chạy.
-# Khi dùng dev override, AUTH_RABBIT_PORT mặc định 5673; export giá trị tùy chỉnh từ .env nếu có.
 mvn -pl auth-service spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-Profile `local` dùng password mặc định của Compose dev. Ngoài local phải cung cấp
+Profile `local` dùng infra của root Compose: PostgreSQL `localhost:54330`, RabbitMQ
+`localhost:5679` với user `guest`, và tự đọc file `.env` ở thư mục gốc. Trong IntelliJ, đặt
+Active profiles = `local` cho run config. URL DB và RabbitMQ được ghi cố định trong profile nên
+`AUTH_DB_URL`/`AUTH_RABBIT_*` trong `.env` không có tác dụng ở profile này; muốn đổi kết nối thì
+dùng biến `SPRING_DATASOURCE_URL`, `SPRING_RABBITMQ_*`. Ngoài local phải cung cấp
 `AUTH_DB_PASSWORD` (hoặc `SPRING_DATASOURCE_PASSWORD`) và `AUTH_RABBIT_PASSWORD`.
-`AUTH_DB_URL` và
-`AUTH_DB_USERNAME` đổi kết nối; mặc định URL/user như trên. Spring Boot không tự đọc
-file `.env`: export biến vào shell, cấu hình trong IDE hoặc dùng Compose `--env-file .env`.
 Giá trị trong `.env.example` chỉ phục vụ local, không dùng làm secret triển khai.
 
 ## Test API bằng Swagger UI
