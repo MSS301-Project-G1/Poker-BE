@@ -2,6 +2,7 @@ gateway:
   catalog:
     services:
       identity-service:
+        documentation-enabled: false
         uri: ${IDENTITY_SERVICE_URL:lb://identity-service}
         routes:
         - id: identity-service

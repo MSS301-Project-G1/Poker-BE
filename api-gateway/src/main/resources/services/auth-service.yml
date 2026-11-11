@@ -17,10 +17,6 @@ gateway:
         - id: auth-documentation
           paths:
           - /.well-known/jwks.json
-          - /swagger-ui.html
-          - /swagger-ui/**
-          - /v3/api-docs
-          - /v3/api-docs/**
           methods:
           - GET
         public-endpoints:
@@ -41,10 +37,6 @@ gateway:
         - method: GET
           paths:
           - /.well-known/jwks.json
-          - /swagger-ui.html
-          - /swagger-ui/**
-          - /v3/api-docs
-          - /v3/api-docs/**
         csrf-delegated-paths:
         - /api/auth
         - /api/auth/**

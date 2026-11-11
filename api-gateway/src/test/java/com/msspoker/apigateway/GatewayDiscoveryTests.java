@@ -44,7 +44,10 @@ class GatewayDiscoveryTests {
             .handle((request, response) -> {
                 LAST.set(Map.of("path", request.uri(), "user", request.requestHeaders().get("X-User-Id", ""),
                         "role", request.requestHeaders().get("X-User-Role", "")));
-                return response.header("Content-Type", "application/json").sendString(Mono.just("{\"owner\":\"fixture\"}"));
+                return response.header("Content-Type", "application/json").sendString(Mono.just(
+                        request.uri().equals("/v3/api-docs")
+                                ? "{\"openapi\":\"3.1.0\",\"info\":{\"title\":\"Fixture\",\"version\":\"1\"},\"paths\":{\"/api/fixture/public\":{\"get\":{\"responses\":{}}}}}"
+                                : "{\"owner\":\"fixture\"}"));
             }).bindNow();
     private static final DisposableServer REGISTRY = HttpServer.create().host("127.0.0.1").port(0)
             .handle((request, response) -> {
@@ -85,6 +88,16 @@ class GatewayDiscoveryTests {
     static void close() {
         REGISTRY.disposeNow();
         SERVICE.disposeNow();
+    }
+
+    @Test
+    void swaggerUsesTheSameEurekaRegistrationWithoutASeparateServiceUrl() {
+        client.get().uri("/v3/api-docs/swagger-config").exchange().expectStatus().isOk().expectBody()
+                .jsonPath("$.urls[?(@.name == 'fixture-service')].url").isEqualTo("/v3/api-docs/fixture-service");
+        client.get().uri("/v3/api-docs/fixture-service").exchange().expectStatus().isOk().expectBody()
+                .jsonPath("$.info.title").isEqualTo("Fixture")
+                .jsonPath("$.servers[0].url").isEqualTo("/");
+        assertThat(LAST.get()).containsEntry("path", "/v3/api-docs").containsEntry("user", "").containsEntry("role", "");
     }
 
     @Test

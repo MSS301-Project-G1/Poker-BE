@@ -57,7 +57,8 @@ public record GatewayCatalogProperties(Map<String, Service> services) {
     }
 
     public record Service(URI uri, List<Route> routes, List<PublicEndpoint> publicEndpoints,
-            List<Endpoint> adminEndpoints, List<Endpoint> csrfExemptEndpoints, List<String> csrfDelegatedPaths) {
+            List<Endpoint> adminEndpoints, List<Endpoint> csrfExemptEndpoints, List<String> csrfDelegatedPaths,
+            @DefaultValue("true") boolean documentationEnabled) {
         public Service {
             routes = routes == null ? List.of() : List.copyOf(routes);
             publicEndpoints = publicEndpoints == null ? List.of() : List.copyOf(publicEndpoints);
