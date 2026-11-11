@@ -251,6 +251,18 @@ class AdminUserTests {
     }
 
     @Test
+    void adminIdsListUndeletedAdminsAsARawArray() throws Exception {
+        String body = mvc.perform(get("/internal/accounts/admins"))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$").isArray()).andReturn().getResponse().getContentAsString();
+        assertThat(body).contains(admin.getId().toString()).doesNotContain(user.getId().toString());
+        var deleted = accounts.findById(admin.getId()).orElseThrow();
+        deleted.setDeleted(true);
+        accounts.saveAndFlush(deleted);
+        assertThat(auth.adminIds()).doesNotContain(admin.getId());
+    }
+
+    @Test
     void aConcurrentLoginCannotLeaveUsableTokensAfterBanCommits() throws Exception {
         var ready = new CountDownLatch(2);
         var start = new CountDownLatch(1);

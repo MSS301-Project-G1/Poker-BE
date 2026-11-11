@@ -1,7 +1,7 @@
 # auth-service
 
 **04/11/2026:** đã có ADMIN quản lý user, ban/unban có thời hạn hoặc đến khi gỡ, lịch sử và
-`GET /internal/accounts/{id}/restrictions`. Xem [ADMIN-USERS.md](ADMIN-USERS.md) để chạy và test;
+`GET /internal/accounts/{id}/restrictions` (và `GET /internal/accounts/admins` cho ranking). Xem [ADMIN-USERS.md](ADMIN-USERS.md) để chạy và test;
 auth dùng migration V11, FE nằm ở nhánh `feat/ban-user`.
 
 **01/11/2026:** đã thêm một phiên login/một tab hoạt động, `X-Tab-Id` và API tiếp quản tab.
