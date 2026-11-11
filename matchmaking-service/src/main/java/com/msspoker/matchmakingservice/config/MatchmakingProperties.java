@@ -155,10 +155,13 @@ public class MatchmakingProperties {
         public void setStubEnabled(boolean stubEnabled) { this.stubEnabled = stubEnabled; }
     }
 
-    /** FE hỏi trạng thái hàng chờ mỗi giây; im lặng quá timeout nghĩa là người chơi đã đóng tab hoặc trình duyệt. */
+    /**
+     * FE hỏi trạng thái hàng chờ mỗi giây; im lặng quá timeout nghĩa là người chơi đã đóng tab hoặc trình duyệt.
+     * Phải ngắn hơn nhiều so với fill-timeout (30s) để người đã rời không kịp bị ghép vào trận.
+     */
     public static class Presence {
-        @NotNull private Duration timeout = Duration.ofSeconds(60);
-        @Min(1000) private long sweepDelayMs = 10000;
+        @NotNull private Duration timeout = Duration.ofSeconds(10);
+        @Min(1000) private long sweepDelayMs = 2000;
         public Duration getTimeout() { return timeout; }
         public void setTimeout(Duration timeout) { this.timeout = timeout; }
         public long getSweepDelayMs() { return sweepDelayMs; }

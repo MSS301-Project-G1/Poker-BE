@@ -168,8 +168,8 @@ Redis hiện chỉ hỗ trợ deployment standalone vì các Lua operation chạ
 | `MATCHMAKING_FINDER_DELAY_MS` | `1000` |
 | `MATCHMAKING_QUEUE_ENTRY_TTL` | `24h` |
 | `MATCHMAKING_RESERVATION_TTL` | `2m` |
-| `MATCHMAKING_PRESENCE_TIMEOUT` | `60s` — không gọi API matchmaking quá thời gian này (đã đóng tab/trình duyệt) thì bị đưa khỏi hàng chờ và party |
-| `MATCHMAKING_PRESENCE_SWEEP_DELAY_MS` | `10000` |
+| `MATCHMAKING_PRESENCE_TIMEOUT` | `10s` — không gọi API matchmaking quá thời gian này (đã đóng tab/trình duyệt) thì bị đưa khỏi hàng chờ và party; giữ ngắn hơn nhiều so với fill-timeout |
+| `MATCHMAKING_PRESENCE_SWEEP_DELAY_MS` | `2000` |
 | `MATCHMAKING_GAME_TIMEOUT` | `3s` |
 | `MATCHMAKING_GAME_STUB_ENABLED` | `false` |
 

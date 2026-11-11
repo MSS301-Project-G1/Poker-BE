@@ -18,6 +18,8 @@ import java.util.UUID;
  * Người chơi đóng tab hoặc trình duyệt thì không còn ai bấm rời hàng chờ hay rời party cho họ.
  * Worker tìm tài khoản đã im lặng quá matchmaking.presence.timeout và dọn giúp; tải lại trang
  * chỉ im lặng vài giây nên không bị ảnh hưởng.
+ * Ngay sau khi service khởi động (ví dụ lúc deploy), dấu thời gian trong Redis đều cũ dù người chơi
+ * vẫn mở tab, nên worker đợi hết một timeout để FE kịp gọi lại rồi mới quét.
  */
 @Component
 @ConditionalOnProperty(name = "matchmaking.finder.enabled", havingValue = "true", matchIfMissing = true)
@@ -28,6 +30,7 @@ public class AbandonedPlayerWorker {
     private final AbandonedPlayerService players;
     private final MatchmakingProperties properties;
     private final Clock clock;
+    private final Instant startedAt;
 
     public AbandonedPlayerWorker(PresenceStore presence, AbandonedPlayerService players,
                                  MatchmakingProperties properties, Clock clock) {
@@ -35,11 +38,13 @@ public class AbandonedPlayerWorker {
         this.players = players;
         this.properties = properties;
         this.clock = clock;
+        this.startedAt = clock.instant();
     }
 
     @Scheduled(fixedDelayString = "${matchmaking.presence.sweep-delay-ms:10000}")
     public void sweep() {
         Instant cutoff = clock.instant().minus(properties.getPresence().getTimeout());
+        if (cutoff.isBefore(startedAt)) return;
         for (UUID accountId : presence.seenBefore(cutoff, MatchmakingConstants.PRESENCE_SWEEP_BATCH)) {
             try {
                 if (players.release(accountId)) presence.forget(accountId);
