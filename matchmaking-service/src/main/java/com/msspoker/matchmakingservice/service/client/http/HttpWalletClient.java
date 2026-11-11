@@ -4,10 +4,13 @@ import com.msspoker.matchmakingservice.config.MatchmakingProperties;
 import com.msspoker.matchmakingservice.dto.request.WalletTransferRequest;
 import com.msspoker.matchmakingservice.exception.InsufficientBalanceException;
 import com.msspoker.matchmakingservice.exception.WalletCallUnknownException;
+import com.msspoker.matchmakingservice.enums.MatchmakingError;
+import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
 import com.msspoker.matchmakingservice.service.client.WalletClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -15,6 +18,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.UUID;
 
 @Component
 @ConditionalOnProperty(name = "matchmaking.wallet.stub-enabled", havingValue = "false", matchIfMissing = true)
@@ -33,6 +37,26 @@ public class HttpWalletClient implements WalletClient {
         );
         factory.setReadTimeout(timeout);
         wallet = RestClient.builder().baseUrl(walletUrl).requestFactory(factory).build();
+    }
+
+    @Override
+    public long coinBalance(UUID accountId) {
+        try {
+            String body = wallet.get().uri("/internal/wallet/{accountId}/balance", accountId)
+                    .header("X-Wallet-Internal-Key", walletInternalKey).retrieve().body(String.class);
+            var response = tools.jackson.databind.json.JsonMapper.builder().build().readTree(body);
+            var data = response.path("data");
+            var coins = data.path("coinBalance");
+            if (!"WALLET_SUCCESS".equals(response.path("code").asString())
+                    || !accountId.toString().equals(data.path("accountId").asString())
+                    || !coins.isIntegralNumber() || !coins.canConvertToLong() || coins.longValue() < 0) {
+                throw new IllegalStateException("Wallet trả số dư không hợp lệ");
+            }
+            return coins.longValue();
+        } catch (RuntimeException exception) {
+            throw new MatchmakingApiException(MatchmakingError.MM_DEPENDENCY_UNAVAILABLE,
+                    HttpStatus.BAD_GATEWAY, "Chưa kiểm tra được số dư ví. Vui lòng thử lại.");
+        }
     }
 
     @Override

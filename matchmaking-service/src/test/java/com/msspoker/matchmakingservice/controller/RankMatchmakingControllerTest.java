@@ -3,6 +3,9 @@ package com.msspoker.matchmakingservice.controller;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
+import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
+import com.msspoker.matchmakingservice.enums.MatchmakingError;
+import org.springframework.http.HttpStatus;
 import com.msspoker.matchmakingservice.service.rank.RankMatchmakingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,17 @@ class RankMatchmakingControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.status").value("NONE"));
+    }
+
+    @Test
+    void insufficientBalanceIsReturnedToTheFrontendBeforeJoining() throws Exception {
+        when(service.join(ACCOUNT_ID)).thenThrow(new MatchmakingApiException(
+                MatchmakingError.MM_INSUFFICIENT_BALANCE, HttpStatus.PAYMENT_REQUIRED,
+                "Không đủ COIN để tham gia Rank. Cần tối thiểu 100 COIN."));
+        mvc.perform(post("/api/matchmaking/rank/join").header("X-User-Id", ACCOUNT_ID))
+                .andExpect(status().isPaymentRequired())
+                .andExpect(jsonPath("$.code").value("MM_INSUFFICIENT_BALANCE"))
+                .andExpect(jsonPath("$.message").value("Không đủ COIN để tham gia Rank. Cần tối thiểu 100 COIN."));
     }
 
     @Test

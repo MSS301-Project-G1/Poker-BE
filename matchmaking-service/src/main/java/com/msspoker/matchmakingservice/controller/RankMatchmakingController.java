@@ -26,14 +26,15 @@ public class RankMatchmakingController {
         this.matchmaking = matchmaking;
     }
 
-    /** Đăng ký ghép Rank; service kiểm tra party, hạn chế tài khoản và Elo. */
+    /** Đăng ký ghép Rank; service kiểm tra party, hạn chế tài khoản, phí vào và Elo. */
     @PostMapping("/join")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "joinRank", summary = "Join Rank")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Đã vào hàng chờ Rank"),
+            @ApiResponse(responseCode = "402", description = "MM_INSUFFICIENT_BALANCE: COIN không đủ phí vào Rank, chưa đưa vào queue"),
             @ApiResponse(responseCode = "409", description = "Đã ở queue/proposal/trận hoặc đang thuộc Party"),
-            @ApiResponse(responseCode = "502", description = "Ranking hoặc Game không khả dụng")
+            @ApiResponse(responseCode = "502", description = "Wallet, Ranking hoặc Game không khả dụng")
     })
     public QueueStatusResponse join(
             @Parameter(name = MatchmakingConstants.USER_ID_HEADER, required = true, in = ParameterIn.HEADER)
