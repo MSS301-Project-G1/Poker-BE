@@ -19,6 +19,7 @@ import com.msspoker.rankingservice.mapper.SeasonMapper;
 import com.msspoker.rankingservice.repository.PlayerEloRepository;
 import com.msspoker.rankingservice.repository.SeasonRepository;
 import com.msspoker.rankingservice.repository.SeasonTierRewardRepository;
+import com.msspoker.rankingservice.service.AdminAccountService;
 import com.msspoker.rankingservice.service.EloCalculator;
 import com.msspoker.rankingservice.service.NotificationService;
 import com.msspoker.rankingservice.service.SeasonService;
@@ -37,6 +38,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -51,6 +53,7 @@ public class SeasonServiceImpl implements SeasonService {
     private final SeasonTierRewardRepository tierRewards;
     private final PlayerEloRepository players;
     private final EloCalculator calculator;
+    private final AdminAccountService adminAccounts;
     private final NotificationService notifications;
     private final TierRewardsValidator rewardsValidator;
     private final RankingMapper mapper;
@@ -128,10 +131,13 @@ public class SeasonServiceImpl implements SeasonService {
         Instant now = Instant.now();
         List<PlayerEloEntity> standings = players.findBySeasonIdAndIsDeletedFalse(ending.getId(),
                 RankingConstants.LEADERBOARD_SORT);
+        Set<UUID> admins = adminAccounts.adminIds();
         List<PlayerEloEntity> carried = new ArrayList<>();
-        for (int i = 0; i < standings.size(); i++) {
-            PlayerEloEntity player = standings.get(i);
-            player.setFinalTier(calculator.displayTier(player.getTier(), i + 1));
+        long position = 0;
+        for (PlayerEloEntity player : standings) {
+            // Admins are off the leaderboard: their tier comes from Elo alone and takes no Card God place.
+            player.setFinalTier(admins.contains(player.getAccountId()) ? player.getTier()
+                    : calculator.displayTier(player.getTier(), ++position));
             int elo = calculator.carryOver(player.getCurrentElo(), ending.getResetPercent());
             carried.add(mapper.player(next.getId(), player.getAccountId(), elo, calculator.tier(elo)));
         }

@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "ranking.events.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ranking event listeners, messaging topology and outbox publishing.",
+      "defaultValue": true
+    }
+  ]
+}

@@ -135,6 +135,12 @@ Ban có thời hạn đã hết có thể còn metadata cũ trong DB/response nh
 Theo hợp đồng hiện tại, GET này không cần cookie/JWT/service key; chỉ mở đúng endpoint đọc này,
 gateway vẫn chặn toàn bộ `/internal/**`. Không đổi quyền của các endpoint nội bộ khác.
 
+## Hợp đồng nội bộ danh sách admin
+
+**GET `/internal/accounts/admins`** trả mảng JSON thô id các account role `ADMIN` chưa bị xóa, ví dụ
+`["01a16a2f-e317-7195-a15a-a38eeb3ce944"]`. ranking-service dùng để không đưa admin lên bảng xếp hạng.
+Giống restrictions: không cần cookie/JWT/service key, `Cache-Control: no-store`, gateway chặn `/internal/**`.
+
 Owner game/matchmaking có thể nối endpoint thật bằng cờ cấu hình sẵn có:
 `GAME_RESTRICTIONS_ENABLED=true` và `MATCHMAKING_RESTRICTION_STUB_ENABLED=false`.
 Đợt này không đổi Compose/cờ stub hay logic queue của service khác. Cơ chế chặn HTTP/socket đã dùng

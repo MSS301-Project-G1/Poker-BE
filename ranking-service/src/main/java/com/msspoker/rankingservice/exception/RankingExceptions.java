@@ -68,6 +68,10 @@ public final class RankingExceptions {
         return new RankingApiException(RankingError.RANK_DEPENDENCY_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Không lấy được danh sách bạn bè lúc này. Vui lòng thử lại.");
     }
 
+    public static RankingApiException authUnavailable() {
+        return new RankingApiException(RankingError.RANK_DEPENDENCY_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Không lấy được danh sách quản trị viên lúc này.");
+    }
+
     public static RankingApiException unauthorized() {
         return new RankingApiException(RankingError.RANK_UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
     }

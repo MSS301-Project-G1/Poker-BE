@@ -1,0 +1,6 @@
+# Host Java processes use Mailpit's SMTP port as well as its inbox.
+services:
+  auth-mailpit:
+    ports: !override
+      - "127.0.0.1:8026:8025"
+      - "127.0.0.1:1026:1025"

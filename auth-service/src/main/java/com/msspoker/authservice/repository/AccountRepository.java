@@ -1,6 +1,7 @@
 package com.msspoker.authservice.repository;
 
 import com.msspoker.authservice.entity.Account;
+import com.msspoker.authservice.enums.AccountRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.time.Instant;
@@ -37,6 +39,9 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     Optional<Account> findByEmailAndDeletedFalse(String email);
 
     Optional<Account> findByIdAndDeletedFalse(UUID accountId);
+
+    @Query("SELECT a.id FROM Account a WHERE a.role = :role AND a.deleted = false ORDER BY a.id")
+    List<UUID> findIdsByRole(@Param("role") AccountRole role);
 
     // Login, recovery, verification and resends serialize changes through the account row.
     @Lock(LockModeType.PESSIMISTIC_WRITE)

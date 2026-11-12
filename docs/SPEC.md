@@ -342,6 +342,7 @@ Trả về: `{ "tableId": "uuid", "matchId": "uuid" }`. `settings` bỏ trống 
 | Method | Endpoint | Người gọi | Mô tả |
 |---|---|---|---|
 | GET | `/internal/accounts/{accountId}/restrictions` | Duy, Bảo | `{ banned, chatBannedUntil, rankBannedUntil }` |
+| GET | `/internal/accounts/admins` | Hoài Anh | Mảng id thô `["uuid", ...]` các account role `ADMIN` chưa bị xóa; ranking không đưa các account này lên bảng xếp hạng |
 
 - Base URL trong Docker: `http://auth-service:8090`. Chưa triển khai (2026-10-15).
 - Trả **JSON thô** đúng 3 field, không bọc trong envelope `{ code, message, result }` như API public của auth. Bên gọi bỏ qua field lạ, nên nếu bọc thì `banned` luôn đọc ra `false` và lệnh cấm bị bỏ qua mà không báo lỗi.

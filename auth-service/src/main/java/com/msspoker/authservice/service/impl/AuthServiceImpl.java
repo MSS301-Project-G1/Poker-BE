@@ -19,6 +19,7 @@ import com.msspoker.authservice.entity.Profile;
 import com.msspoker.authservice.entity.RefreshToken;
 import com.msspoker.authservice.entity.RegistrationEvent;
 import com.msspoker.authservice.entity.RegistrationOtp;
+import com.msspoker.authservice.enums.AccountRole;
 import com.msspoker.authservice.enums.AccountStatus;
 import com.msspoker.authservice.mapper.ProfileMapper;
 import com.msspoker.authservice.repository.AccountRepository;
@@ -53,6 +54,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -335,6 +337,12 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ApiException(ErrorCode.AUTH_NOT_FOUND));
         return new AccountRestrictionsResponse(sessionGuard.isBanned(account),
                 account.getChatBannedUntil(), account.getRankBannedUntil());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> adminIds() {
+        return accountRepository.findIdsByRole(AccountRole.ADMIN);
     }
 
     private SessionTokens issueTokens(Account account, RefreshToken refreshToken, String rawRefreshToken) {
