@@ -114,11 +114,16 @@ scope `ranking`/`competition`, không push main.
       cho mùa giải và giải đấu; Lobby có ô "Chế độ khác" (phòng riêng, giải đấu, hướng dẫn
       kèm thưởng chưa nhận) và banner giải đấu thật. BXH bạn bè gửi `X-Social-Internal-Key`
       (`SOCIAL_INTERNAL_KEY`); kiểm tra với social-service thật trả đúng bạn bè.
+- [x] Ẩn admin khỏi BXH (2026-11-13, Hoài Anh yêu cầu): auth-service thêm
+  `GET /internal/accounts/admins` (SPEC §6.1, Khanh review); ranking đọc danh sách mỗi phút,
+  bỏ admin khỏi BXH toàn server, vị trí, BXH bạn bè, `/internal/ranking/top` và suất Thần bài
+  (cả lúc đóng mùa). Admin vẫn giữ Elo và nhận quà mùa theo bậc Elo. 60 test H2.
 
 ## Phụ thuộc và review trước khi merge
 
 - Khanh: `account.registered` (đã có trong auth-service), gateway/route
-  `/api/ranking/**`, `/api/seasons/**`, `/api/tutorial/**`.
+  `/api/ranking/**`, `/api/seasons/**`, `/api/tutorial/**`; review endpoint
+  `/internal/accounts/admins` mà Hoài Anh thêm vào auth-service.
 - Bảo: payload `match.finished` (đã có), quy tắc hòa thứ hạng khi bị loại cùng ván.
 - Tùng: `credit` (nhánh `feature/wallet-shop-service` chưa merge; body đã đối chiếu
   khớp, có `TUTORIAL_REWARD`, thiếu `currencyType` thì ví mặc định `COIN`).

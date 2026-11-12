@@ -53,10 +53,11 @@ Dev uses PostgreSQL `127.0.0.1:15431/ranking_db` (user `poker`, local password
 `RANKING_DB_PASSWORD` for Compose and `RANKING_DEV_DB_PASSWORD` to the same value
 for the Java process. Flyway creates the schema and seeds one ACTIVE season;
 Hibernate validates it. H2 is a test-scope dependency only. The `dev` profile and
-the tests turn on `ranking.wallet.mock`, `ranking.shop.mock` and
-`ranking.social.mock` (SPEC §9.4): wallet and shop calls are logged instead of
-sent, and the season's top 200 players are everyone's friends. Set a flag to
-`false` to call the real service once it runs locally.
+the tests turn on `ranking.wallet.mock`, `ranking.shop.mock`,
+`ranking.social.mock` and `ranking.auth.mock` (SPEC §9.4): wallet and shop calls
+are logged instead of sent, the season's top 200 players are everyone's friends
+and no account is an admin. Set a flag to `false` to call the real service once
+it runs locally.
 
 To run the application container with the `dev` profile:
 
@@ -72,7 +73,7 @@ API gateway routes `/api/ranking`, `/api/seasons`, `/api/tutorial` and `/api/adm
 service names such as `http://wallet-service`, resolved through Eureka. The `dev`
 profile runs the jar on the host without Eureka (like game-service) and resolves
 the names from `spring.cloud.discovery.client.simple.instances` to the local
-ports (wallet 8089, shop 8088, social 8084); with `EUREKA_CLIENT_ENABLED=true` Eureka is asked first.
+ports (wallet 8089, shop 8088, social 8084, auth 8090); with `EUREKA_CLIENT_ENABLED=true` Eureka is asked first.
 `compose.dev.yml` turns Eureka on because the container shares the stack with
 discovery-service. To check the route, follow `api-gateway/ONBOARDING.md` with
 `-f ranking-service/compose.yml`.
@@ -82,6 +83,15 @@ discovery-service. To check the route, follow `api-gateway/ONBOARDING.md` with
 See [SPEC §6](../docs/SPEC.md). Tiers use the SPEC enum names; `CARD_GOD` is
 returned for `GRAND_CHAMPION` players within the top 50 of the leaderboard.
 Leaderboard order is Elo descending, then account id ascending.
+
+ADMIN accounts are left off every leaderboard. Their ids come from auth-service
+`GET /internal/accounts/admins` (raw JSON array, SPEC §6.1), read in the
+background every `ranking.admins.refresh-millis` (60 s); an auth outage keeps the
+last known list. Admins keep their Elo and play RANK matches as usual, but they
+are not counted in anyone's position, `/api/ranking/me` returns `position: null`
+for them, `/internal/ranking/top` (Elite invitations) and the friends leaderboard
+leave them out (an admin still sees their own row), and they never take a
+CARD_GOD place.
 
 | Method | Endpoint | Behavior |
 | --- | --- | --- |
@@ -167,8 +177,9 @@ accepted like season rewards. The amount granted is stored with the completion.
 
 Closing a season (by the admin, or every minute once `endAt` passed and a next
 season exists) records each player's final tier in leaderboard order, so
-CARD_GOD is the top 50 Grand Champions at that moment. Each player starts the
-next season with `resetPercent` of the final Elo (default 50%, floor 0). Players
+CARD_GOD is the top 50 Grand Champions at that moment; an admin's final tier comes
+from Elo alone. Each player starts the next season with `resetPercent` of the
+final Elo (default 50%, floor 0). Players
 whose final tier earns a reward receive `SEASON_REWARD_AVAILABLE` through
 `notification.requested` (outbox `ranking_outbox`, batches of 500 recipients).
 Without a next season the current one keeps running. Elo updates and closing
@@ -192,8 +203,10 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 - Social: `SOCIAL_SERVICE_URL` (default `http://social-service`) and `SOCIAL_INTERNAL_KEY`, sent as
   `X-Social-Internal-Key` and equal to social-service's `SOCIAL_INTERNAL_KEY`. social-service answers 403
   without it, so the Friends leaderboard fails with `RANK_DEPENDENCY_UNAVAILABLE` until both sides set it.
+- Auth: `AUTH_SERVICE_URL` (default `http://auth-service`) for the admin list, refreshed every
+  `ranking.admins.refresh-millis` (60000).
 - Mocks for services not running locally: `ranking.wallet.mock`, `ranking.shop.mock`,
-  `ranking.social.mock` (`false`; `true` in `application-dev.properties` and tests).
+  `ranking.social.mock`, `ranking.auth.mock` (`false`; `true` in `application-dev.properties` and tests).
 - SPEC §8 parameters: `ranking.elo-by-place`, `ranking.tier-thresholds`,
   `ranking.reward-multipliers`, `ranking.win-streak-places`, `ranking.card-god-limit`,
   `ranking.min-elo`, `ranking.starting-elo` in `application.properties`.
@@ -205,11 +218,13 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 .\mvnw.cmd -pl ranking-service -am clean verify
 ```
 
-39 tests use test-only H2 and do not require Docker: tier boundaries, Elo
+60 tests use test-only H2 and do not require Docker: tier boundaries, Elo
 floor, places beyond six, Card God cut-off, duplicate events, non-RANK modes,
 invalid results, reward queueing and wallet outage retry, listener parsing with
 unknown fields, API contracts, leaderboard ordering, season closing and carry
 over, scheduled closing and activation, cumulative claims, grant retries, the
-dev identity filter, the friends leaderboard (order, cap, social outage, HTTP
-client) and the tutorial reward (once, also under concurrent calls).
+gateway and internal keys, the friends leaderboard (order, cap, social outage, HTTP
+client), the tutorial reward (once, also under concurrent calls) and admins left
+off the leaderboards (positions, Card God places, season close, the auth client
+and its cached list).
 Season tests use their own H2 database because they close the seed season.

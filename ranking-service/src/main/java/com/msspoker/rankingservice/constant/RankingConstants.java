@@ -2,6 +2,8 @@ package com.msspoker.rankingservice.constant;
 
 import org.springframework.data.domain.Sort;
 
+import java.util.UUID;
+
 public final class RankingConstants {
     public static final String RANK_REWARD_REASON = "RANK_REWARD";
     public static final String RANK_REWARD_KEY_FORMAT = "rank-reward:%s:%s";
@@ -19,6 +21,8 @@ public final class RankingConstants {
     public static final int MAX_NAME_LENGTH = 100;
     /** Leaderboard order; PlayerEloRepository.countAhead must use the same order. */
     public static final Sort LEADERBOARD_SORT = Sort.by(Sort.Order.desc("currentElo"), Sort.Order.asc("accountId"));
+    /** The nil UUID belongs to no account; it stands in for an empty NOT IN list, which SQL does not allow. */
+    public static final UUID NO_ACCOUNT = new UUID(0L, 0L);
 
     private RankingConstants() {
     }

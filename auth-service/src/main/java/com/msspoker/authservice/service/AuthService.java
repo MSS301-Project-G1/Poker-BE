@@ -14,10 +14,13 @@ import com.msspoker.authservice.dto.auth.response.EmailVerificationResponse;
 import com.msspoker.authservice.dto.auth.response.RegistrationResponse;
 import com.msspoker.authservice.shared.infrastructure.security.SessionTokens;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface AuthService {
     AccountRestrictionsResponse restrictions(UUID accountId);
+
+    List<UUID> adminIds();
     RegistrationResponse register(RegisterRequest request);
 
     EmailVerificationResponse verifyOtp(VerifyRegistrationOtpRequest request);

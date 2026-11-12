@@ -15,6 +15,7 @@ import com.msspoker.rankingservice.enums.*;
 import com.msspoker.rankingservice.exception.RankingApiException;
 import com.msspoker.rankingservice.mapper.RankingMapper;
 import com.msspoker.rankingservice.repository.*;
+import com.msspoker.rankingservice.service.client.AuthClient;
 import com.msspoker.rankingservice.service.client.ShopClient;
 import com.msspoker.rankingservice.service.client.WalletClient;
 import com.msspoker.rankingservice.service.job.GrantDispatcher;
@@ -50,6 +51,7 @@ class SeasonLifecycleTest {
     @Autowired SeasonRewardService rewards;
     @Autowired RatingService rating;
     @Autowired GrantDispatcher dispatcher;
+    @Autowired AdminAccountService adminAccounts;
     @Autowired RankingMapper mapper;
     @Autowired EloCalculator calculator;
     @Autowired SeasonRepository seasonRepository;
@@ -63,6 +65,7 @@ class SeasonLifecycleTest {
     @Autowired JsonMapper json;
     @MockitoBean WalletClient wallet;
     @MockitoBean ShopClient shop;
+    @MockitoBean AuthClient auth;
 
     final UUID god = UUID.fromString("00000000-0000-7000-8000-0000000000a1");
     final UUID grand = UUID.fromString("00000000-0000-7000-8000-0000000000a2");
@@ -76,6 +79,8 @@ class SeasonLifecycleTest {
         save(grand, 1650);
         save(diamond, 960);
         save(newbie, 15);
+        // The auth mock lists no admins unless a test says so.
+        adminAccounts.refresh();
     }
 
     @Test
@@ -104,6 +109,21 @@ class SeasonLifecycleTest {
         assertEquals(List.of(god.toString(), grand.toString(), diamond.toString()),
                 notice.get("accountIds").valueStream().map(JsonNode::asString).toList());
         assertEquals(SEED_SEASON.toString(), notice.get("data").get("seasonId").asString());
+    }
+
+    @Test
+    void adminsKeepTheirEloTierAndTakeNoCardGodPlace() {
+        when(auth.adminIds()).thenReturn(List.of(god));
+        adminAccounts.refresh();
+        UUID next = seasons.create(nextSeason(List.of())).id();
+
+        seasons.close();
+
+        Map<UUID, Tier> finalTiers = players.findBySeasonIdAndIsDeletedFalse(SEED_SEASON, Sort.unsorted())
+                .stream().collect(Collectors.toMap(PlayerEloEntity::getAccountId, PlayerEloEntity::getFinalTier));
+        assertEquals(Tier.GRAND_CHAMPION, finalTiers.get(god));
+        assertEquals(Tier.CARD_GOD, finalTiers.get(grand));
+        assertEquals(850, elo(next, god));
     }
 
     @Test

@@ -70,7 +70,7 @@ public class SecurityConfig {
                                 "/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // Not routed by the gateway; the controller exists only with auth.data-init.enabled.
                         .requestMatchers(HttpMethod.GET, "/internal/demo-accounts", "/internal/auth/session/check").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/internal/accounts/*/restrictions").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/internal/accounts/*/restrictions", "/internal/accounts/admins").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/register/verify-otp",
                                 "/api/auth/register/resend-otp", "/api/auth/password/forgot", "/api/auth/password/reset", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/auth/session/claim").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/admin/avatars", "/api/admin/avatars/presign").hasRole("ADMIN")
