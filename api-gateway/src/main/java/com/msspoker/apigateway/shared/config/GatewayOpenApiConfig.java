@@ -8,8 +8,6 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 /** One Swagger selector for the services that publish an OpenAPI document. */
@@ -40,21 +38,5 @@ public class GatewayOpenApiConfig {
                     .uri(service.uri()));
         });
         return routes.build();
-    }
-
-    @RestController
-    static class SwaggerConfigurationController {
-        private final GatewayCatalogProperties catalog;
-
-        SwaggerConfigurationController(GatewayCatalogProperties catalog) {
-            this.catalog = catalog;
-        }
-
-        @GetMapping("/v3/api-docs/swagger-config")
-        Map<String, Object> configuration() {
-            var urls = SERVICES.stream().filter(catalog.services()::containsKey)
-                    .map(id -> Map.of("name", id, "url", "/v3/api-docs/" + id)).toList();
-            return Map.of("urls", urls, "urls.primaryName", "auth-service", "validatorUrl", "");
-        }
     }
 }
