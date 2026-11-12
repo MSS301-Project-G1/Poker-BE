@@ -19,6 +19,8 @@ import java.time.Duration;
 @Component
 public class ShopClientImpl implements ShopClient {
     private final RestClient shop;
+    @Value("${shop.internal-key:}")
+    private String shopInternalKey = "";
     private final boolean mock;
 
     public ShopClientImpl(@LoadBalanced RestClient.Builder restClients,
@@ -38,7 +40,7 @@ public class ShopClientImpl implements ShopClient {
             log.info("Mock shop grant {} to {} ({})", request.productId(), request.accountId(), request.idempotencyKey());
             return;
         }
-        shop.post().uri("/internal/inventory/grant").contentType(MediaType.APPLICATION_JSON)
+        shop.post().uri("/internal/inventory/grant").header("X-Shop-Internal-Key", shopInternalKey).contentType(MediaType.APPLICATION_JSON)
                 .body(request).retrieve().toBodilessEntity();
     }
 }

@@ -5,6 +5,7 @@ import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.ErrorCode;
 import com.msspoker.authservice.shared.infrastructure.config.WalletProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -20,6 +21,8 @@ public class WalletClient {
     private final WalletProperties walletProperties;
     private final JsonMapper jsonMapper;
     private final HttpClient httpClient;
+    @Value("${wallet.internal-key:}")
+    private String walletInternalKey = "";
 
     public WalletClient(WalletProperties walletProperties, JsonMapper jsonMapper) {
         this.walletProperties = walletProperties;
@@ -40,6 +43,7 @@ public class WalletClient {
                     .timeout(walletProperties.requestTimeout())
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
+                    .header("X-Wallet-Internal-Key", walletInternalKey)
                     .POST(HttpRequest.BodyPublishers.ofString(jsonMapper.writeValueAsString(creditRequest)))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

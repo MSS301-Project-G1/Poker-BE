@@ -26,6 +26,7 @@ class WalletClientImplTest {
             "TOURNAMENT_ENTRY_FEE", UUID.randomUUID().toString(), "tournament-fee:t:a");
     final AtomicReference<String> path = new AtomicReference<>();
     final AtomicReference<String> body = new AtomicReference<>();
+    String suppliedKey;
     HttpServer server;
     volatile int status;
     volatile String response;
@@ -35,6 +36,7 @@ class WalletClientImplTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/internal/wallet/", exchange -> {
             path.set(exchange.getRequestURI().getPath());
+            suppliedKey = exchange.getRequestHeaders().getFirst("X-Wallet-Internal-Key");
             body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -55,10 +57,12 @@ class WalletClientImplTest {
         reply(200, "{\"code\":\"WALLET_SUCCESS\",\"data\":{}}");
         client().debit(request);
         assertEquals("/internal/wallet/debit", path.get());
+        assertEquals("wallet-test-key", suppliedKey);
         assertTrue(body.get().contains("\"reason\":\"TOURNAMENT_ENTRY_FEE\""));
         assertTrue(body.get().contains("\"idempotencyKey\":\"tournament-fee:t:a\""));
         client().credit(request);
         assertEquals("/internal/wallet/credit", path.get());
+        assertEquals("wallet-test-key", suppliedKey);
     }
 
     @Test
@@ -84,6 +88,8 @@ class WalletClientImplTest {
     }
 
     private WalletClient client() {
-        return new WalletClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000, false);
+        var client = new WalletClientImpl(RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), 2000, false);
+        org.springframework.test.util.ReflectionTestUtils.setField(client, "walletInternalKey", "wallet-test-key");
+        return client;
     }
 }

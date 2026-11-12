@@ -9,13 +9,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +35,8 @@ public class RestWalletClientImpl implements WalletClient {
     private static final String REASON_SHOP_BUY_ITEM = "SHOP_BUY_ITEM";
 
     private final RestTemplate restTemplate;
+    @Value("${wallet.internal-key:}")
+    private String walletInternalKey = "";
 
     @Value("${wallet.service.url}")
     private String walletServiceUrl;
@@ -48,26 +53,33 @@ public class RestWalletClientImpl implements WalletClient {
 
     @Override
     public Optional<Long> findDebitAmountByIdempotencyKey(String idempotencyKey) {
-        String url = walletServiceUrl + "/internal/wallet/transactions/by-idempotency-key?key=" + idempotencyKey;
+        var url = UriComponentsBuilder.fromUriString(walletServiceUrl + "/internal/wallet/transactions/by-idempotency-key")
+                .queryParam("key", "{key}").encode().buildAndExpand(idempotencyKey).toUri();
         try {
-            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map result = (Map) response.getBody().get("result");
-                if (result != null && result.get("amount") != null) {
-                    Number amount = (Number) result.get("amount");
-                    return Optional.of(Math.abs(amount.longValue()));
-                }
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET,
+                    new HttpEntity<>(internalHeaders()), Map.class);
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null
+                    || !"WALLET_SUCCESS".equals(response.getBody().get("code"))
+                    || !(response.getBody().get("data") instanceof Map<?, ?> data)
+                    || !idempotencyKey.equals(data.get("idempotencyKey")) || !(data.get("amount") instanceof Number amount)) {
+                throw ProductExceptions.walletServiceUnavailable();
             }
+            long debitAmount = new BigDecimal(amount.toString()).longValueExact();
+            if (debitAmount >= 0) throw ProductExceptions.walletServiceUnavailable();
+            return Optional.of(Math.negateExact(debitAmount));
         } catch (HttpStatusCodeException ex) {
-            if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+            if (ex.getStatusCode() == HttpStatus.NOT_FOUND && "WALLET_TRANSACTION_NOT_FOUND".equals(errorCode(ex))) {
                 log.debug("No transaction found in wallet for key={}", idempotencyKey);
                 return Optional.empty();
             }
             log.warn("Failed to query transaction from wallet for key={}: status={}", idempotencyKey, ex.getStatusCode());
-        } catch (Exception ex) {
-            log.warn("Error querying transaction from wallet for key={}: {}", idempotencyKey, ex.getMessage());
+            throw ProductExceptions.walletServiceUnavailable();
+        } catch (AppException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            log.warn("Error querying transaction from wallet for key={}: {}", idempotencyKey, ex.getClass().getSimpleName());
+            throw ProductExceptions.walletServiceUnavailable();
         }
-        return Optional.empty();
     }
 
     @Override
@@ -84,8 +96,7 @@ public class RestWalletClientImpl implements WalletClient {
                 accountId, amount, currencyType, reason, refId, idempotencyKey
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpHeaders headers = internalHeaders();
         HttpEntity<WalletTransactionRequest> entity = new HttpEntity<>(body, headers);
 
         try {
@@ -93,21 +104,19 @@ public class RestWalletClientImpl implements WalletClient {
                     amount, currencyType, accountId, reason, refId);
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
             if (!response.getStatusCode().is2xxSuccessful()) {
-                throw ProductExceptions.insufficientVipCoin();
+                throw ProductExceptions.walletServiceUnavailable();
             }
         } catch (HttpStatusCodeException ex) {
-            log.error("Trừ ví thất bại: accountId={}, status={}, response={}",
-                    accountId, ex.getStatusCode(), ex.getResponseBodyAsString());
-            throw ProductExceptions.insufficientVipCoin();
+            log.error("Trừ ví thất bại: accountId={}, status={}", accountId, ex.getStatusCode());
+            if (ex.getStatusCode() == HttpStatus.BAD_REQUEST && "WALLET_INSUFFICIENT_BALANCE".equals(errorCode(ex))) {
+                throw ProductExceptions.insufficientVipCoin();
+            }
+            throw ProductExceptions.walletServiceUnavailable();
         } catch (AppException ex) {
             throw ex;
         } catch (Exception ex) {
             log.error("Không thể kết nối tới wallet-service ({}): {}", url, ex.getMessage(), ex);
-            throw AppException.of(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "WALLET_SERVICE_UNAVAILABLE",
-                    "Không thể kết nối tới dịch vụ ví để thực hiện giao dịch."
-            );
+            throw ProductExceptions.walletServiceUnavailable();
         }
     }
 
@@ -125,8 +134,7 @@ public class RestWalletClientImpl implements WalletClient {
                 accountId, amount, currencyType, reason, refId, idempotencyKey
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpHeaders headers = internalHeaders();
         HttpEntity<WalletTransactionRequest> entity = new HttpEntity<>(body, headers);
 
         try {
@@ -134,16 +142,31 @@ public class RestWalletClientImpl implements WalletClient {
                     amount, currencyType, accountId, reason);
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
             if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new IllegalStateException("Cộng ví thất bại với status: " + response.getStatusCode());
+                throw ProductExceptions.walletServiceUnavailable();
             }
+        } catch (AppException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("Lỗi kết nối khi cộng ví: {}", ex.getMessage(), ex);
-            throw AppException.of(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "WALLET_SERVICE_UNAVAILABLE",
-                    "Không thể kết nối tới dịch vụ ví: " + ex.getMessage()
-            );
+            throw ProductExceptions.walletServiceUnavailable();
         }
     }
+
+    private String errorCode(HttpStatusCodeException exception) {
+        try {
+            Map<?, ?> error = exception.getResponseBodyAs(Map.class);
+            return error != null && error.get("code") instanceof String code ? code : null;
+        } catch (RuntimeException unreadable) {
+            return null;
+        }
+    }
+
+    private HttpHeaders internalHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Wallet-Internal-Key", walletInternalKey);
+        return headers;
+    }
+
 }
 

@@ -18,6 +18,7 @@ import java.util.UUID;
 
 /**
  * Filter chuyển tiếp danh tính đã được Gateway xác thực từ HttpOnly Cookie vào Spring Security Context.
+ * ShopGatewayFilter kiểm tra key trước filter này cho /api/**; webhook PayOS không nhận danh tính user.
  * Gateway tự động giải mã JWT, bóc Subject và Role, rồi inject vào 2 headers tin cậy:
  * - X-User-Id: UUID của người dùng
  * - X-User-Role: ADMIN hoặc USER
@@ -27,6 +28,12 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String HEADER_USER_ID = "X-User-Id";
     public static final String HEADER_USER_ROLE = "X-User-Role";
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return ShopGatewayFilter.isPayosWebhook(request) || !(path.equals("/api") || path.startsWith("/api/"));
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

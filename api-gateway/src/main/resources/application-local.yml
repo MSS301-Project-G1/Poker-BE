@@ -1,0 +1,7 @@
+# Profile "local": run from the IDE. Reads the service keys from the root .env so they match
+# the keys the services read in the same profile.
+spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]

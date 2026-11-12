@@ -66,7 +66,7 @@ public class PaymentController {
     }
 
     @GetMapping("/orders/pending")
-    @Operation(summary = "Lấy đơn hàng đang chờ thanh toán gần nhất", description = "Lấy đơn hàng PENDING còn hiệu lực (chưa hết hạn) để người dùng tiếp tục thanh toán")
+    @Operation(summary = "Lấy đơn hàng đang chờ thanh toán", description = "Lấy đơn PENDING, kể cả đơn quá hạn đang chờ PayOS xác nhận. FE kiểm tra expiresAt trước khi cho tiếp tục thanh toán.")
     public ResponseEntity<ApiResponse<OrderResponse>> getPendingOrder(
             @CurrentUser UUID accountId
     ) {
@@ -75,7 +75,7 @@ public class PaymentController {
     }
 
     @GetMapping("/orders/{orderId}")
-    @Operation(summary = "Chi tiết đơn hàng", description = "Lấy thông tin chi tiết một đơn hàng theo ID")
+    @Operation(summary = "Chi tiết đơn hàng", description = "Đọc và đối soát đơn hàng; thử lại giao thưởng nếu đơn đã PAID nhưng fulfillmentStatus còn PENDING.")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderDetail(
             @CurrentUser UUID accountId,
             @Parameter(description = "UUID của đơn hàng")
@@ -86,14 +86,14 @@ public class PaymentController {
     }
 
     @PutMapping("/orders/{orderId}/cancel")
-    @Operation(summary = "Hủy đơn hàng", description = "Hủy đơn hàng đang chờ thanh toán")
+    @Operation(summary = "Hủy đơn hàng", description = "Yêu cầu PayOS hủy đơn đang chờ. Nếu PayOS xác nhận đã thanh toán thì trả trạng thái PAID; FE đọc trạng thái trong response.")
     public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
             @CurrentUser UUID accountId,
             @Parameter(description = "UUID của đơn hàng")
             @PathVariable UUID orderId
     ) {
         OrderResponse order = orderService.cancelOrder(accountId, orderId);
-        return ResponseEntity.ok(ApiResponse.success("Hủy đơn hàng thành công", order));
+        return ResponseEntity.ok(ApiResponse.success("Đã cập nhật trạng thái đơn hàng sau yêu cầu hủy", order));
     }
 
     @PostMapping("/orders/{orderId}/sync")

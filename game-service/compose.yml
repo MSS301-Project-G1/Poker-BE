@@ -7,6 +7,7 @@ services:
     ports:
       - "${GAME_SERVICE_PORT:-8082}:8082"
     environment:
+      SHOP_INTERNAL_KEY: ${SHOP_INTERNAL_KEY:?Set SHOP_INTERNAL_KEY in .env}
       AUTH_SESSION_INTERNAL_KEY: ${AUTH_SESSION_INTERNAL_KEY:-poker_session_dev}
       AUTH_SESSION_CHECK_URL: http://auth-service:8090/internal/auth/session/check
       EUREKA_SERVICE_URL: http://discovery-service:8761/eureka/
