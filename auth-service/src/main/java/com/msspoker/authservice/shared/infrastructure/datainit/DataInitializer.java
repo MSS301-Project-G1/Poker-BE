@@ -10,6 +10,7 @@ import com.msspoker.authservice.repository.AccountRepository;
 import com.msspoker.authservice.repository.ProfileRepository;
 import com.msspoker.authservice.repository.RegistrationEventRepository;
 import com.msspoker.authservice.repository.RegistrationOtpRepository;
+import com.msspoker.authservice.service.FirstLoginBonusService;
 import com.msspoker.authservice.shared.infrastructure.config.DataInitProperties;
 import com.msspoker.authservice.shared.infrastructure.config.DataInitProperties.SeedAccount;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ProfileRepository profileRepository;
     private final RegistrationOtpRepository otpRepository;
     private final RegistrationEventRepository eventRepository;
+    private final FirstLoginBonusService firstLoginBonusService;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
@@ -58,8 +60,10 @@ public class DataInitializer implements ApplicationRunner {
     private void seedVerified(SeedAccount seed, AccountRole role) {
         Account account = create(seed, role, AccountStatus.ACTIVE, true);
         if (account == null) return;
-        // The same outbox row as OTP verification, so ranking creates the player's Elo record.
+        // The same outbox row and first-login bonus as OTP verification, so ranking creates the player's
+        // Elo record and a new demo player starts with coins (admins get no bonus).
         eventRepository.save(RegistrationEvent.builder().accountId(account.getId()).occurredAt(clock.instant()).build());
+        firstLoginBonusService.queue(account);
     }
 
     private void seedUnverified(SeedAccount seed) {

@@ -1,10 +1,12 @@
 package com.msspoker.authservice;
 
 import com.msspoker.authservice.entity.Account;
+import com.msspoker.authservice.entity.FirstLoginBonus;
 import com.msspoker.authservice.entity.RegistrationEvent;
 import com.msspoker.authservice.enums.AccountRole;
 import com.msspoker.authservice.enums.AccountStatus;
 import com.msspoker.authservice.repository.AccountRepository;
+import com.msspoker.authservice.repository.FirstLoginBonusRepository;
 import com.msspoker.authservice.repository.ProfileRepository;
 import com.msspoker.authservice.repository.RegistrationEventRepository;
 import com.msspoker.authservice.repository.RegistrationOtpRepository;
@@ -49,6 +51,7 @@ class DataInitializerTests {
     @Autowired private ProfileRepository profiles;
     @Autowired private RegistrationOtpRepository otps;
     @Autowired private RegistrationEventRepository events;
+    @Autowired private FirstLoginBonusRepository bonuses;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private DemoAccountService demoAccounts;
 
@@ -68,6 +71,9 @@ class DataInitializerTests {
         // Ranking creates Elo records from these events, exactly as for OTP-verified players.
         assertThat(events.findAll()).extracting(RegistrationEvent::getAccountId)
                 .containsExactlyInAnyOrder(admin.getId(), user.getId(), owner.getId());
+        // New demo players get the first-login bonus like any new player; the admin does not play.
+        assertThat(bonuses.findAll()).extracting(FirstLoginBonus::getAccountId)
+                .containsExactlyInAnyOrder(user.getId(), owner.getId());
 
         Account unverified = accounts.findByEmail("unverified@demo.local").orElseThrow();
         assertThat(unverified.getAccountStatus()).isEqualTo(AccountStatus.PENDING_VERIFICATION);
@@ -95,11 +101,13 @@ class DataInitializerTests {
         accounts.save(user);
         long accountCount = accounts.count();
         long eventCount = events.count();
+        long bonusCount = bonuses.count();
 
         initializer.run(new DefaultApplicationArguments());
 
         assertThat(accounts.count()).isEqualTo(accountCount);
         assertThat(events.count()).isEqualTo(eventCount);
+        assertThat(bonuses.count()).isEqualTo(bonusCount);
         UUID userId = user.getId();
         assertThat(passwordEncoder.matches("changed-by-player",
                 accounts.findById(userId).orElseThrow().getPasswordHash())).isTrue();

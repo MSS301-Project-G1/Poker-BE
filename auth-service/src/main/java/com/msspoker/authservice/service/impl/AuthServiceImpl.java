@@ -29,6 +29,7 @@ import com.msspoker.authservice.repository.RefreshTokenRepository;
 import com.msspoker.authservice.repository.RegistrationEventRepository;
 import com.msspoker.authservice.repository.RegistrationOtpRepository;
 import com.msspoker.authservice.service.AuthService;
+import com.msspoker.authservice.service.FirstLoginBonusService;
 import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.ErrorCode;
 import com.msspoker.authservice.shared.common.exception.OtpVerificationException;
@@ -68,6 +69,7 @@ public class AuthServiceImpl implements AuthService {
     private final RegistrationOtpRepository otpRepository;
     private final PasswordResetOtpRepository passwordResetOtpRepository;
     private final RegistrationEventRepository eventRepository;
+    private final FirstLoginBonusService firstLoginBonusService;
     private final AuthMailSender mailSender;
     private final OtpProperties otpProperties;
     private final ProfileMapper profileMapper;
@@ -127,8 +129,9 @@ public class AuthServiceImpl implements AuthService {
         account.setEmailVerified(true);
         account.setAccountStatus(AccountStatus.ACTIVE);
         otpRepository.delete(otp);
-        // Account activation and its one registration event commit atomically.
+        // Account activation, its one registration event and its first-login bonus commit atomically.
         eventRepository.save(RegistrationEvent.builder().accountId(account.getId()).occurredAt(now).build());
+        firstLoginBonusService.queue(account);
         return EmailVerificationResponse.builder().accountId(account.getId()).email(account.getEmail())
                 .accountStatus(account.getAccountStatus()).build();
     }

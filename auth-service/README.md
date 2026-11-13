@@ -50,6 +50,17 @@ muốn nhận thưởng thật cần chạy thêm wallet đúng địa chỉ/m�
 Hợp đồng và hướng dẫn đầy đủ: [checkin.md](../docs/auth/checkin.md). Chưa có điểm danh bù;
 SPEC giữ nguyên chờ Khanh review.
 
+**13/11/2026 — xu cho người chơi mới (SPEC 7.1):** khi xác thực OTP thành công, cùng transaction kích hoạt
+account và lưu `account.registered`, auth lưu một khoản thưởng `PENDING` vào bảng `first_login_bonuses`
+(migration V13). Job `FirstLoginBonusScheduler` gọi `POST /internal/wallet/credit` với
+`reason=FIRST_LOGIN_BONUS`, `currencyType=COIN`, mặc định 500 xu, key `first-login:{accountId}`, rồi đặt
+`first_login_rewarded = true`. Ví lỗi/timeout thì giữ `PENDING`, thử lại sau `retry-backoff` cùng key nên
+không bao giờ cộng hai lần. Account đã kích hoạt trước V13 không được nhận; ADMIN (kể cả admin demo) không
+nhận; người chơi demo do DataInitializer tạo mới thì nhận như người chơi thường. Cấu hình:
+`AUTH_FIRST_LOGIN_BONUS_COINS=500`, `AUTH_FIRST_LOGIN_BONUS_DELIVERY_ENABLED=true`,
+`AUTH_FIRST_LOGIN_BONUS_DELIVERY_DELAY=5000`, `AUTH_FIRST_LOGIN_BONUS_RETRY_BACKOFF=30s`. Xu vào ví trong vòng
+khoảng một chu kỳ job (5 giây) sau khi xác thực, không làm chậm request OTP.
+
 ## Avatar có sẵn và S3 upload
 
 - GET `/api/profiles/avatars`: danh sách avatar có sẵn; PUT `/api/profiles/me/avatar` với `{avatarId}` để chọn.
@@ -316,8 +327,9 @@ port DB; file dev chỉ bổ sung port host. Auth trong Docker luôn kết nối
 Cấu hình chính và dev dùng cùng database/volume. Không bật đồng thời app Java
 trên host và container auth trên cùng port 8090.
 
-Flyway áp dụng V1–V11 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
-`password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`, V7 thêm danh mục avatar S3; không sửa migration đã dùng.
+Flyway áp dụng V1–V13 khi khởi động; V4 thêm `refresh_tokens`, V5 thêm
+`password_reset_otps` riêng với OTP đăng ký, V6 thêm `daily_checkins`, V7 thêm danh mục avatar S3, V13 thêm
+`first_login_bonuses`; không sửa migration đã dùng.
 V2 đổi Profile sang khóa chính `account_id` lấy từ Account, thêm field tài khoản/hồ sơ;
 không sửa V1 đã commit. Nếu dữ liệu cũ có profile đã xóa nhưng Account còn hoạt động,
 V2 dừng để review dữ liệu thay vì tự làm profile đó xuất hiện lại.
@@ -524,6 +536,7 @@ Các kiểm tra phase 2–3 trên không có nghĩa đã chạy FE/game hay buil
 - `AuthService` / `AuthServiceImpl`: đăng ký, OTP, login, refresh, logout và người dùng hiện tại.
 - `ProfileService` / `ProfileServiceImpl`: đọc/sửa hồ sơ, batch profile và avatar (preset, presign, xác nhận upload).
 - `CheckinService` / `CheckinServiceImpl`: điểm danh, lịch tháng và xử lý thưởng đang chờ; `integration/wallet` chứa HTTP client/job retry.
+- `FirstLoginBonusService` / `FirstLoginBonusServiceImpl`: xếp xu cho người chơi mới lúc kích hoạt account và trả qua ví; job ở `integration/wallet`.
 - `ProfileMapper`: chỉ chuyển entity/DTO; service nhờ `S3AvatarStorage` ký URL xem ảnh.
 - `integration/messaging/RegistrationEventDispatcher`: phát lại outbox `account.registered` trong transaction riêng, được scheduler gọi sau khi dữ liệu đăng ký đã commit.
 
