@@ -1,6 +1,5 @@
 package com.msspoker.matchmakingservice.service;
 
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 
 import java.util.UUID;
@@ -11,6 +10,4 @@ public interface RankMatchmakingService {
     void leave(UUID accountId);
 
     QueueStatusResponse status(UUID accountId);
-
-    NormalReconnectResponse reconnect(UUID accountId);
 }

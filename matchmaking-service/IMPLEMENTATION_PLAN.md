@@ -187,7 +187,7 @@ Tiêu chí: restart giữa DB commit và publish không mất event; publish tr�
 - Nhận `MATCH_FOUND`/`MATCH_READY` qua kênh realtime của Social; polling chỉ là
   fallback tạm cho dev.
 - Kiểm thử luồng FE: Normal thành công, Rank thành công, decline, timeout, debit lỗi,
-  Game lỗi, dependency timeout và reconnect.
+  Game lỗi và dependency timeout.
 
 Tiêu chí: FE build/lint/test xanh và contract API khớp SPEC.
 
@@ -215,7 +215,7 @@ không fallback âm thầm sang mock ở production.
 
 ### Swagger / OpenAPI (bổ sung 2026-10-15)
 
-- [x] Thêm Springdoc và Swagger UI cho bốn API Normal hiện có: join, leave, status và reconnect.
+- [x] Thêm Springdoc và Swagger UI cho ba API Normal hiện có: join, leave và status.
 - [x] Mô tả header `X-User-Id`, request `NORMAL`, response status và các HTTP status chính.
 - [x] Cho phép tắt bằng `MATCHMAKING_SWAGGER_ENABLED=false`.
 - [x] Swagger có API Rank join, leave và status.
@@ -232,9 +232,9 @@ hardening thuộc phạm vi Đợt 2 đã được kiểm chứng riêng bằng 
 - [x] Đợt 1 — phạm vi Normal: entity/repository proposal, DTO và MapStruct mapper;
   context JPA/Flyway chạy qua. Domain Wallet/Rank đã được bổ sung ở Đợt 3–5.
 - [x] Đợt 2 — Normal core đã hoàn thành trong phạm vi đã chốt:
-  - [x] API join/leave/status/reconnect lấy danh tính từ `X-User-Id`.
+  - [x] API join/leave/status lấy danh tính từ `X-User-Id`.
   - [x] Trạng thái hiện tại `NONE`, `WAITING`, `COUNTDOWN`, `MATCHING`, `CREATING_TABLE`,
-    `READY`; reconnect dùng cache `IN_GAME` và xác nhận lại với Game. `FAILED` chỉ là audit.
+    `READY`; Redis lưu cache `IN_GAME`. `FAILED` chỉ là audit.
   - [x] Redis Sorted Set ưu tiên `joinedAt`; lưu payload queue riêng.
   - [x] Lua reserve nguyên tử để nhiều worker không lấy trùng account.
   - [x] `NormalMatchWorker` lấy nhóm đủ `minPlayers` từ config.
@@ -313,7 +313,7 @@ requeue giữ nguyên `joinedAt`; unit test xác nhận finder lock được th�
 
 - [x] Test reservation hết TTL khi proposal vẫn `CREATING_TABLE`.
 - [x] Test cancel chạy đồng thời với reserve.
-- [x] Test controller/API contract cho join, leave, status, reconnect và error response.
+- [x] Test controller/API contract cho join, leave, status và error response.
 - Test RabbitMQ/outbox chỉ thực hiện khi chức năng event thực sự được triển khai; không thuộc
   phạm vi Normal core hiện tại.
 

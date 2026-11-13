@@ -221,72 +221,8 @@ class NormalMatchmakingServiceImplTest {
         verify(queueStore).cancelCountdown(MatchMode.NORMAL);
     }
 
-    @Test
-    void reconnectsToActiveNormalTable() {
-        UUID accountId = UUID.randomUUID();
-        UUID proposalId = UUID.randomUUID();
-        UUID tableId = UUID.randomUUID();
-        UUID matchId = UUID.randomUUID();
-        InGameSession session =
-                new InGameSession(
-                        MatchMode.NORMAL,
-                        proposalId,
-                        tableId,
-                        matchId,
-                        "poker.example.com",
-                        443,
-                        "/ws/game");
-        when(queueStore.inGame(accountId)).thenReturn(Optional.of(session));
-        when(game.activeTable(accountId))
-                .thenReturn(Optional.of(new TableCreatedResponse(tableId, matchId)));
 
-        var response = service.reconnect(accountId);
 
-        assertThat(response.reconnectable()).isTrue();
-        assertThat(response.status()).isEqualTo("IN_GAME");
-        assertThat(response.mode()).isEqualTo(MatchMode.NORMAL);
-        assertThat(response.proposalId()).isEqualTo(proposalId);
-        assertThat(response.tableId()).isEqualTo(tableId);
-        assertThat(response.matchId()).isEqualTo(matchId);
-        assertThat(response.host()).isEqualTo("poker.example.com");
-        assertThat(response.port()).isEqualTo(443);
-        assertThat(response.websocketPath()).isEqualTo("/ws/game");
-    }
-
-    @Test
-    void reconnectReturnsNoneWithoutInGameRedisState() {
-        UUID accountId = UUID.randomUUID();
-        when(queueStore.inGame(accountId)).thenReturn(Optional.empty());
-
-        var response = service.reconnect(accountId);
-
-        assertThat(response.reconnectable()).isFalse();
-        assertThat(response.status()).isEqualTo("NONE");
-        assertThat(response.mode()).isEqualTo(MatchMode.NORMAL);
-        assertThat(response.tableId()).isNull();
-        verifyNoInteractions(game);
-    }
-
-    @Test
-    void reconnectClearsStaleInGameRedisState() {
-        UUID accountId = UUID.randomUUID();
-        InGameSession session =
-                new InGameSession(
-                        MatchMode.NORMAL,
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        "localhost",
-                        8082,
-                        "/ws/game");
-        when(queueStore.inGame(accountId)).thenReturn(Optional.of(session));
-        when(game.activeTable(accountId)).thenReturn(Optional.empty());
-
-        var response = service.reconnect(accountId);
-
-        assertThat(response.reconnectable()).isFalse();
-        verify(queueStore).clearInGame(accountId);
-    }
 
     @Test
     void leaveDeletesRedisEntryAndResetsCountdownBelowMinimum() {

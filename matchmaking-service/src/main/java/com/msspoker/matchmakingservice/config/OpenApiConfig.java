@@ -17,7 +17,7 @@ public class OpenApiConfig {
                 .addTagsItem(
                         new Tag()
                                 .name("Normal matchmaking")
-                                .description("Đã có API: join, leave, status và reconnect."))
+                                .description("Đã có API: join, leave và status."))
                 .addTagsItem(
                         new Tag()
                                 .name("Rank matchmaking")

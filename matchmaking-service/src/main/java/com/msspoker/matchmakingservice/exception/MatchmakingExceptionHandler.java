@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -60,9 +61,9 @@ public class MatchmakingExceptionHandler {
                                 request));
     }
 
-    @ExceptionHandler(NoResourceFoundException.class)
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
     public ResponseEntity<ErrorResponse> notFound(
-            NoResourceFoundException exception, HttpServletRequest request) {
+            Exception exception, HttpServletRequest request) {
         return ResponseEntity.status(404)
                 .body(error(MatchmakingError.MM_NOT_FOUND, "Không tìm thấy tài nguyên.", request));
     }

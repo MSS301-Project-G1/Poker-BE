@@ -237,8 +237,8 @@ class GatewayIntegrationTests {
     @Test
     void protectedServiceReadsKeepPathsQueriesAndVerifiedUserHeaders() {
         Map<String, List<String>> routes = Map.of(
-                "matchmaking-service", List.of("/api/matchmaking/normal/status", "/api/matchmaking/normal/reconnect",
-                        "/api/matchmaking/rank/status", "/api/matchmaking/rank/reconnect", "/api/party/me"),
+                "matchmaking-service", List.of("/api/matchmaking/normal/status",
+                        "/api/matchmaking/rank/status", "/api/party/me"),
                 "ranking-service", List.of("/api/ranking/me", "/api/ranking/friends", "/api/seasons/rewards/me", "/api/tutorial/me"),
                 "competition-service", List.of("/api/rooms/me", "/api/rooms/ROOM01"),
                 "shop-service", List.of("/api/inventory/me", "/api/payments/orders/me"),

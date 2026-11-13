@@ -3,7 +3,6 @@ package com.msspoker.matchmakingservice.service.impl;
 import com.msspoker.matchmakingservice.config.MatchmakingProperties;
 import com.msspoker.matchmakingservice.dto.response.AccountRestrictionsResponse;
 import com.msspoker.matchmakingservice.dto.response.GameMatchSettingsResponse;
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.dto.response.PlayerRankingResponse;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.entity.MatchProposalPlayerEntity;
@@ -194,29 +193,6 @@ public class RankMatchmakingServiceImpl implements RankMatchmakingService {
                 .orElseGet(() -> waiting(current.get()));
     }
 
-    @Override
-    public NormalReconnectResponse reconnect(UUID accountId) {
-        Optional<InGameSession> stored =
-                queueStore.inGame(accountId).filter(session -> session.mode() == MatchMode.RANK);
-        if (stored.isEmpty()) return NormalReconnectResponse.none(MatchMode.RANK);
-
-        InGameSession session = stored.get();
-        var activeTable = game.activeTable(accountId);
-        if (activeTable.isEmpty()
-                || !session.tableId().equals(activeTable.get().tableId())
-                || !session.matchId().equals(activeTable.get().matchId())) {
-            queueStore.clearInGame(accountId);
-            return NormalReconnectResponse.none(MatchMode.RANK);
-        }
-        return NormalReconnectResponse.active(
-                MatchMode.RANK,
-                session.proposalId(),
-                session.tableId(),
-                session.matchId(),
-                session.host(),
-                session.port(),
-                session.websocketPath());
-    }
 
     private QueueStatusResponse waiting(QueueEntry entry) {
         GameMatchSettingsResponse settings = game.matchSettings(MatchMode.RANK);

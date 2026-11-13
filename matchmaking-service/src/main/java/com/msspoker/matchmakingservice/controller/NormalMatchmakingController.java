@@ -1,7 +1,6 @@
 package com.msspoker.matchmakingservice.controller;
 
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.service.NormalMatchmakingService;
 
@@ -135,41 +134,4 @@ public class NormalMatchmakingController {
         return matchmaking.status(accountId);
     }
 
-    /** Kiểm tra bàn cũ với Game trước khi trả thông tin kết nối lại. */
-    @GetMapping("/reconnect")
-    @Operation(
-            operationId = "reconnectNormal",
-            summary = "Reconnect Normal",
-            description =
-                    "Kiểm tra trạng thái IN_GAME trong Redis và trả host/port của bàn cũ nếu Game"
-                        + " vẫn xác nhận bàn đang hoạt động.")
-    @ApiResponses({
-        @ApiResponse(
-                responseCode = "200",
-                description = "Kết quả tìm bàn đang hoạt động",
-                content =
-                        @Content(
-                                schema = @Schema(implementation = NormalReconnectResponse.class),
-                                examples =
-                                        @ExampleObject(
-                                                value =
-                                                        "{\"reconnectable\":true,\"status\":\"IN_GAME\",\"mode\":\"NORMAL\",\"proposalId\":\"22222222-2222-2222-2222-222222222222\",\"tableId\":\"33333333-3333-3333-3333-333333333333\",\"matchId\":\"44444444-4444-4444-4444-444444444444\",\"host\":\"localhost\",\"port\":8082,\"websocketPath\":\"/ws/game\"}"))),
-        @ApiResponse(responseCode = "401", description = "Thiếu X-User-Id", content = @Content),
-        @ApiResponse(
-                responseCode = "502",
-                description = "Không kiểm tra được game-service",
-                content = @Content)
-    })
-    public NormalReconnectResponse reconnect(
-            @Parameter(
-                            name = MatchmakingConstants.USER_ID_HEADER,
-                            description =
-                                    "UUID tài khoản do API Gateway lấy từ JWT và gắn vào request",
-                            required = true,
-                            in = ParameterIn.HEADER,
-                            example = "11111111-1111-1111-1111-111111111111")
-                    @RequestHeader(MatchmakingConstants.USER_ID_HEADER)
-                    UUID accountId) {
-        return matchmaking.reconnect(accountId);
-    }
 }

@@ -18,7 +18,6 @@ import com.msspoker.matchmakingservice.enums.MatchMode;
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
 import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
 import com.msspoker.matchmakingservice.mapper.QueueStatusMapper;
-import com.msspoker.matchmakingservice.model.InGameSession;
 import com.msspoker.matchmakingservice.model.PartySnapshot;
 import com.msspoker.matchmakingservice.model.QueueEntry;
 import com.msspoker.matchmakingservice.repository.MatchProposalPlayerRepository;
@@ -302,30 +301,4 @@ class RankMatchmakingServiceImplTest {
         verify(queueStore, never()).find(accountId);
     }
 
-    @Test
-    void reconnectReturnsRankGameEndpoint() {
-        UUID accountId = UUID.randomUUID();
-        UUID proposalId = UUID.randomUUID();
-        UUID tableId = UUID.randomUUID();
-        UUID matchId = UUID.randomUUID();
-        InGameSession session =
-                new InGameSession(
-                        MatchMode.RANK,
-                        proposalId,
-                        tableId,
-                        matchId,
-                        "game.example.com",
-                        443,
-                        "/ws/game");
-        when(queueStore.inGame(accountId)).thenReturn(Optional.of(session));
-        when(game.activeTable(accountId))
-                .thenReturn(Optional.of(new TableCreatedResponse(tableId, matchId)));
-
-        var response = service.reconnect(accountId);
-
-        assertThat(response.reconnectable()).isTrue();
-        assertThat(response.mode()).isEqualTo(MatchMode.RANK);
-        assertThat(response.host()).isEqualTo("game.example.com");
-        assertThat(response.port()).isEqualTo(443);
-    }
 }

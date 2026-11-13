@@ -1,7 +1,6 @@
 package com.msspoker.matchmakingservice.controller;
 
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.service.RankMatchmakingService;
 
@@ -85,16 +84,4 @@ public class RankMatchmakingController {
         return matchmaking.status(accountId);
     }
 
-    /** Tìm bàn Rank còn hoạt động để người chơi kết nối lại. */
-    @GetMapping("/reconnect")
-    @Operation(operationId = "reconnectRank", summary = "Reconnect bàn Rank")
-    public NormalReconnectResponse reconnect(
-            @Parameter(
-                            name = MatchmakingConstants.USER_ID_HEADER,
-                            required = true,
-                            in = ParameterIn.HEADER)
-                    @RequestHeader(MatchmakingConstants.USER_ID_HEADER)
-                    UUID accountId) {
-        return matchmaking.reconnect(accountId);
-    }
 }

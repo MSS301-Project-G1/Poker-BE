@@ -54,11 +54,9 @@ class MatchmakingGatewaySecurityTest {
     private List<MockHttpServletRequestBuilder> requests() {
         return List.of(
                 get("/api/matchmaking/normal/status"),
-                get("/api/matchmaking/normal/reconnect"),
                 post("/api/matchmaking/normal/join"),
                 delete("/api/matchmaking/normal/leave"),
                 get("/api/matchmaking/rank/status"),
-                get("/api/matchmaking/rank/reconnect"),
                 post("/api/matchmaking/rank/join"),
                 delete("/api/matchmaking/rank/leave"),
                 post("/api/matchmaking/proposals/" + proposal + "/accept"),
@@ -86,11 +84,11 @@ class MatchmakingGatewaySecurityTest {
     }
 
     @Test
-    void correctKeyPreservesQueueReconnectAndPartyContractsForTheGatewayIdentity()
+    void correctKeyPreservesQueueAndPartyContractsForTheGatewayIdentity()
             throws Exception {
         var mvc = client(KEY);
         for (String mode : List.of("normal", "rank")) {
-            for (String operation : List.of("status", "reconnect")) {
+            for (String operation : List.of("status")) {
                 mvc.perform(
                                 get("/api/matchmaking/" + mode + "/" + operation)
                                         .header(MatchmakingGatewayFilter.HEADER, KEY)
@@ -138,11 +136,11 @@ class MatchmakingGatewaySecurityTest {
                                 .header("X-User-Id", account))
                 .andExpect(status().isNoContent());
         verify(normal).status(account);
-        verify(normal).reconnect(account);
+
         verify(normal).join(account);
         verify(normal).leave(account);
         verify(rank).status(account);
-        verify(rank).reconnect(account);
+
         verify(rank).join(account);
         verify(rank).leave(account);
         verify(party).current(account);

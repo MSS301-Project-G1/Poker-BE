@@ -12,6 +12,9 @@ import com.msspoker.chatservice.service.MessageService;
 
 import jakarta.validation.Valid;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
@@ -31,11 +34,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/chat/conversations")
 @RequiredArgsConstructor
+@Tag(name = "Chat - Hội thoại và tin nhắn", description = "Hội thoại và lịch sử tin nhắn của người đang đăng nhập; API công khai gọi qua Gateway.")
 public class ChatController {
     private final ConversationService conversations;
     private final MessageService messages;
 
     /** Lấy hoặc tạo hội thoại trực tiếp với tài khoản trong body theo điều kiện quan hệ Social. */
+    @Operation(summary = "Lấy hoặc tạo hội thoại trực tiếp", description = "Nhận accountId của người muốn trò chuyện; kiểm tra điều kiện quan hệ bạn bè và chặn qua Social.")
     @PostMapping("/direct")
     public ConversationResponse direct(
             @RequestHeader(ChatHeaders.USER_ID) UUID actor,
@@ -44,6 +49,7 @@ public class ChatController {
     }
 
     /** Liệt kê hội thoại mà actor là thành viên, có phân trang. */
+    @Operation(summary = "Danh sách hội thoại của tôi", description = "Chỉ trả hội thoại mà người gọi là thành viên. page bắt đầu từ 0, size mặc định 20; type dùng để lọc loại hội thoại.")
     @GetMapping
     public PageResponse<ConversationResponse> list(
             @RequestHeader(ChatHeaders.USER_ID) UUID actor,
@@ -54,6 +60,7 @@ public class ChatController {
     }
 
     /** Lấy hội thoại sau khi service kiểm tra quyền truy cập của actor. */
+    @Operation(summary = "Chi tiết hội thoại", description = "id là UUID hội thoại; người gọi phải có quyền truy cập hội thoại.")
     @GetMapping("/{id}")
     public ConversationResponse get(
             @RequestHeader(ChatHeaders.USER_ID) UUID actor, @PathVariable UUID id) {
@@ -61,6 +68,7 @@ public class ChatController {
     }
 
     /** Đọc lịch sử theo cursor before và limit; service kiểm tra thành viên và tham số. */
+    @Operation(summary = "Lịch sử tin nhắn trong hội thoại", description = "Người gọi phải là thành viên. Dùng cursor before để lấy trang tin nhắn cũ hơn; limit mặc định 20.")
     @GetMapping("/{id}/messages")
     public MessageHistoryResponse history(
             @RequestHeader(ChatHeaders.USER_ID) UUID actor,
@@ -71,6 +79,7 @@ public class ChatController {
     }
 
     /** Gửi tin qua HTTP; dùng chung nghiệp vụ với WebSocket để kiểm tra quyền và chống trùng. */
+    @Operation(summary = "Gửi tin nhắn vào hội thoại", description = "Gửi qua HTTP, dùng chung nghiệp vụ với WebSocket: kiểm tra quyền gửi và chống tin nhắn trùng. Thành công trả HTTP 201.")
     @PostMapping("/{id}/messages")
     @ResponseStatus(HttpStatus.CREATED)
     public MessageResponse send(

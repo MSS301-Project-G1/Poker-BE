@@ -1,7 +1,6 @@
 package com.msspoker.matchmakingservice.service.impl;
 
 import com.msspoker.matchmakingservice.dto.response.GameMatchSettingsResponse;
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.dto.response.TableCreatedResponse;
 import com.msspoker.matchmakingservice.entity.MatchProposalPlayerEntity;
@@ -195,33 +194,6 @@ public class NormalMatchmakingServiceImpl implements NormalMatchmakingService {
         return QueueStatusResponse.none();
     }
 
-    @Override
-    public NormalReconnectResponse reconnect(UUID accountId) {
-        Optional<InGameSession> storedSession = queueStore.inGame(accountId);
-        if (storedSession.isEmpty()) {
-            return NormalReconnectResponse.none();
-        }
-
-        InGameSession session = storedSession.get();
-        if (session.mode() != MatchMode.NORMAL) {
-            return NormalReconnectResponse.none();
-        }
-        Optional<TableCreatedResponse> activeTable = game.activeTable(accountId);
-        if (activeTable.isEmpty()
-                || !session.tableId().equals(activeTable.get().tableId())
-                || !session.matchId().equals(activeTable.get().matchId())) {
-            queueStore.clearInGame(accountId);
-            return NormalReconnectResponse.none();
-        }
-
-        return NormalReconnectResponse.active(
-                session.proposalId(),
-                session.tableId(),
-                session.matchId(),
-                session.host(),
-                session.port(),
-                session.websocketPath());
-    }
 
     private QueueStatusResponse waiting(QueueEntry entry) {
         GameMatchSettingsResponse settings = game.matchSettings(MatchMode.NORMAL);

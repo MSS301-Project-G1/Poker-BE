@@ -297,8 +297,7 @@ mm:v1:cooldown:{accountId}
 
 - Queue Rank dùng Sorted Set; score ưu tiên theo thời điểm vào hàng.
 - Metadata entry lưu accountId, Elo snapshot, win/loss streak và joinedAt.
-- `in-game` lưu `IN_GAME`, mode, proposalId, tableId, matchId và địa chỉ Game public để reconnect.
-- Chỉ trả thông tin reconnect khi Game vẫn xác nhận đúng tableId/matchId; record stale phải bị xóa.
+- `in-game` lưu `IN_GAME`, mode, proposalId, tableId, matchId và địa chỉ Game public để theo dõi trạng thái trận.
 - Mọi key tạm phải có TTL hợp lý; lock phải có lease time.
 - Redis mất dữ liệu không được làm mất thông tin thu/hoàn phí đã ghi PostgreSQL.
 - Không dùng `KEYS`; dùng key trực tiếp hoặc `SCAN` khi thật sự cần.
@@ -319,7 +318,6 @@ Các route đi qua Gateway và lấy danh tính từ `X-User-Id`:
 | `POST` | `/api/matchmaking/normal/join` | Vào hàng chờ Normal |
 | `DELETE` | `/api/matchmaking/normal/leave` | Rời hàng chờ Normal |
 | `GET` | `/api/matchmaking/normal/status` | Trạng thái queue/proposal/table Normal hiện tại |
-| `GET` | `/api/matchmaking/normal/reconnect` | Lấy bàn Normal đang hoạt động để client nối lại |
 | `GET` | `/api/matchmaking/proposals/{id}` | Đọc proposal của thành viên |
 | `POST` | `/api/matchmaking/proposals/{id}/accept` | Chấp nhận trong thời hạn |
 | `POST` | `/api/matchmaking/proposals/{id}/decline` | Từ chối proposal |
@@ -338,17 +336,17 @@ Tên public API là hợp đồng chính thức và phải phản ánh đúng mo
 ```
 
 - `{mode}` viết thường: `normal`, `rank`.
-- `{action}` dùng đúng nghiệp vụ: `join`, `leave`, `status`, `reconnect`; không dùng route chung
+- `{action}` dùng đúng nghiệp vụ: `join`, `leave`, `status`; không dùng route chung
   mơ hồ như `/queue` rồi truyền `mode` trong request body.
 - Mỗi mode có controller và service riêng. Ví dụ Normal phải dùng
   `NormalMatchmakingController`, `NormalMatchmakingService` và
   `NormalMatchmakingServiceImpl`.
 - Method trong controller/service dùng tên hành động giống API: `join`, `leave`,
-  `status`, `reconnect`. Tên kỹ thuật tầng hạ tầng như `QueueStore` hoặc `RedisQueueStore` được
+  `status`. Tên kỹ thuật tầng hạ tầng như `QueueStore` hoặc `RedisQueueStore` được
   giữ theo trách nhiệm nội bộ, không phải đổi theo route public.
 - Swagger `operationId` phải duy nhất trên toàn service và có mode trong tên:
-  `joinNormal`, `leaveNormal`, `getNormalStatus`, `reconnectNormal`; Rank tương ứng dùng
-  `joinRank`, `leaveRank`, `getRankStatus`, `reconnectRank`.
+  `joinNormal`, `leaveNormal`, `getNormalStatus`; Rank tương ứng dùng
+  `joinRank`, `leaveRank`, `getRankStatus`.
 - Swagger chỉ công bố endpoint đã implement. Không tạo endpoint giả cho Rank hoặc
   Custom chỉ để hiện nhóm trên giao diện.
 - Custom Room thuộc `competition-service`, không đặt route Custom trong
@@ -439,7 +437,7 @@ Publisher retry event chưa gửi; chỉ đánh dấu `PUBLISHED` sau khi broker
 | `CREATING_TABLE` | PostgreSQL | Proposal đã commit; từ đây PostgreSQL thắng Redis |
 | `READY` | PostgreSQL | Audit tạo bàn thành công; Game xác nhận bàn còn active |
 | `FAILED` | PostgreSQL | Audit terminal; không phải trạng thái hiện tại trả vô thời hạn |
-| `IN_GAME` | Game; Redis chỉ cache reconnect | Người chơi đang ở bàn active |
+| `IN_GAME` | Game; Redis chỉ cache trạng thái trận | Người chơi đang ở bàn active |
 
 Ranh giới ownership là commit `match_proposals`: trước commit, Redis sở hữu queue/reservation;
 sau commit, PostgreSQL sở hữu workflow proposal. Redis entry/reservation còn sót sau ranh giới

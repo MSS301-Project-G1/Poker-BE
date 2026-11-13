@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
 import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
@@ -38,6 +37,13 @@ class RankMatchmakingControllerTest {
                 standaloneSetup(new RankMatchmakingController(service))
                         .setControllerAdvice(new MatchmakingExceptionHandler())
                         .build();
+    }
+
+    @Test
+    void removedReconnectEndpointReturnsNotFound() throws Exception {
+        mvc.perform(get("/api/matchmaking/rank/reconnect").header("X-User-Id", ACCOUNT_ID))
+                .andExpect(status().isNotFound());
+        org.mockito.Mockito.verifyNoInteractions(service);
     }
 
     @Test
@@ -91,16 +97,4 @@ class RankMatchmakingControllerTest {
                 .andExpect(jsonPath("$.code").value("MM_UNAUTHORIZED"));
     }
 
-    @Test
-    void reconnectContract() throws Exception {
-        when(service.reconnect(ACCOUNT_ID))
-                .thenReturn(
-                        NormalReconnectResponse.none(
-                                com.msspoker.matchmakingservice.enums.MatchMode.RANK));
-
-        mvc.perform(get("/api/matchmaking/rank/reconnect").header("X-User-Id", ACCOUNT_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reconnectable").value(false))
-                .andExpect(jsonPath("$.mode").value("RANK"));
-    }
 }

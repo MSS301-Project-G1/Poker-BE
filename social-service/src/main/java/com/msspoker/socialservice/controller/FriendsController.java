@@ -8,6 +8,9 @@ import com.msspoker.socialservice.service.SocialService;
 
 import jakarta.validation.Valid;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
@@ -28,10 +31,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/friends")
 @RequiredArgsConstructor
+@Tag(name = "Social - Bạn bè", description = "Quản lý bạn bè và lời mời của người đang đăng nhập; API công khai gọi qua Gateway.")
 public class FriendsController {
     private final SocialService social;
 
     /** Lấy UUID bạn bè theo trang; không đọc hồ sơ trong database Auth. */
+    @Operation(summary = "Danh sách bạn bè của tôi", description = "Trả UUID tài khoản bạn bè, có phân trang; page bắt đầu từ 0, size mặc định 20. Thông tin hồ sơ lấy từ Auth.")
     @GetMapping
     public PageResponse<UUID> friends(
             @RequestHeader(SocialHeaders.USER_ID) UUID actor,
@@ -41,6 +46,7 @@ public class FriendsController {
     }
 
     /** Lấy lời mời theo chiều INCOMING hoặc OUTGOING, có phân trang. */
+    @Operation(summary = "Danh sách lời mời kết bạn", description = "direction là INCOMING (nhận được, mặc định) hoặc OUTGOING (đã gửi). page bắt đầu từ 0, size mặc định 20.")
     @GetMapping("/requests")
     public PageResponse<FriendRequestResponse> requests(
             @RequestHeader(SocialHeaders.USER_ID) UUID actor,
@@ -51,6 +57,7 @@ public class FriendsController {
     }
 
     /** Body chỉ định người nhận; người gửi luôn được xác định từ header. */
+    @Operation(summary = "Gửi lời mời kết bạn", description = "Body chứa addresseeId của người nhận; người gửi được xác định từ phiên đăng nhập. Thành công trả HTTP 201.")
     @PostMapping("/requests")
     @ResponseStatus(HttpStatus.CREATED)
     public FriendRequestResponse send(
@@ -60,6 +67,7 @@ public class FriendsController {
     }
 
     /** id là mã lời mời; service kiểm tra người nhận rồi tạo quan hệ bạn bè. */
+    @Operation(summary = "Chấp nhận lời mời kết bạn", description = "id là UUID lời mời, không phải UUID tài khoản. Chỉ người nhận được chấp nhận; tạo quan hệ bạn bè hai chiều.")
     @PostMapping("/requests/{id}/accept")
     public FriendRequestResponse accept(
             @RequestHeader(SocialHeaders.USER_ID) UUID actor, @PathVariable UUID id) {
@@ -67,6 +75,7 @@ public class FriendsController {
     }
 
     /** id là mã lời mời; chỉ người nhận được từ chối. */
+    @Operation(summary = "Từ chối lời mời kết bạn", description = "id là UUID lời mời; chỉ người nhận được từ chối lời mời đó.")
     @PostMapping("/requests/{id}/decline")
     public FriendRequestResponse decline(
             @RequestHeader(SocialHeaders.USER_ID) UUID actor, @PathVariable UUID id) {
@@ -74,6 +83,7 @@ public class FriendsController {
     }
 
     /** Người gửi hủy lời mời của mình; service kiểm tra quyền và trạng thái. */
+    @Operation(summary = "Hủy lời mời kết bạn đã gửi", description = "id là UUID lời mời; chỉ người gửi được hủy lời mời của mình. Thành công trả HTTP 204.")
     @DeleteMapping("/requests/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancel(@RequestHeader(SocialHeaders.USER_ID) UUID actor, @PathVariable UUID id) {
@@ -81,6 +91,7 @@ public class FriendsController {
     }
 
     /** id là UUID người bạn cần gỡ; quan hệ bạn bè được xóa hai chiều. */
+    @Operation(summary = "Hủy kết bạn", description = "id là UUID tài khoản người bạn cần gỡ. Xóa quan hệ bạn bè hai chiều; thành công trả HTTP 204.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(@RequestHeader(SocialHeaders.USER_ID) UUID actor, @PathVariable UUID id) {
