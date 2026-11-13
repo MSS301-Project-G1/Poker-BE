@@ -67,6 +67,9 @@ người chơi solo hoặc Party khác để lấp các ghế còn trống mà k
 
 ## API Normal
 
+Party dùng mã phòng và mật khẩu để thành viên tham gia. Chủ party bắt đầu tìm trận
+sau khi mọi thành viên đã vào phòng.
+
 Danh tính lấy từ header `X-User-Id`; production chỉ được tin header sau khi Gateway JWT filter hoàn tất.
 
 ```http
@@ -200,3 +203,4 @@ chung từ `docker/compose.infra.yml`.
 - Acceptance is a separate deadline: `MATCHMAKING_NORMAL_ACCEPT_TIMEOUT` / `MATCHMAKING_RANK_ACCEPT_TIMEOUT` default `30s`.
 - A Normal refusal/expiry ends the whole proposal, discards all its queue entries and unlocks queued parties; party membership survives. Clients return to the lobby/search screen. Cleanup is retried by the scheduler. Rank keeps its existing cooldown and requeue rules.
 - Normal Game creation begins only on the last acceptance. Recovery continues using the same proposal ID, preserving idempotent table creation.
+

@@ -41,3 +41,4 @@ public record Notification(
             throw new IllegalArgumentException("Invalid notification payload");
     }
 }
+

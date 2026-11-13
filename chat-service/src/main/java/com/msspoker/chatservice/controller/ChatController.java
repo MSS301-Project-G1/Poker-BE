@@ -39,6 +39,12 @@ public class ChatController {
     private final ConversationService conversations;
     private final MessageService messages;
 
+    @Operation(summary = "Tham gia chat thế giới ở sảnh", description = "Cần đăng nhập qua Gateway. Trả phòng WORLD dùng chung; gửi tin và đọc lịch sử qua các API hội thoại hiện có. Nội dung áp dụng cùng bộ lọc từ cấm.")
+    @PostMapping("/world")
+    public ConversationResponse world(@RequestHeader(ChatHeaders.USER_ID) UUID actor) {
+        return conversations.world(actor);
+    }
+
     /** Lấy hoặc tạo hội thoại trực tiếp với tài khoản trong body theo điều kiện quan hệ Social. */
     @Operation(summary = "Lấy hoặc tạo hội thoại trực tiếp", description = "Nhận accountId của người muốn trò chuyện; kiểm tra điều kiện quan hệ bạn bè và chặn qua Social.")
     @PostMapping("/direct")

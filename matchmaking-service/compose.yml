@@ -86,3 +86,4 @@ networks:
 volumes:
   matchmaking-db-data:
   matchmaking-redis-data:
+
