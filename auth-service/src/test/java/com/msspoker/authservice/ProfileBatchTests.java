@@ -124,7 +124,7 @@ class ProfileBatchTests {
         accounts.saveAndFlush(inactive);
         entityManager.clear();
         String code = profiles.findById(first.getId()).orElseThrow().getPlayerCode();
-        org.junit.jupiter.api.Assertions.assertTrue(code.matches("PK[0-9]+"));
+        org.junit.jupiter.api.Assertions.assertTrue(code.matches("PK[0-9A-F]{8}"));
         org.junit.jupiter.api.Assertions.assertNotEquals(code,
                 profiles.findById(second.getId()).orElseThrow().getPlayerCode());
 
