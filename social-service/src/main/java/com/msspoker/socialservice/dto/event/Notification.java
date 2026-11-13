@@ -13,8 +13,6 @@ public record Notification(
             Set.of(
                     "FRIEND_REQUEST",
                     "FRIEND_ACCEPTED",
-                    "PARTY_INVITE",
-                    "PARTY_INVITE_ACCEPTED",
                     "MATCH_FOUND",
                     "MATCH_READY",
                     "ROOM_INVITE",
@@ -43,3 +41,4 @@ public record Notification(
             throw new IllegalArgumentException("Invalid notification payload");
     }
 }
+

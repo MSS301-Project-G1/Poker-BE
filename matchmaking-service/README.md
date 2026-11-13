@@ -67,12 +67,8 @@ người chơi solo hoặc Party khác để lấp các ghế còn trống mà k
 
 ## API Normal
 
-Party hỗ trợ mời bạn bè trực tiếp qua `POST /api/party/invitations`, danh sách
-`GET /api/party/invitations?direction=INCOMING|OUTGOING`, chấp nhận/từ chối/hủy qua
-`POST .../{id}/accept`, `POST .../{id}/decline`, `DELETE .../{id}`. Chỉ chủ party được
-mời bạn bè; backend kiểm tra quan hệ Social, block, sức chứa, trạng thái queue/trận và
-hạn 5 phút. Chấp nhận sẽ tự vào party, không cần chia sẻ mật khẩu. Thông báo đi qua
-outbox RabbitMQ `notification.requested` để Social đẩy WebSocket.
+Party dùng mã phòng và mật khẩu để thành viên tham gia. Chủ party bắt đầu tìm trận
+sau khi mọi thành viên đã vào phòng.
 
 Danh tính lấy từ header `X-User-Id`; production chỉ được tin header sau khi Gateway JWT filter hoàn tất.
 
@@ -207,3 +203,4 @@ chung từ `docker/compose.infra.yml`.
 - Acceptance is a separate deadline: `MATCHMAKING_NORMAL_ACCEPT_TIMEOUT` / `MATCHMAKING_RANK_ACCEPT_TIMEOUT` default `30s`.
 - A Normal refusal/expiry ends the whole proposal, discards all its queue entries and unlocks queued parties; party membership survives. Clients return to the lobby/search screen. Cleanup is retried by the scheduler. Rank keeps its existing cooldown and requeue rules.
 - Normal Game creation begins only on the last acceptance. Recovery continues using the same proposal ID, preserving idempotent table creation.
+
