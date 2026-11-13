@@ -11,6 +11,4 @@ public record InGameSession(
         UUID matchId,
         String host,
         int port,
-        String websocketPath
-) {
-}
+        String websocketPath) {}

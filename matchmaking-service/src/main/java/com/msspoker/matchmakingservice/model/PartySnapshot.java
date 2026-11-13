@@ -10,6 +10,4 @@ public record PartySnapshot(
         String password,
         UUID leaderId,
         List<UUID> memberIds,
-        Instant createdAt
-) {
-}
+        Instant createdAt) {}

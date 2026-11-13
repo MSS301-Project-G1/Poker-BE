@@ -12,8 +12,7 @@ public record QueueEntry(
         UUID partyId,
         Integer elo,
         int winStreak,
-        int lossStreak
-) {
+        int lossStreak) {
     public QueueEntry(UUID accountId, MatchMode mode, Instant joinedAt) {
         this(accountId, mode, joinedAt, null, null, 0, 0);
     }
@@ -22,8 +21,10 @@ public record QueueEntry(
         this(accountId, mode, joinedAt, partyId, null, 0, 0);
     }
 
-    public static QueueEntry rank(UUID accountId, Instant joinedAt, int elo, int winStreak, int lossStreak) {
-        return new QueueEntry(accountId, MatchMode.RANK, joinedAt, null, elo, winStreak, lossStreak);
+    public static QueueEntry rank(
+            UUID accountId, Instant joinedAt, int elo, int winStreak, int lossStreak) {
+        return new QueueEntry(
+                accountId, MatchMode.RANK, joinedAt, null, elo, winStreak, lossStreak);
     }
 
     public boolean belongsToParty() {

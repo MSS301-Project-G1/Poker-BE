@@ -1,6 +1,7 @@
 package com.msspoker.socialservice.dto.request;
 
-import java.util.UUID;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.UUID;
 
 public record SendFriendRequest(@NotNull UUID addresseeId) {}

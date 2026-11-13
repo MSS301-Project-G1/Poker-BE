@@ -1,6 +1,7 @@
 package com.msspoker.authservice.integration.wallet;
 
 import com.msspoker.authservice.entity.DailyCheckin;
+import com.msspoker.authservice.entity.FirstLoginBonus;
 import com.msspoker.authservice.shared.common.exception.ApiException;
 import com.msspoker.authservice.shared.common.exception.ErrorCode;
 import com.msspoker.authservice.shared.infrastructure.config.WalletProperties;
@@ -34,9 +35,16 @@ public class WalletClient {
     }
 
     public UUID creditCheckin(DailyCheckin checkin) {
-        String idempotencyKey = "checkin:" + checkin.getDate() + ":" + checkin.getAccountId();
-        CreditRequest creditRequest = new CreditRequest(checkin.getAccountId(), checkin.getRewardCoins(), "DAILY_CHECKIN",
-                checkin.getId().toString(), idempotencyKey, "COIN");
+        return credit(new CreditRequest(checkin.getAccountId(), checkin.getRewardCoins(), "DAILY_CHECKIN",
+                checkin.getId().toString(), "checkin:" + checkin.getDate() + ":" + checkin.getAccountId(), "COIN"));
+    }
+
+    public UUID creditFirstLoginBonus(FirstLoginBonus bonus) {
+        return credit(new CreditRequest(bonus.getAccountId(), bonus.getRewardCoins(), "FIRST_LOGIN_BONUS",
+                bonus.getAccountId().toString(), "first-login:" + bonus.getAccountId(), "COIN"));
+    }
+
+    private UUID credit(CreditRequest creditRequest) {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(walletProperties.baseUrl().toString().replaceAll("/+$", "")
                             + "/internal/wallet/credit"))
@@ -59,7 +67,7 @@ public class WalletClient {
                     || !creditRequest.reason().equals(data.path("reason").asString())
                     || !creditRequest.currencyType().equals(data.path("currencyType").asString())
                     || !creditRequest.refId().equals(data.path("refId").asString())
-                    || !idempotencyKey.equals(data.path("idempotencyKey").asString())) {
+                    || !creditRequest.idempotencyKey().equals(data.path("idempotencyKey").asString())) {
                 throw new ApiException(ErrorCode.AUTH_WALLET_UNAVAILABLE);
             }
             return UUID.fromString(data.path("id").asString());

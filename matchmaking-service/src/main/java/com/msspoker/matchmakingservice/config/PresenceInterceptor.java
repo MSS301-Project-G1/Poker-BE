@@ -2,8 +2,12 @@ package com.msspoker.matchmakingservice.config;
 
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
 import com.msspoker.matchmakingservice.service.store.PresenceStore;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -12,17 +16,14 @@ import java.util.UUID;
 
 /** Mỗi request của người chơi (FE hỏi trạng thái mỗi giây) đánh dấu tab của họ vẫn đang mở. */
 @Component
+@RequiredArgsConstructor
 public class PresenceInterceptor implements HandlerInterceptor {
     private final PresenceStore presence;
     private final Clock clock;
 
-    public PresenceInterceptor(PresenceStore presence, Clock clock) {
-        this.presence = presence;
-        this.clock = clock;
-    }
-
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+    public boolean preHandle(
+            HttpServletRequest request, HttpServletResponse response, Object handler) {
         String accountId = request.getHeader(MatchmakingConstants.USER_ID_HEADER);
         if (accountId == null) return true;
         try {

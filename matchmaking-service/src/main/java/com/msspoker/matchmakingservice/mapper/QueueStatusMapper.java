@@ -2,15 +2,16 @@ package com.msspoker.matchmakingservice.mapper;
 
 import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
 import com.msspoker.matchmakingservice.entity.MatchProposalPlayerEntity;
-import com.msspoker.matchmakingservice.model.QueueEntry;
 import com.msspoker.matchmakingservice.model.InGameSession;
+import com.msspoker.matchmakingservice.model.QueueEntry;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
 
 import java.time.Instant;
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface QueueStatusMapper {
@@ -35,8 +36,7 @@ public interface QueueStatusMapper {
             Integer minPlayers,
             Integer maxPlayers,
             Instant matchStartDeadline,
-            List<UUID> playerIds
-    );
+            List<UUID> playerIds);
 
     @Mapping(target = "status", constant = "MATCHING")
     @Mapping(target = "mode", source = "entry.mode")
@@ -99,6 +99,8 @@ public interface QueueStatusMapper {
     QueueStatusResponse inGame(InGameSession session);
 
     default List<UUID> playerIds(List<MatchProposalPlayerEntity> players) {
-        return players == null ? List.of() : players.stream().map(MatchProposalPlayerEntity::getAccountId).toList();
+        return players == null
+                ? List.of()
+                : players.stream().map(MatchProposalPlayerEntity::getAccountId).toList();
     }
 }

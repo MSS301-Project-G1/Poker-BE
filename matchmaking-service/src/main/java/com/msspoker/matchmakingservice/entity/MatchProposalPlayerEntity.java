@@ -1,7 +1,16 @@
 package com.msspoker.matchmakingservice.entity;
 
 import com.msspoker.matchmakingservice.enums.ProposalPlayerStatus;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -10,15 +19,20 @@ import java.util.UUID;
 @Table(name = "match_proposal_players")
 public class MatchProposalPlayerEntity {
     @Id private UUID id;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "proposal_id", nullable = false)
     private MatchProposalEntity proposal;
+
     private UUID accountId;
     private Integer eloSnapshot;
     private Integer winStreakSnapshot;
     private Integer lossStreakSnapshot;
     private Instant queueJoinedAt;
-    @Enumerated(EnumType.STRING) private ProposalPlayerStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private ProposalPlayerStatus status;
+
     private Instant acceptedAt;
     private boolean feeCharged;
     private boolean feeRefunded;
@@ -27,10 +41,10 @@ public class MatchProposalPlayerEntity {
     private boolean isDeleted;
     @Version private long version;
 
-    protected MatchProposalPlayerEntity() {
-    }
+    protected MatchProposalPlayerEntity() {}
 
-    public static MatchProposalPlayerEntity reserved(UUID accountId, Instant joinedAt, Instant now) {
+    public static MatchProposalPlayerEntity reserved(
+            UUID accountId, Instant joinedAt, Instant now) {
         MatchProposalPlayerEntity player = new MatchProposalPlayerEntity();
         player.id = UUID.randomUUID();
         player.accountId = accountId;
@@ -41,20 +55,15 @@ public class MatchProposalPlayerEntity {
         return player;
     }
 
-    public static MatchProposalPlayerEntity normalPending(UUID accountId, Instant joinedAt, Instant now) {
+    public static MatchProposalPlayerEntity normalPending(
+            UUID accountId, Instant joinedAt, Instant now) {
         MatchProposalPlayerEntity player = reserved(accountId, joinedAt, now);
         player.status = ProposalPlayerStatus.PENDING;
         return player;
     }
 
     public static MatchProposalPlayerEntity rankPending(
-            UUID accountId,
-            int elo,
-            int winStreak,
-            int lossStreak,
-            Instant joinedAt,
-            Instant now
-    ) {
+            UUID accountId, int elo, int winStreak, int lossStreak, Instant joinedAt, Instant now) {
         MatchProposalPlayerEntity player = new MatchProposalPlayerEntity();
         player.id = UUID.randomUUID();
         player.accountId = accountId;
@@ -105,15 +114,47 @@ public class MatchProposalPlayerEntity {
         updatedAt = now;
     }
 
-    public UUID getId() { return id; }
-    public MatchProposalEntity getProposal() { return proposal; }
-    public UUID getAccountId() { return accountId; }
-    public Integer getEloSnapshot() { return eloSnapshot; }
-    public Integer getWinStreakSnapshot() { return winStreakSnapshot; }
-    public Integer getLossStreakSnapshot() { return lossStreakSnapshot; }
-    public Instant getQueueJoinedAt() { return queueJoinedAt; }
-    public ProposalPlayerStatus getStatus() { return status; }
-    public Instant getAcceptedAt() { return acceptedAt; }
-    public boolean isFeeCharged() { return feeCharged; }
-    public boolean isFeeRefunded() { return feeRefunded; }
+    public UUID getId() {
+        return id;
+    }
+
+    public MatchProposalEntity getProposal() {
+        return proposal;
+    }
+
+    public UUID getAccountId() {
+        return accountId;
+    }
+
+    public Integer getEloSnapshot() {
+        return eloSnapshot;
+    }
+
+    public Integer getWinStreakSnapshot() {
+        return winStreakSnapshot;
+    }
+
+    public Integer getLossStreakSnapshot() {
+        return lossStreakSnapshot;
+    }
+
+    public Instant getQueueJoinedAt() {
+        return queueJoinedAt;
+    }
+
+    public ProposalPlayerStatus getStatus() {
+        return status;
+    }
+
+    public Instant getAcceptedAt() {
+        return acceptedAt;
+    }
+
+    public boolean isFeeCharged() {
+        return feeCharged;
+    }
+
+    public boolean isFeeRefunded() {
+        return feeRefunded;
+    }
 }

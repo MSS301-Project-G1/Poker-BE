@@ -13,8 +13,7 @@ public record PartyResponse(
         String password,
         UUID leaderId,
         List<UUID> memberIds,
-        Instant createdAt
-) {
+        Instant createdAt) {
     public static PartyResponse from(PartySnapshot party) {
         return new PartyResponse(
                 party.partyId(),
@@ -22,7 +21,6 @@ public record PartyResponse(
                 party.password(),
                 party.leaderId(),
                 party.memberIds(),
-                party.createdAt()
-        );
+                party.createdAt());
     }
 }
