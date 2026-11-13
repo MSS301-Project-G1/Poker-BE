@@ -10,10 +10,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.Instant;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * A refusal (4xx) skips only that row, which moves behind the others by its attempts; an outage stops the
+ * batch so the run does not wait on a timeout for every row.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -29,12 +34,16 @@ public class RewardDispatcherImpl implements RewardDispatcher {
     public void dispatchPending() {
         if (!dispatching.tryLock()) return;
         try {
-            for (var reward : repository.findTop20ByCreditedAtIsNullOrderByCreatedAtAscIdAsc()) {
+            for (var reward : repository.findTop20ByCreditedAtIsNullOrderByAttemptsAscCreatedAtAscIdAsc()) {
                 reward.setAttempts(reward.getAttempts() + 1);
                 try {
                     wallet.credit(mapper.credit(reward));
                     reward.setCreditedAt(Instant.now());
                     repository.save(reward);
+                } catch (HttpClientErrorException ex) {
+                    repository.save(reward);
+                    log.warn("Rank reward {} refused by wallet-service ({}); will retry", reward.getIdempotencyKey(),
+                            ex.getStatusCode());
                 } catch (Exception ex) {
                     repository.save(reward);
                     log.warn("Rank reward {} not credited yet; will retry", reward.getIdempotencyKey(), ex);

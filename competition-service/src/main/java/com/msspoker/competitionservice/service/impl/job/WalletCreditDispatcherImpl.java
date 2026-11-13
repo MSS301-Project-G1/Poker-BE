@@ -1,5 +1,7 @@
 package com.msspoker.competitionservice.service.impl.job;
 
+import com.msspoker.competitionservice.enums.CompetitionError;
+import com.msspoker.competitionservice.exception.CompetitionApiException;
 import com.msspoker.competitionservice.mapper.TournamentMapper;
 import com.msspoker.competitionservice.repository.WalletCreditRepository;
 import com.msspoker.competitionservice.service.client.WalletClient;
@@ -13,6 +15,10 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * A refusal (4xx) skips only that row, which moves behind the others by its attempts; an outage stops the
+ * batch so the run does not wait on a timeout for every row.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -27,12 +33,19 @@ public class WalletCreditDispatcherImpl implements WalletCreditDispatcher {
     public void dispatchPending() {
         if (!dispatching.tryLock()) return;
         try {
-            for (var credit : repository.findTop20ByCreditedAtIsNullOrderByCreatedAtAscIdAsc()) {
+            for (var credit : repository.findTop20ByCreditedAtIsNullOrderByAttemptsAscCreatedAtAscIdAsc()) {
                 credit.setAttempts(credit.getAttempts() + 1);
                 try {
                     wallet.credit(mapper.transaction(credit));
                     credit.setCreditedAt(Instant.now());
                     repository.save(credit);
+                } catch (CompetitionApiException ex) {
+                    repository.save(credit);
+                    if (ex.getCode() != CompetitionError.COMP_DEPENDENCY_REJECTED) {
+                        log.warn("Wallet credit {} not accepted yet; will retry", credit.getIdempotencyKey(), ex);
+                        break;
+                    }
+                    log.warn("Wallet credit {} refused by wallet-service; will retry", credit.getIdempotencyKey());
                 } catch (Exception ex) {
                     repository.save(credit);
                     log.warn("Wallet credit {} not accepted yet; will retry", credit.getIdempotencyKey(), ex);

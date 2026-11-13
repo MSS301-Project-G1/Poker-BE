@@ -8,5 +8,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ItemGrantRepository extends JpaRepository<ItemGrantEntity, UUID> {
-    List<ItemGrantEntity> findTop20ByGrantedAtIsNullOrderByCreatedAtAscIdAsc();
+    /** Fewest attempts first, so a row the other service keeps refusing never holds back newer ones. */
+    List<ItemGrantEntity> findTop20ByGrantedAtIsNullOrderByAttemptsAscCreatedAtAscIdAsc();
 }

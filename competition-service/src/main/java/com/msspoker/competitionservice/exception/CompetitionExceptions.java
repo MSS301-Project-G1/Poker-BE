@@ -152,12 +152,29 @@ public final class CompetitionExceptions {
         return new CompetitionApiException(CompetitionError.COMP_DEPENDENCY_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, "Ví xu tạm thời không khả dụng. Vui lòng thử lại.");
     }
 
+    /** wallet-service answered 4xx: the same request will not succeed by retrying it. */
+    public static CompetitionApiException walletRejected() {
+        return new CompetitionApiException(CompetitionError.COMP_DEPENDENCY_REJECTED, HttpStatus.BAD_GATEWAY, "Ví xu từ chối giao dịch này.");
+    }
+
     public static CompetitionApiException unauthorized() {
         return new CompetitionApiException(CompetitionError.COMP_UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
     }
 
     public static CompetitionApiException invalidRequest() {
         return new CompetitionApiException(CompetitionError.COMP_INVALID_REQUEST, HttpStatus.BAD_REQUEST, "Dữ liệu không hợp lệ. Vui lòng kiểm tra thông tin gửi lên.");
+    }
+
+    public static CompetitionApiException methodNotAllowed() {
+        return new CompetitionApiException(CompetitionError.COMP_INVALID_REQUEST, HttpStatus.METHOD_NOT_ALLOWED, "Đường dẫn này không hỗ trợ phương thức HTTP đã gửi.");
+    }
+
+    public static CompetitionApiException unsupportedMediaType() {
+        return new CompetitionApiException(CompetitionError.COMP_INVALID_REQUEST, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Định dạng dữ liệu không được hỗ trợ. Hãy gửi JSON.");
+    }
+
+    public static CompetitionApiException concurrentChange() {
+        return new CompetitionApiException(CompetitionError.COMP_CONFLICT, HttpStatus.CONFLICT, "Dữ liệu vừa được thay đổi bởi một yêu cầu khác. Vui lòng tải lại.");
     }
 
     public static CompetitionApiException internalError() {

@@ -154,10 +154,27 @@ public class AuthServiceImpl implements AuthService {
         Account account = accountRepository.findByEmailForUpdate(request.email().strip().toLowerCase(Locale.ROOT))
                 .filter(this::canResetPassword).orElse(null);
         if (account == null) return;
+        issuePasswordReset(account, false);
+    }
+
+    /** Admin-triggered recovery email; unlike the public flow, every refusal is reported to the admin. */
+    @Override
+    @Transactional
+    public void sendPasswordReset(UUID accountId) {
+        Account account = accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_NOT_FOUND));
+        if (!canResetPassword(account)) throw new ApiException(ErrorCode.AUTH_EMAIL_VERIFICATION_PENDING);
+        issuePasswordReset(account, true);
+    }
+
+    private void issuePasswordReset(Account account, boolean reportRefusals) {
         PasswordResetOtp otp = passwordResetOtpRepository.findById(account.getId()).orElse(null);
         Instant now = clock.instant();
-        // A throttled request has the same public response as an unknown email.
-        if (otp != null && now.isBefore(otp.getLastSentAt().plus(otpProperties.resendCooldown()))) return;
+        if (otp != null && now.isBefore(otp.getLastSentAt().plus(otpProperties.resendCooldown()))) {
+            // A throttled public request has the same response as an unknown email.
+            if (reportRefusals) throw new ApiException(ErrorCode.AUTH_OTP_RESEND_TOO_SOON);
+            return;
+        }
         String code;
         do {
             code = String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000));
@@ -166,7 +183,7 @@ public class AuthServiceImpl implements AuthService {
         try {
             mailSender.sendPasswordResetOtp(account.getEmail(), code, otpProperties.ttl());
         } catch (ApiException exception) {
-            if (exception.getErrorCode() != ErrorCode.AUTH_MAIL_UNAVAILABLE) throw exception;
+            if (exception.getErrorCode() != ErrorCode.AUTH_MAIL_UNAVAILABLE || reportRefusals) throw exception;
             // Preserve the previous OTP and the generic response; never log mail content or recipient.
             log.warn("Password reset email could not be sent; recovery OTP was left unchanged");
             return;

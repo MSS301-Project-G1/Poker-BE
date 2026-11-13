@@ -118,6 +118,9 @@ scope `ranking`/`competition`, không push main.
   `GET /internal/accounts/admins` (SPEC §6.1, Khanh review); ranking đọc danh sách mỗi phút,
   bỏ admin khỏi BXH toàn server, vị trí, BXH bạn bè, `/internal/ranking/top` và suất Thần bài
   (cả lúc đóng mùa). Admin vẫn giữ Elo và nhận quà mùa theo bậc Elo. 60 test H2.
+- [x] Sửa sau buổi rà soát (2026-11-13): lỗi 405/415/409 thay cho 500; khoản thưởng bị ví/shop
+  từ chối (4xx) không chặn các khoản sau, dispatcher lấy khoản ít lần thử nhất trước. 63 test,
+  chạy qua cả H2 lẫn PostgreSQL 17 (trừ test mùa giải, vốn cố định H2 riêng).
 
 ## Phụ thuộc và review trước khi merge
 

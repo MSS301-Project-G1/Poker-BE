@@ -8,7 +8,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface WalletCreditRepository extends JpaRepository<WalletCreditEntity, UUID> {
-    List<WalletCreditEntity> findTop20ByCreditedAtIsNullOrderByCreatedAtAscIdAsc();
+    /** Fewest attempts first, so a row the other service keeps refusing never holds back newer ones. */
+    List<WalletCreditEntity> findTop20ByCreditedAtIsNullOrderByAttemptsAscCreatedAtAscIdAsc();
 
     boolean existsByIdempotencyKey(String idempotencyKey);
 }

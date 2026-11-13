@@ -60,7 +60,7 @@ public class WalletClientImpl implements WalletClient {
             if (CompetitionConstants.WALLET_INSUFFICIENT_BALANCE.equals(errorCode(ex))) {
                 throw CompetitionExceptions.insufficientBalance();
             }
-            throw CompetitionExceptions.walletUnavailable();
+            throw CompetitionExceptions.walletRejected();
         } catch (RestClientException | IllegalStateException ex) {
             // IllegalStateException: no registered instance of the service.
             throw CompetitionExceptions.walletUnavailable();

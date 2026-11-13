@@ -80,6 +80,18 @@ public final class RankingExceptions {
         return new RankingApiException(RankingError.RANK_INVALID_REQUEST, HttpStatus.BAD_REQUEST, "Dữ liệu không hợp lệ. Vui lòng kiểm tra thông tin gửi lên.");
     }
 
+    public static RankingApiException methodNotAllowed() {
+        return new RankingApiException(RankingError.RANK_INVALID_REQUEST, HttpStatus.METHOD_NOT_ALLOWED, "Đường dẫn này không hỗ trợ phương thức HTTP đã gửi.");
+    }
+
+    public static RankingApiException unsupportedMediaType() {
+        return new RankingApiException(RankingError.RANK_INVALID_REQUEST, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Định dạng dữ liệu không được hỗ trợ. Hãy gửi JSON.");
+    }
+
+    public static RankingApiException concurrentChange() {
+        return new RankingApiException(RankingError.RANK_CONFLICT, HttpStatus.CONFLICT, "Dữ liệu vừa được thay đổi bởi một yêu cầu khác. Vui lòng tải lại.");
+    }
+
     public static RankingApiException internalError() {
         return new RankingApiException(RankingError.RANK_INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR, "Không thể xử lý yêu cầu lúc này. Vui lòng thử lại.");
     }

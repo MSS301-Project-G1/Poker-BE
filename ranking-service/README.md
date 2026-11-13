@@ -117,6 +117,11 @@ identity and a missing role never defaults to `ADMIN`. FE keeps using the gatewa
 and never receives either key. See [the review guide](../docker/RANKING-SECURITY-REVIEW.md)
 for `.env` setup and commands to rebuild the affected services together.
 
+Errors use the SPEC §5.3 body. A wrong HTTP method returns `405` (with `Allow`) and a
+body that is not JSON returns `415`, both as `RANK_INVALID_REQUEST`; a request that
+loses a race on a unique constraint (e.g. a double-clicked claim) returns
+`409 RANK_CONFLICT`.
+
 Consumed events on exchange `poker.events`, each with its own durable queue:
 
 | Queue | Routing key | Effect |
@@ -142,7 +147,10 @@ They are stored in `rank_reward_credits` in the
 same transaction as the Elo update, then sent to wallet-service
 `POST /internal/wallet/credit` with reason `RANK_REWARD`, `refId` = matchId and
 key `rank-reward:{matchId}:{accountId}`. A wallet outage leaves the reward
-pending; the dispatcher retries every 5 seconds with the same key.
+pending; the dispatcher retries every 5 seconds with the same key. Pending rows
+go out by fewest attempts first: an outage stops the run, while a refusal (4xx)
+only skips that row, so one refused reward never holds back the others. Season
+and tutorial grants follow the same rule.
 
 ### Friends leaderboard
 
@@ -218,9 +226,9 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 .\mvnw.cmd -pl ranking-service -am clean verify
 ```
 
-60 tests use test-only H2 and do not require Docker: tier boundaries, Elo
+63 tests use test-only H2 and do not require Docker: tier boundaries, Elo
 floor, places beyond six, Card God cut-off, duplicate events, non-RANK modes,
-invalid results, reward queueing and wallet outage retry, listener parsing with
+invalid results, reward queueing, wallet outage and refusal retry, 405/415/409 errors, listener parsing with
 unknown fields, API contracts, leaderboard ordering, season closing and carry
 over, scheduled closing and activation, cumulative claims, grant retries, the
 gateway and internal keys, the friends leaderboard (order, cap, social outage, HTTP
@@ -228,3 +236,6 @@ client), the tutorial reward (once, also under concurrent calls) and admins left
 off the leaderboards (positions, Card God places, season close, the auth client
 and its cached list).
 Season tests use their own H2 database because they close the seed season.
+To run the other tests on PostgreSQL, point `SPRING_DATASOURCE_URL`,
+`SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` at an empty database;
+the tests delete their tables' rows.
