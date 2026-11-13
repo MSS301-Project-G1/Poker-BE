@@ -36,6 +36,7 @@ import java.util.stream.IntStream;
 import static com.msspoker.competitionservice.service.TournamentTestSupport.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
@@ -204,6 +205,21 @@ class TournamentServiceTest {
         verify(wallet, times(3)).credit(any());
         assertTrue(credits.findAll().stream().allMatch(c -> c.getCreditedAt() != null));
         assertError(CompetitionError.COMP_CONFLICT, () -> tournaments.cancel(id));
+    }
+
+    @Test
+    void aRefusedCreditDoesNotHoldBackTheOtherRefunds() {
+        UUID id = tournaments.create(admin, open(100, null)).id();
+        UUID refused = register(id, 3).getFirst();
+        tournaments.cancel(id);
+        doThrow(CompetitionExceptions.walletRejected()).when(wallet)
+                .credit(argThat(request -> request.accountId().equals(refused)));
+
+        dispatcher.dispatchPending();
+
+        assertTrue(credits.findAll().stream()
+                .allMatch(credit -> (credit.getCreditedAt() == null) == credit.getAccountId().equals(refused)));
+        verify(wallet, times(3)).credit(any());
     }
 
     @Test

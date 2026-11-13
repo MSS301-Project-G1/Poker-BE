@@ -14,14 +14,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
@@ -50,7 +56,7 @@ class RewardDispatcherTest {
         dispatcher.dispatchPending();
         List<RewardCreditEntity> pending = rewards.findAll();
         assertTrue(pending.stream().allMatch(reward -> reward.getCreditedAt() == null));
-        // The batch stops at the first failure so rewards are retried in order.
+        // An outage stops the batch at the first failure.
         assertEquals(1, pending.stream().mapToInt(RewardCreditEntity::getAttempts).sum());
 
         reset(wallet);
@@ -66,5 +72,24 @@ class RewardDispatcherTest {
         assertEquals("RANK_REWARD", first.reason());
         assertEquals(event.matchId().toString(), first.refId());
         assertEquals(credited.getFirst().getIdempotencyKey(), first.idempotencyKey());
+    }
+
+    @Test
+    void aRefusedRewardDoesNotHoldBackTheOthers() {
+        rating.matchFinished(RatingTestSupport.rank(RatingTestSupport.accounts(6), 100));
+        doThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST)).when(wallet)
+                .credit(argThat(request -> request.amount() == 300));
+
+        dispatcher.dispatchPending();
+        dispatcher.dispatchPending();
+
+        Map<Long, RewardCreditEntity> byAmount = rewards.findAll().stream()
+                .collect(Collectors.toMap(RewardCreditEntity::getAmount, Function.identity()));
+        assertNull(byAmount.get(300L).getCreditedAt());
+        assertEquals(2, byAmount.get(300L).getAttempts());
+        assertNotNull(byAmount.get(200L).getCreditedAt());
+        assertNotNull(byAmount.get(100L).getCreditedAt());
+        // The refused reward is retried; the credited ones are not sent again.
+        verify(wallet, times(4)).credit(any());
     }
 }

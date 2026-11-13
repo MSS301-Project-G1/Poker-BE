@@ -39,6 +39,12 @@ public class RankingController {
         return ranking.me(accountId);
     }
 
+    /** Another player's season standing, as /me shows it (profile and admin pages); the gateway requires login. */
+    @GetMapping("/players/{accountId}")
+    public MyRankingResponse player(@PathVariable UUID accountId) {
+        return ranking.me(accountId);
+    }
+
     @GetMapping("/me/matches/{matchId}")
     public MatchRatingResponse matchRating(@RequestHeader(RankingHeaders.USER_ID) UUID accountId,
             @PathVariable UUID matchId) {

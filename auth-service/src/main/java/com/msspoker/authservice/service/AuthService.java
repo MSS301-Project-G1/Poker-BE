@@ -28,6 +28,7 @@ public interface AuthService {
     RegistrationResponse resendOtp(ResendRegistrationOtpRequest request);
 
     void forgotPassword(ForgotPasswordRequest request);
+    void sendPasswordReset(UUID accountId);
     void resetPassword(ResetPasswordRequest request);
     void changePassword(UUID accountId, ChangePasswordRequest request);
 

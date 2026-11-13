@@ -2,7 +2,8 @@
 
 **04/11/2026:** đã có ADMIN quản lý user, ban/unban có thời hạn hoặc đến khi gỡ, lịch sử và
 `GET /internal/accounts/{id}/restrictions` (và `GET /internal/accounts/admins` cho ranking). Xem [ADMIN-USERS.md](ADMIN-USERS.md) để chạy và test;
-auth dùng migration V11, FE nằm ở nhánh `feat/ban-user`.
+auth dùng migration V11, FE nằm ở nhánh `feat/ban-user`. **13/11/2026:** thêm trang chi tiết user cho ADMIN
+và thao tác kiểm duyệt có lý do, lịch sử (`/details`, `/moderation`, migration V12), xem cùng file.
 
 **01/11/2026:** đã thêm một phiên login/một tab hoạt động, `X-Tab-Id` và API tiếp quản tab.
 Đọc [SESSION-PROTECTION.md](SESSION-PROTECTION.md) trước khi chạy FE hoặc test Swagger;

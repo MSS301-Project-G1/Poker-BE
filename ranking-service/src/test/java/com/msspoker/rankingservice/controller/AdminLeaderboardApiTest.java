@@ -89,6 +89,9 @@ class AdminLeaderboardApiTest {
         mvc.perform(get("/api/ranking/me").header("X-User-Id", FIRST.toString()))
                 .andExpect(jsonPath("$.position").value(1))
                 .andExpect(jsonPath("$.tier").value("CARD_GOD"));
+        mvc.perform(get("/api/ranking/players/{accountId}", ADMIN))
+                .andExpect(jsonPath("$.position").value(nullValue()))
+                .andExpect(jsonPath("$.elo").value(1800));
         mvc.perform(get("/internal/ranking/{id}", ADMIN))
                 .andExpect(jsonPath("$.elo").value(1800))
                 .andExpect(jsonPath("$.tier").value("GRAND_CHAMPION"));

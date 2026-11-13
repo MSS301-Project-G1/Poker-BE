@@ -102,6 +102,13 @@ Errors: `COMP_NOT_FOUND`, `COMP_FORBIDDEN` (not a member/owner, not friends,
 restricted player), `COMP_WRONG_PASSWORD`, `COMP_ROOM_FULL`, `COMP_ALREADY_IN_ROOM`,
 `COMP_CONFLICT` (room playing, not ready, too few players), `COMP_PLAYER_BUSY`,
 `COMP_DEPENDENCY_UNAVAILABLE`, `COMP_INVALID_REQUEST`, `COMP_UNAUTHORIZED`.
+A wrong HTTP method returns `405` (with `Allow`) and a body that is not JSON returns
+`415`, both as `COMP_INVALID_REQUEST`; a request that loses a race on a unique
+constraint returns `409 COMP_CONFLICT`.
+
+A player is a member of at most one room: `room_members.account_id` is unique (V4),
+so two concurrent joins or a create and a join of one player cannot both succeed;
+the second gets `COMP_ALREADY_IN_ROOM`.
 
 Start sends `{ mode: CUSTOM, sourceId, playerIds (seat order), settings:
 { smallBlind, bigBlind, startingChips: 1000, turnTimeSeconds: 20 }, entryFee: 0 }`
@@ -144,9 +151,12 @@ tableId, seats[] { accountId, seatIndex, place } }`, final first.
 
 Registration debits wallet-service `POST /internal/wallet/debit` with reason
 `TOURNAMENT_ENTRY_FEE` and key `tournament-fee:{tournamentId}:{accountId}`; a
-refusal returns `409 COMP_INSUFFICIENT_BALANCE`. Cancellation stores
+lack of coins returns `409 COMP_INSUFFICIENT_BALANCE`, any other wallet refusal
+`502 COMP_DEPENDENCY_REJECTED`. Cancellation stores
 `TOURNAMENT_REFUND` credits (key `tournament-refund:{tournamentId}:{accountId}`)
-that are retried until the wallet accepts them.
+that are retried until the wallet accepts them. Pending credits and item grants
+go out by fewest attempts first: an outage stops the run, while a refusal only
+skips that row, so one refused credit or grant never holds back the others.
 
 Each tournament table calls CreateTable with `mode: TOURNAMENT`, `sourceId` = the
 tournament table id, `settings: null` (game's TOURNAMENT Match Settings) and the
@@ -215,6 +225,8 @@ and game-service are always called for real.
 .\mvnw.cmd -pl competition-service -am clean verify
 ```
 
-37 tests use test-only H2 and stub HTTP game/wallet/ranking servers; Docker is not
+53 tests use test-only H2 and stub HTTP game/wallet/ranking servers; Docker is not
 required. Tournament schedule tests move a tournament's timeline back instead of
-waiting.
+waiting. To run them on PostgreSQL, point `SPRING_DATASOURCE_URL`,
+`SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` at an empty database;
+the tests delete their tables' rows.

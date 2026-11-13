@@ -66,11 +66,11 @@ class WalletClientImplTest {
     }
 
     @Test
-    void mapsInsufficientBalanceAndOutages() {
+    void mapsInsufficientBalanceRefusalsAndOutages() {
         reply(400, "{\"code\":\"WALLET_INSUFFICIENT_BALANCE\",\"message\":\"x\",\"timestamp\":\"2026-10-13T08:00:00Z\"}");
         assertError(CompetitionError.COMP_INSUFFICIENT_BALANCE, () -> client().debit(request));
         reply(400, "{\"code\":\"WALLET_VALIDATION_ERROR\",\"message\":\"x\"}");
-        assertError(CompetitionError.COMP_DEPENDENCY_UNAVAILABLE, () -> client().debit(request));
+        assertError(CompetitionError.COMP_DEPENDENCY_REJECTED, () -> client().debit(request));
         reply(500, "oops");
         assertError(CompetitionError.COMP_DEPENDENCY_UNAVAILABLE, () -> client().credit(request));
         server.stop(0);

@@ -99,6 +99,7 @@ CARD_GOD place.
 | GET | `/internal/ranking/top?limit=32` | Top N of the active season with `position`; limit 1–100 |
 | GET | `/api/ranking/leaderboard?page=0&size=20` | `PageResponse` of ranked players; size 1–100 |
 | GET | `/api/ranking/me` | Own standing from `X-User-Id`; `position` is `null` before the first record |
+| GET | `/api/ranking/players/{accountId}` | Any player's standing in the same shape as `/me` (profile and admin pages); requires login through the gateway; admins have `position: null` |
 | GET | `/api/ranking/friends` | The player and up to 199 friends: `[{ rank, position, accountId, elo, tier, winStreak, matchesPlayed, you }]` |
 | GET | `/api/ranking/me/matches/{matchId}` | Own result of one RANK match: `{ matchId, place, eloDelta, eloAfter, rewardCoins }`; `eloDelta` is the applied change, `rewardCoins` is 0 for unpaid places; `404` until `match.finished` is processed |
 | GET | `/api/seasons/current` | Active season |
@@ -116,6 +117,11 @@ These rules also apply in the `dev` profile: `X-Dev-User` no longer supplies an
 identity and a missing role never defaults to `ADMIN`. FE keeps using the gateway
 and never receives either key. See [the review guide](../docker/RANKING-SECURITY-REVIEW.md)
 for `.env` setup and commands to rebuild the affected services together.
+
+Errors use the SPEC §5.3 body. A wrong HTTP method returns `405` (with `Allow`) and a
+body that is not JSON returns `415`, both as `RANK_INVALID_REQUEST`; a request that
+loses a race on a unique constraint (e.g. a double-clicked claim) returns
+`409 RANK_CONFLICT`.
 
 Consumed events on exchange `poker.events`, each with its own durable queue:
 
@@ -142,7 +148,10 @@ They are stored in `rank_reward_credits` in the
 same transaction as the Elo update, then sent to wallet-service
 `POST /internal/wallet/credit` with reason `RANK_REWARD`, `refId` = matchId and
 key `rank-reward:{matchId}:{accountId}`. A wallet outage leaves the reward
-pending; the dispatcher retries every 5 seconds with the same key.
+pending; the dispatcher retries every 5 seconds with the same key. Pending rows
+go out by fewest attempts first: an outage stops the run, while a refusal (4xx)
+only skips that row, so one refused reward never holds back the others. Season
+and tutorial grants follow the same rule.
 
 ### Friends leaderboard
 
@@ -174,6 +183,14 @@ accepted like season rewards. The amount granted is stored with the completion.
 | POST | `/api/admin/seasons` | `{ name, startAt, endAt, resetPercent, rewards[] }` → UPCOMING season |
 | PUT | `/api/admin/seasons/{seasonId}/rewards` | Replaces rewards; refused once the season ended |
 | POST | `/api/admin/seasons/close` | Closes the active season now; needs an UPCOMING season |
+| PUT | `/api/admin/seasons/players/{accountId}/elo` | `{ elo (0–100000), reason (1–500) }` sets the player's active-season Elo; returns the new standing like `/api/ranking/me` |
+| GET | `/api/admin/seasons/players/{accountId}/elo-adjustments?page=0&size=20` | Admin Elo changes, newest first: `{ id, seasonId, accountId, actorId, eloBefore, eloAfter, reason, occurredAt }` |
+
+An Elo adjustment needs `X-User-Role: ADMIN` and `X-User-Id` (stored as `actorId`). The tier follows the
+new Elo, the peak only rises, and streaks, match counts and `elo_history` (match results only) stay as they
+are. It locks the active season like a match result, so the two never overwrite each other. Admin accounts
+(the caller included) are refused with `403 RANK_FORBIDDEN`, an unchanged value with `409 RANK_CONFLICT`.
+Every change is kept in `elo_adjustments` (V5).
 
 Closing a season (by the admin, or every minute once `endAt` passed and a next
 season exists) records each player's final tier in leaderboard order, so
@@ -218,9 +235,9 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 .\mvnw.cmd -pl ranking-service -am clean verify
 ```
 
-60 tests use test-only H2 and do not require Docker: tier boundaries, Elo
+67 tests use test-only H2 and do not require Docker: tier boundaries, Elo
 floor, places beyond six, Card God cut-off, duplicate events, non-RANK modes,
-invalid results, reward queueing and wallet outage retry, listener parsing with
+invalid results, reward queueing, wallet outage and refusal retry, 405/415/409 errors, listener parsing with
 unknown fields, API contracts, leaderboard ordering, season closing and carry
 over, scheduled closing and activation, cumulative claims, grant retries, the
 gateway and internal keys, the friends leaderboard (order, cap, social outage, HTTP
@@ -228,3 +245,6 @@ client), the tutorial reward (once, also under concurrent calls) and admins left
 off the leaderboards (positions, Card God places, season close, the auth client
 and its cached list).
 Season tests use their own H2 database because they close the seed season.
+To run the other tests on PostgreSQL, point `SPRING_DATASOURCE_URL`,
+`SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` at an empty database;
+the tests delete their tables' rows.

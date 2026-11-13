@@ -19,6 +19,9 @@ public final class RankingConstants {
     public static final int MAX_FRIENDS = 200;
     public static final int MAX_PAGE_SIZE = 100;
     public static final int MAX_NAME_LENGTH = 100;
+    public static final int MAX_REASON_LENGTH = 500;
+    /** Upper bound for an admin-set Elo; Grand Champion starts at 1600. */
+    public static final int MAX_ELO = 100_000;
     /** Leaderboard order; PlayerEloRepository.countAhead must use the same order. */
     public static final Sort LEADERBOARD_SORT = Sort.by(Sort.Order.desc("currentElo"), Sort.Order.asc("accountId"));
     /** The nil UUID belongs to no account; it stands in for an empty NOT IN list, which SQL does not allow. */

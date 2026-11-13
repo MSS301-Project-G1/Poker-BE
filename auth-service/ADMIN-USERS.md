@@ -123,6 +123,39 @@ BE vẫn kiểm tra độc lập. Body unban: `{"reason":"Đã xem xét và ch�
 UUID trong ví dụ là placeholder, dùng giá trị thật từ API. Unban xóa metadata ban hiện tại, audit vẫn giữ.
 Ban có thời hạn đã hết có thể còn metadata cũ trong DB/response nhưng `banned=false`.
 
+## Trang chi tiết và thao tác kiểm duyệt
+
+| Method | URL | Ý nghĩa |
+|---|---|---|
+| GET | `/api/admin/users/{accountId}/details` | Toàn bộ thông tin để admin xem: tài khoản, hồ sơ, avatar, ban, hạn chế chat/Rank. |
+| POST | `/api/admin/users/{accountId}/moderation` | Một thao tác kiểm duyệt, bắt buộc có lý do. |
+| GET | `/api/admin/users/{accountId}/moderation?page=0&size=20` | Lịch sử thao tác kiểm duyệt, mới nhất trước. |
+
+`details` thêm vào response trên: `fullName`, `phoneNumber`, `gender`, `birthDate`, `bio`, `countryCode`,
+`city`, `avatarUrl` (URL xem được), `customAvatar` (đang dùng ảnh khác mặc định), `firstLoginRewarded`,
+`chatBannedUntil`, `rankBannedUntil`, `updatedAt`. Không có password hash hay token.
+
+Admin không sửa tự do thông tin người chơi; chỉ có các thao tác sau, body `{"action":"...","reason":"..."}`:
+
+| action | Tác dụng |
+|---|---|
+| `RESET_DISPLAY_NAME` | Đổi tên hiển thị về `Player <mã người chơi>`; người chơi tự đặt lại tên mới. |
+| `REMOVE_AVATAR` | Về avatar mặc định; ảnh đã upload bị xóa khỏi S3 sau khi commit. |
+| `CLEAR_BIO` | Xóa bio. |
+| `REVOKE_SESSIONS` | Thu hồi mọi refresh token, người chơi phải đăng nhập lại trên mọi thiết bị. |
+| `SEND_PASSWORD_RESET` | Gửi OTP đặt lại mật khẩu tới email; admin không bao giờ đặt mật khẩu hộ. |
+| `RESEND_VERIFICATION` | Gửi lại OTP xác thực cho tài khoản chưa xác thực email. |
+
+Cùng giới hạn với ban: không thao tác lên chính mình hoặc ADMIN khác (403). Không có gì để gỡ (tên đã là tên
+mặc định, không có avatar riêng, bio trống) trả `409 AUTH_CONFLICT`. Gửi lại email trong thời gian chờ trả
+`429 AUTH_OTP_RESEND_TOO_SOON`; đặt lại mật khẩu cho tài khoản chưa xác thực trả
+`409 AUTH_EMAIL_VERIFICATION_PENDING`, gửi lại xác thực cho tài khoản đã xác thực trả
+`409 AUTH_EMAIL_ALREADY_VERIFIED`. Thao tác bị từ chối không ghi lịch sử.
+
+Mỗi thao tác thành công lưu một dòng `account_moderation_events` (V12) cùng transaction:
+`{id, accountId, actorId, action, reason, previousValue, occurredAt}`; `previousValue` giữ tên hiển thị, bio
+hoặc tên avatar preset đã bị gỡ để xem lại.
+
 ## Hợp đồng nội bộ restrictions
 
 Đã cung cấp **GET `/internal/accounts/{accountId}/restrictions`**, trả JSON thô đúng ba field:
