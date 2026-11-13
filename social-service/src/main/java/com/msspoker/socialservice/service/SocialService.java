@@ -10,6 +10,8 @@ import java.util.UUID;
 public interface SocialService {
     FriendshipResponse relation(UUID a, UUID b);
 
+    List<UUID> friendsAmong(UUID actor, List<UUID> ids);
+
     FriendRequestResponse send(UUID actor, UUID target);
 
     FriendRequestResponse respond(UUID actor, UUID id, String action);

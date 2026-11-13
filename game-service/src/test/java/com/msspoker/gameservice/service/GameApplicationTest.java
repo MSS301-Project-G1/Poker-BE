@@ -171,6 +171,28 @@ class GameApplicationTest {
     }
 
     @Test
+    void playersInMatchListsOnlySeatedPlayersWithoutTableIds() throws Exception {
+        var request = request();
+        tables.create(request);
+        UUID seated = request.playerIds().getFirst();
+        UUID outsider = UUID.randomUUID();
+        mvc.perform(get("/api/game/players/in-match").servletPath("/api/game/players/in-match")
+                        .param("ids", seated + "," + outsider)
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", outsider))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0]").value(seated.toString()));
+        mvc.perform(get("/api/game/players/in-match").servletPath("/api/game/players/in-match")
+                        .param("ids", "")
+                        .header("X-Game-Service-Key", "test-ingress-key").header("X-User-Id", outsider))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("GAME_INVALID_REQUEST"));
+        mvc.perform(get("/api/game/players/in-match").servletPath("/api/game/players/in-match")
+                        .param("ids", seated.toString())
+                        .header("X-Game-Service-Key", "test-ingress-key"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void publicMatchHistoryIsPagedAndRequiresGatewayIdentity() throws Exception {
         var request = request();
         var created = tables.create(request);
