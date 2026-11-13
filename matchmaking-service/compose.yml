@@ -23,6 +23,8 @@ services:
       RANKING_SERVICE_URL: http://ranking-service:8086
       WALLET_SERVICE_URL: http://wallet-service:8089
       GAME_SERVICE_URL: http://game-service:8082
+      SOCIAL_SERVICE_URL: http://social-service:8084
+      SOCIAL_INTERNAL_KEY: ${SOCIAL_INTERNAL_KEY:-}
       GAME_SERVICE_KEY: ${GAME_SERVICE_KEY:-poker_game_dev}
       GAME_PUBLIC_HOST: ${GAME_PUBLIC_HOST:-localhost}
       GAME_PUBLIC_PORT: ${GAME_PUBLIC_PORT:-8082}

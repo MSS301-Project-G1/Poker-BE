@@ -25,6 +25,7 @@ REST `/api/**` cần `X-Chat-Gateway-Key` và `X-User-Id` do Gateway gắn; thi�
 | GET | `/api/chat/conversations/{id}` | Metadata + memberIds, chỉ member |
 | GET | `/api/chat/conversations/{id}/messages?before=&limit=20` | `{ items, nextCursor }`, mới nhất trước, limit 1–100 |
 | POST | `/api/chat/conversations/{id}/messages` | REST fallback, dùng chung service với STOMP |
+| POST | `/api/chat/conversations/world` | Tham gia chat thế giới ở sảnh; chỉ tài khoản đăng nhập, dùng chung phòng WORLD |
 
 Conversation DTO: `{ id, type, refId, closedAt, createdAt, memberIds }`. Message DTO: `{ id, conversationId, senderId, messageType, content, clientMessageId, createdAt }`. Không trả entity JPA.
 

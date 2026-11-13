@@ -67,6 +67,13 @@ người chơi solo hoặc Party khác để lấp các ghế còn trống mà k
 
 ## API Normal
 
+Party hỗ trợ mời bạn bè trực tiếp qua `POST /api/party/invitations`, danh sách
+`GET /api/party/invitations?direction=INCOMING|OUTGOING`, chấp nhận/từ chối/hủy qua
+`POST .../{id}/accept`, `POST .../{id}/decline`, `DELETE .../{id}`. Chỉ chủ party được
+mời bạn bè; backend kiểm tra quan hệ Social, block, sức chứa, trạng thái queue/trận và
+hạn 5 phút. Chấp nhận sẽ tự vào party, không cần chia sẻ mật khẩu. Thông báo đi qua
+outbox RabbitMQ `notification.requested` để Social đẩy WebSocket.
+
 Danh tính lấy từ header `X-User-Id`; production chỉ được tin header sau khi Gateway JWT filter hoàn tất.
 
 ```http

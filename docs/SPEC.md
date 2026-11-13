@@ -84,6 +84,11 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 - **Thanh toán:** PayOS.
 - **Chặn IP Việt Nam:** chỉ làm khi deploy, bằng Cloudflare. Nhóm test qua VPN. Không nằm trong code.
 - **Chat:** chat trong trận và chat bạn bè gộp chung **một** `chat-service`, một DB (yêu cầu của thầy).
+- **Chat sảnh:** tài khoản đăng nhập có thể vào một phòng WORLD dùng chung tại sảnh; vẫn dùng
+  MessageService và bộ lọc nội dung chung, không cho khách chưa đăng nhập gửi.
+- **Mời party:** chủ party có thể mời bạn bè bằng invitation có hạn; chấp nhận tự vào party,
+  rồi chủ dùng queue Normal hiện có. Social chỉ cung cấp quan hệ/chặn và realtime notification;
+  trạng thái invitation thuộc matchmaking.
 - **Lọc chat:** mọi tin TEXT trong DIRECT/MATCH, qua REST hoặc STOMP, phải kiểm tra từ
   cấm trước khi lưu/phát realtime. Vi phạm trả `CHAT_CONTENT_NOT_ALLOWED` (REST HTTP 400;
   STOMP qua `/user/queue/chat-errors`), người dùng sửa nội dung rồi gửi lại.
