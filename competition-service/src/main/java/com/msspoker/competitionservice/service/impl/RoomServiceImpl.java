@@ -31,6 +31,7 @@ import com.msspoker.competitionservice.validator.RoomAccessValidator;
 import com.msspoker.competitionservice.validator.RoomSettingsValidator;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -76,8 +77,8 @@ public class RoomServiceImpl implements RoomService {
         requireNoOpenRoom(accountId);
         String hash = request.password() == null ? null : passwords.encode(request.password());
         Instant now = Instant.now();
-        CustomRoomEntity room = rooms.save(mapper.newRoom(request, newCode(), accountId, hash, now));
-        RoomMemberEntity owner = members.save(mapper.newMember(room.getId(), accountId, now));
+        CustomRoomEntity room = rooms.saveAndFlush(mapper.newRoom(request, newCode(), accountId, hash, now));
+        RoomMemberEntity owner = addMember(room.getId(), accountId, now);
         return view(room, List.of(owner));
     }
 
@@ -120,7 +121,7 @@ public class RoomServiceImpl implements RoomService {
             throw CompetitionExceptions.wrongPassword();
         }
         if (roster.size() >= room.getMaxPlayers()) throw CompetitionExceptions.roomFull();
-        roster.add(members.save(mapper.newMember(room.getId(), accountId, Instant.now())));
+        roster.add(addMember(room.getId(), accountId, Instant.now()));
         updated(room, roster, "JOINED", List.of());
         return view(room, roster);
     }
@@ -282,6 +283,18 @@ public class RoomServiceImpl implements RoomService {
 
     private void requireNoOpenRoom(UUID accountId) {
         if (rooms.findOpenRoomOf(accountId, RoomStatus.CLOSED).isPresent()) throw CompetitionExceptions.alreadyInRoom();
+    }
+
+    /**
+     * Two requests of one player (create and join, or two joins) can pass requireNoOpenRoom together;
+     * the unique account index on room_members rejects the second insert.
+     */
+    private RoomMemberEntity addMember(UUID roomId, UUID accountId, Instant now) {
+        try {
+            return members.saveAndFlush(mapper.newMember(roomId, accountId, now));
+        } catch (DataIntegrityViolationException ex) {
+            throw CompetitionExceptions.alreadyInRoom();
+        }
     }
 
     private CustomRoomEntity lock(String roomCode) {

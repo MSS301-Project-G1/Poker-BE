@@ -8,6 +8,7 @@ import com.msspoker.rankingservice.controller.RankingController;
 import com.msspoker.rankingservice.controller.SeasonController;
 import com.msspoker.rankingservice.controller.TutorialController;
 import com.msspoker.rankingservice.exception.RankingExceptionHandler;
+import com.msspoker.rankingservice.service.EloAdjustmentService;
 import com.msspoker.rankingservice.service.RankingService;
 import com.msspoker.rankingservice.service.SeasonRewardService;
 import com.msspoker.rankingservice.service.SeasonService;
@@ -78,11 +79,13 @@ class RankingIngressSecurityTest {
 
     private List<MockHttpServletRequestBuilder> apiRequests() {
         return List.of(get("/api/ranking/leaderboard"), get("/api/ranking/me"), get("/api/ranking/friends"),
-                get("/api/ranking/me/matches/" + match), get("/api/seasons/current"),
+                get("/api/ranking/me/matches/" + match), get("/api/ranking/players/" + account), get("/api/seasons/current"),
                 get("/api/seasons/" + season + "/rewards"), get("/api/seasons/rewards/me"),
                 post("/api/seasons/" + season + "/rewards/claim"), get("/api/tutorial/me"), post("/api/tutorial/complete"),
                 get("/api/admin/seasons"), post("/api/admin/seasons"),
-                put("/api/admin/seasons/" + season + "/rewards"), post("/api/admin/seasons/close"));
+                put("/api/admin/seasons/" + season + "/rewards"), post("/api/admin/seasons/close"),
+                put("/api/admin/seasons/players/" + account + "/elo"),
+                get("/api/admin/seasons/players/" + account + "/elo-adjustments"));
     }
 
     @Test
@@ -208,5 +211,6 @@ class RankingIngressSecurityTest {
         @Bean SeasonService seasons() { return mock(SeasonService.class); }
         @Bean SeasonRewardService rewards() { return mock(SeasonRewardService.class); }
         @Bean TutorialService tutorials() { return mock(TutorialService.class); }
+        @Bean EloAdjustmentService eloAdjustments() { return mock(EloAdjustmentService.class); }
     }
 }

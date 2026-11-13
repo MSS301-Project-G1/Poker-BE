@@ -9,7 +9,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface RewardCreditRepository extends JpaRepository<RewardCreditEntity, UUID> {
-    List<RewardCreditEntity> findTop20ByCreditedAtIsNullOrderByCreatedAtAscIdAsc();
+    /** Fewest attempts first, so a row the other service keeps refusing never holds back newer ones. */
+    List<RewardCreditEntity> findTop20ByCreditedAtIsNullOrderByAttemptsAscCreatedAtAscIdAsc();
 
     List<RewardCreditEntity> findByMatchIdOrderByPlace(UUID matchId);
 

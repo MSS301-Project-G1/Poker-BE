@@ -100,6 +100,12 @@ Quy trình nhóm: toàn bộ phần của Hoài Anh commit vào `hoaianh/ranking
     khi hỏi quan hệ bạn bè; thiếu key thì social-service trả 403 và mời phòng luôn lỗi.
     Kiểm tra qua gateway với social-service thật: người thứ hai vào phòng thì phòng chờ
     cập nhật sau 0,9 giây; lời mời hiện trên `/rooms` và bấm Join vào được phòng.
+- [x] Sửa sau buổi rà soát (2026-11-13): V4 unique `room_members(account_id)` (dọn
+  membership trùng, chuyển chủ, đóng phòng rỗng) để hai request đồng thời không đưa một
+  người vào hai phòng; lỗi 405/415/409 thay cho 500; khoản hoàn phí/thưởng/skin bị từ chối
+  không chặn các khoản sau (`COMP_DEPENDENCY_REJECTED`). 53 test, chạy qua cả H2 lẫn
+  PostgreSQL 17.
+- [ ] Còn mở: phòng/bàn giải kẹt ở `PLAYING` khi game hủy trận không phát event (cần chốt với Bảo).
 
 ## Phụ thuộc và review trước khi merge
 

@@ -99,6 +99,22 @@ class RoomServiceTest {
     }
 
     @Test
+    void aMembershipTheOpenRoomCheckMissedStillBlocksASecondRoom() {
+        // A closed room that still lists the player stands in for a concurrent join the check cannot see yet.
+        var hidden = roomRepository.findByRoomCodeAndIsDeletedFalse(rooms.create(owner, room(RoomVisibility.PUBLIC, null))
+                .roomCode()).orElseThrow();
+        hidden.setStatus(RoomStatus.CLOSED);
+        roomRepository.save(hidden);
+        String other = rooms.create(second, room(RoomVisibility.PUBLIC, null)).roomCode();
+
+        assertError(CompetitionError.COMP_ALREADY_IN_ROOM, () -> rooms.join(other, owner, null));
+        assertError(CompetitionError.COMP_ALREADY_IN_ROOM, () -> rooms.create(owner, room(RoomVisibility.PUBLIC, null)));
+        assertEquals(List.of(second), rooms.get(other, second).members().stream().map(member -> member.accountId()).toList());
+        // The refused create left no room behind.
+        assertEquals(2, roomRepository.count());
+    }
+
+    @Test
     void ownerLeavingPassesRoomToLongestWaitingAndLastLeaverClosesIt() {
         String code = rooms.create(owner, room(RoomVisibility.PUBLIC, null)).roomCode();
         rooms.join(code, second, null);

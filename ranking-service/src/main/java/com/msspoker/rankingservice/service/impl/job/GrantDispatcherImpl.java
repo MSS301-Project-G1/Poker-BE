@@ -12,10 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.Instant;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * A refusal (4xx) skips only that row, which moves behind the others by its attempts; an outage stops the
+ * batch so the run does not wait on a timeout for every row.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -32,13 +37,16 @@ public class GrantDispatcherImpl implements GrantDispatcher {
     public void dispatchPending() {
         if (!dispatching.tryLock()) return;
         try {
-            for (var grant : repository.findTop20ByGrantedAtIsNullOrderByCreatedAtAscIdAsc()) {
+            for (var grant : repository.findTop20ByGrantedAtIsNullOrderByAttemptsAscCreatedAtAscIdAsc()) {
                 grant.setAttempts(grant.getAttempts() + 1);
                 try {
                     if (grant.getRewardType() == RewardType.COIN) wallet.credit(mapper.credit(grant));
                     else shop.grant(mapper.item(grant));
                     grant.setGrantedAt(Instant.now());
                     repository.save(grant);
+                } catch (HttpClientErrorException ex) {
+                    repository.save(grant);
+                    log.warn("Reward grant {} refused ({}); will retry", grant.getIdempotencyKey(), ex.getStatusCode());
                 } catch (Exception ex) {
                     repository.save(grant);
                     log.warn("Reward grant {} not accepted yet; will retry", grant.getIdempotencyKey(), ex);

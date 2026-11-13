@@ -1,8 +1,11 @@
 package com.msspoker.authservice.controller;
 
 import com.msspoker.authservice.dto.admin.request.BanUserRequest;
+import com.msspoker.authservice.dto.admin.request.ModerateUserRequest;
 import com.msspoker.authservice.dto.admin.request.UnbanUserRequest;
 import com.msspoker.authservice.dto.admin.response.AccountBanHistoryResponse;
+import com.msspoker.authservice.dto.admin.response.AccountModerationHistoryResponse;
+import com.msspoker.authservice.dto.admin.response.AdminUserDetailResponse;
 import com.msspoker.authservice.dto.admin.response.AdminUserPageResponse;
 import com.msspoker.authservice.dto.admin.response.AdminUserResponse;
 import com.msspoker.authservice.service.AdminUserService;
@@ -61,6 +64,54 @@ public class AdminUserController {
                         .code(ApiResponse.SUCCESS_CODE)
                         .message("Lấy thông tin người dùng thành công.")
                         .result(adminUserService.getUser(UUID.fromString(jwt.getSubject()), accountId))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
+    }
+
+    @GetMapping("/{accountId}/details")
+    @Operation(summary = "Toàn bộ thông tin tài khoản dành cho admin", description = "Tài khoản, hồ sơ, avatar, trạng thái ban và hạn chế; không có mật khẩu hay token.")
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> getUserDetails(HttpServletRequest request,
+            @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId) {
+        return ResponseEntity.ok(
+                ApiResponse.<AdminUserDetailResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Lấy thông tin chi tiết người dùng thành công.")
+                        .result(adminUserService.getUserDetails(UUID.fromString(jwt.getSubject()), accountId))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
+    }
+
+    @PostMapping("/{accountId}/moderation")
+    @SecurityRequirement(name = "csrfToken")
+    @Operation(summary = "Thao tác kiểm duyệt", description = "action: RESET_DISPLAY_NAME (đổi tên về Player <mã>), REMOVE_AVATAR, CLEAR_BIO, REVOKE_SESSIONS, SEND_PASSWORD_RESET, RESEND_VERIFICATION; reason bắt buộc, tối đa 500 ký tự và được lưu vào lịch sử. Không áp dụng cho bản thân hoặc ADMIN khác; không có gì để gỡ thì trả AUTH_CONFLICT.")
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> moderateUser(HttpServletRequest request,
+            @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId,
+            @Valid @RequestBody ModerateUserRequest moderateRequest) {
+        return ResponseEntity.ok(
+                ApiResponse.<AdminUserDetailResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Thực hiện thao tác kiểm duyệt thành công.")
+                        .result(adminUserService.moderate(UUID.fromString(jwt.getSubject()), accountId, moderateRequest))
+                        .path(request.getRequestURI())
+                        .timestamp(Instant.now())
+                        .build()
+        );
+    }
+
+    @GetMapping("/{accountId}/moderation")
+    @Operation(summary = "Lịch sử thao tác kiểm duyệt", description = "Mới nhất trước; previousValue giữ tên hiển thị hoặc bio đã bị gỡ.")
+    public ResponseEntity<ApiResponse<AccountModerationHistoryResponse>> getModerationHistory(HttpServletRequest request,
+            @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(
+                ApiResponse.<AccountModerationHistoryResponse>builder()
+                        .code(ApiResponse.SUCCESS_CODE)
+                        .message("Lấy lịch sử kiểm duyệt thành công.")
+                        .result(adminUserService.getModerationHistory(UUID.fromString(jwt.getSubject()), accountId, page, size))
                         .path(request.getRequestURI())
                         .timestamp(Instant.now())
                         .build()
