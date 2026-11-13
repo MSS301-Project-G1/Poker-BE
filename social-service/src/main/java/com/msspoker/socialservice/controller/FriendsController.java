@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 /** API bạn bè; actor lấy từ header tin cậy sau bước kiểm tra ingress key. */
@@ -43,6 +44,14 @@ public class FriendsController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return social.friends(actor, page, size);
+    }
+
+    /** Lọc ra những tài khoản đã là bạn trong danh sách gửi lên; không tiết lộ trạng thái chặn. */
+    @Operation(summary = "Kiểm tra những ai đã là bạn", description = "ids là 1–100 UUID tài khoản, cách nhau bởi dấu phẩy. Trả về các UUID trong số đó đã là bạn; không cho biết ai đã chặn ai.")
+    @GetMapping("/check")
+    public List<UUID> check(
+            @RequestHeader(SocialHeaders.USER_ID) UUID actor, @RequestParam List<UUID> ids) {
+        return social.friendsAmong(actor, ids);
     }
 
     /** Lấy lời mời theo chiều INCOMING hoặc OUTGOING, có phân trang. */

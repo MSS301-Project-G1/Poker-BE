@@ -23,6 +23,7 @@ Tất cả API public cần login USER/ADMIN; ADMIN không bỏ qua quyền nghi
 | Method | Path | Body / quyền |
 |---|---|---|
 | GET | `/api/friends?page=0&size=20` | Bạn của actor |
+| GET | `/api/friends/check?ids=uuid,uuid` | 1–100 UUID; trả các UUID đã là bạn, không lộ trạng thái chặn |
 | GET | `/api/friends/requests?direction=INCOMING&page=0&size=20` | INCOMING hoặc OUTGOING, gồm trạng thái terminal để audit |
 | POST | `/api/friends/requests` | `{ "addresseeId": "uuid" }` |
 | POST | `/api/friends/requests/{id}/accept` | Chỉ addressee |

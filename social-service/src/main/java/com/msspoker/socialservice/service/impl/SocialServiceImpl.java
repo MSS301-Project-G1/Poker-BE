@@ -233,6 +233,16 @@ public class SocialServiceImpl implements SocialService {
         return view(result, result.stream().map(FriendshipEntity::getFriendId).toList());
     }
 
+    /** Friendships are always linked and unlinked in both directions, so one direction is enough. */
+    @Transactional(readOnly = true)
+    @Override
+    public List<UUID> friendsAmong(UUID actor, List<UUID> ids) {
+        validation.accountIds(ids);
+        return friends.findByAccountIdAndFriendIdInAndIsDeletedFalse(actor, ids).stream()
+                .map(FriendshipEntity::getFriendId)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     @Override
     public List<UUID> internalFriends(UUID actor) {

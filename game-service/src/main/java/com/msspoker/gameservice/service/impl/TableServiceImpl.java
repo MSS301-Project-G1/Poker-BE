@@ -56,4 +56,10 @@ public class TableServiceImpl implements TableService {
     public Optional<TableCreatedResponse> active(UUID accountId) {
         return registry.activeTable(accountId).map(id -> mapper.created(registry.require(id).getEngine()));
     }
+
+    /** In-memory registry lookups only; the same "busy" rule that stops a player being seated twice. */
+    @Override
+    public List<UUID> playersInMatch(List<UUID> accountIds) {
+        return accountIds.stream().distinct().filter(id -> registry.activeTable(id).isPresent()).toList();
+    }
 }

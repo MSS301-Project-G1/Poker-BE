@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,6 +30,13 @@ public class GameController {
     @GetMapping("/me/active-table")
     public Optional<TableCreatedResponse> active(@RequestAttribute(GameHeaders.USER_ID) UUID accountId) {
         return tables.active(accountId);
+    }
+
+    /** Which of these players are seated at a running table; returns ids only, never which table. */
+    @GetMapping("/players/in-match")
+    public List<UUID> playersInMatch(
+            @RequestParam @Size(min = 1, max = PageConstants.MAX_LOOKUP_IDS) List<UUID> ids) {
+        return tables.playersInMatch(ids);
     }
 
     @GetMapping("/tables/{tableId}")

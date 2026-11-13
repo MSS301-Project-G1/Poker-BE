@@ -167,6 +167,27 @@ class SocialServiceApplicationTests extends TestSupport {
         assertThat(json.readTree(response.body()).has("isBlocked")).isTrue();
     }
 
+    @Test
+    void checkReturnsOnlyCurrentFriendsForBothSides() throws Exception {
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID(), stranger = UUID.randomUUID();
+        String path = "/api/friends/check?ids=" + b + "," + stranger;
+        assertThat(json.readTree(http(port, "GET", path, "gateway-test-key", a, null).body()))
+                .isEmpty();
+        social.respond(b, social.send(a, b).id(), "ACCEPTED");
+        var response = http(port, "GET", path, "gateway-test-key", a, null);
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(json.readTree(response.body()).get(0).asString()).isEqualTo(b.toString());
+        assertThat(json.readTree(response.body())).hasSize(1);
+        assertThat(social.friendsAmong(b, List.of(a))).containsExactly(a);
+        social.block(b, a);
+        assertThat(social.friendsAmong(a, List.of(b))).isEmpty();
+        assertThatThrownBy(() -> social.friendsAmong(a, List.of()))
+                .isInstanceOf(SocialApiException.class);
+        assertThat(http(port, "GET", "/api/friends/check?ids=", "gateway-test-key", a, null)
+                        .statusCode())
+                .isEqualTo(400);
+    }
+
     private Message notification(UUID event, UUID account) {
         var envelope =
                 new EventEnvelope<>(
