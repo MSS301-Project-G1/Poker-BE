@@ -99,6 +99,7 @@ CARD_GOD place.
 | GET | `/internal/ranking/top?limit=32` | Top N of the active season with `position`; limit 1–100 |
 | GET | `/api/ranking/leaderboard?page=0&size=20` | `PageResponse` of ranked players; size 1–100 |
 | GET | `/api/ranking/me` | Own standing from `X-User-Id`; `position` is `null` before the first record |
+| GET | `/api/ranking/players/{accountId}` | Any player's standing in the same shape as `/me` (profile and admin pages); requires login through the gateway; admins have `position: null` |
 | GET | `/api/ranking/friends` | The player and up to 199 friends: `[{ rank, position, accountId, elo, tier, winStreak, matchesPlayed, you }]` |
 | GET | `/api/ranking/me/matches/{matchId}` | Own result of one RANK match: `{ matchId, place, eloDelta, eloAfter, rewardCoins }`; `eloDelta` is the applied change, `rewardCoins` is 0 for unpaid places; `404` until `match.finished` is processed |
 | GET | `/api/seasons/current` | Active season |
@@ -226,7 +227,7 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 .\mvnw.cmd -pl ranking-service -am clean verify
 ```
 
-63 tests use test-only H2 and do not require Docker: tier boundaries, Elo
+64 tests use test-only H2 and do not require Docker: tier boundaries, Elo
 floor, places beyond six, Card God cut-off, duplicate events, non-RANK modes,
 invalid results, reward queueing, wallet outage and refusal retry, 405/415/409 errors, listener parsing with
 unknown fields, API contracts, leaderboard ordering, season closing and carry

@@ -128,6 +128,23 @@ class RankingApiTest {
     }
 
     @Test
+    void anyPlayersStandingIsReadableByAccountId() throws Exception {
+        mvc.perform(get("/api/ranking/players/{accountId}", GOD).header("X-User-Id", CHAMP.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountId").value(GOD.toString()))
+                .andExpect(jsonPath("$.position").value(1))
+                .andExpect(jsonPath("$.elo").value(1700))
+                .andExpect(jsonPath("$.tier").value("CARD_GOD"));
+        mvc.perform(get("/api/ranking/players/{accountId}", UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.position").value(nullValue()))
+                .andExpect(jsonPath("$.elo").value(0));
+        mvc.perform(get("/api/ranking/players/not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RANK_INVALID_REQUEST"));
+    }
+
+    @Test
     void matchRatingReturnsTheCallersAppliedDeltaAndReward() throws Exception {
         List<UUID> placed = accounts(6);
         var event = rank(placed, 100);
