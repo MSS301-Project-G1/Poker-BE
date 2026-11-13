@@ -32,6 +32,25 @@ Send body `{ "messageType": "TEXT", "content": "Xin chào", "clientMessageId": "
 
 DIRECT kiểm tra friendship/block khi tạo và mỗi lần gửi. Unfriend/block không xóa lịch sử, member vẫn đọc được. Cursor opaque dựa trên `(createdAt,id)` tránh mất/trùng tin khi timestamp bằng nhau; FE không tự tạo cursor. FE render content như text, không dùng HTML thô.
 
+## Lọc nội dung tin nhắn
+
+`ban-word-validator` 0.1.1 được gọi trong validation chung của `MessageService.send` cho
+DIRECT và MATCH, cả REST lẫn STOMP. Tin vi phạm không được lưu DB hay phát realtime.
+REST trả HTTP 400 với mã `CHAT_CONTENT_NOT_ALLOWED`; STOMP trả cùng mã qua
+`/user/queue/chat-errors` và giữ kết nối để người dùng sửa tin.
+
+Danh sách Việt/Anh nằm tại `src/main/resources/moderation/banned-words.txt`; sửa danh
+sách rồi build và khởi động lại Chat. Nội dung được chuẩn hóa trên bản sao (Unicode,
+chữ thường, ký tự vô hình, một số dạng thay chữ bằng số, chèn dấu giữa các chữ và kéo
+dài chữ). Có thêm cách đọc bỏ ký hiệu chèn vào và tách nhóm chữ viết tắt như `Đ# mm @`;
+vẫn giữ khoảng trắng giữa các từ và không cấm tên quốc gia “Đan Mạch”.
+Danh sách có các nhóm viết tắt dm/đm, dcm/đcm, dkm/đkm, dạng thêm m và các cụm
+Việt thường gặp; nhận diện cả lặp đôi/kéo dài chữ, Unicode và ký hiệu xen giữa chữ.
+So khớp theo ranh giới từ/cụm từ; nội dung hợp lệ được lưu nguyên bản sau strip.
+Không bỏ dấu toàn bộ tin nhắn để tránh chặn nhầm từ như “các”, “lớn”, “buổi”, “du lịch”.
+Các cụm trong danh sách có thêm biến thể không dấu và viết liền. Đây là bộ lọc từ điển,
+không bảo đảm nhận ra mọi lời xúc phạm theo ngữ cảnh hoặc mọi cách viết né mới.
+
 ## STOMP
 
 Endpoint `/ws/chat`; CONNECT có `Authorization: Bearer <JWT>` từ `/api/auth/ws-token`, giữ token trong memory. JWT kiểm tra RS256, issuer, audience, exp và UUID subject. Chỉ subscribe `/user/queue/chat` và `/user/queue/chat-errors`; SEND `/app/conversations/{id}/send` với body như REST.

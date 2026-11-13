@@ -1,0 +1,89 @@
+# Project-maintained Vietnamese/English chat policy, one word or phrase per line.
+# Single ambiguous unaccented syllables (du, lon, cac, buoi, dit) are intentionally absent.
+# Multiword phrases also match without accents and with their spaces removed.
+đụ
+địt
+lồn
+cặc
+buồi
+đéo
+đếch
+đĩ
+điếm
+đụ má
+đụ mẹ
+địt mẹ
+địt má
+địt con mẹ
+đụ con mẹ
+đù mẹ
+đù má
+đậu má
+đậu mẹ
+đệt
+đệt mẹ
+địt mày
+đụ mày
+địt mẹ mày
+đụ mẹ mày
+địt mịa
+đụ mịa
+địt moẹ
+đụ moẹ
+đít mẹ
+đjt
+đỵt
+đ mẹ
+đ má
+đ me
+đ ma
+đờ mờ
+đê mờ
+đờ cờ mờ
+đê cê mờ
+con cặc
+cái lồn
+chó đẻ
+chó chết
+vãi lồn
+vãi cặc
+đéo mẹ
+đéo hiểu
+đéo biết
+đéo cần
+dcm
+dm
+đcm
+đm
+dmm
+đmm
+dkm
+đkm
+dcmm
+đcmm
+dkmm
+đkmm
+clmm
+clm
+vcl
+vkl
+vl
+fuck
+fucking
+fucked
+fucker
+motherfucker
+motherfucking
+shit
+shitty
+bullshit
+bitch
+bitches
+asshole
+dick
+cock
+cunt
+pussy
+bastard
+son of a bitch
+stfu

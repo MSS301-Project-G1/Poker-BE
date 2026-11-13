@@ -79,7 +79,7 @@ public class ChatController {
     }
 
     /** Gửi tin qua HTTP; dùng chung nghiệp vụ với WebSocket để kiểm tra quyền và chống trùng. */
-    @Operation(summary = "Gửi tin nhắn vào hội thoại", description = "Gửi qua HTTP, dùng chung nghiệp vụ với WebSocket: kiểm tra quyền gửi và chống tin nhắn trùng. Thành công trả HTTP 201.")
+    @Operation(summary = "Gửi tin nhắn vào hội thoại", description = "Gửi qua HTTP, dùng chung nghiệp vụ với WebSocket: kiểm tra quyền gửi, lọc từ ngữ không phù hợp và chống tin nhắn trùng. Tin vi phạm trả 400 CHAT_CONTENT_NOT_ALLOWED, không lưu hoặc phát realtime. Thành công trả HTTP 201.")
     @PostMapping("/{id}/messages")
     @ResponseStatus(HttpStatus.CREATED)
     public MessageResponse send(

@@ -84,6 +84,9 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 - **Thanh toán:** PayOS.
 - **Chặn IP Việt Nam:** chỉ làm khi deploy, bằng Cloudflare. Nhóm test qua VPN. Không nằm trong code.
 - **Chat:** chat trong trận và chat bạn bè gộp chung **một** `chat-service`, một DB (yêu cầu của thầy).
+- **Lọc chat:** mọi tin TEXT trong DIRECT/MATCH, qua REST hoặc STOMP, phải kiểm tra từ
+  cấm trước khi lưu/phát realtime. Vi phạm trả `CHAT_CONTENT_NOT_ALLOWED` (REST HTTP 400;
+  STOMP qua `/user/queue/chat-errors`), người dùng sửa nội dung rồi gửi lại.
 - **Trang Admin:** có làm. Ai sở hữu module nào thì làm trang Admin của module đó.
 
 ---

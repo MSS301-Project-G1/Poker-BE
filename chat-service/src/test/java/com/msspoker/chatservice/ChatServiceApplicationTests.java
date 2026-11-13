@@ -45,6 +45,58 @@ class ChatServiceApplicationTests extends TestSupport {
         return new SendMessageRequest("TEXT", value, null);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(com.msspoker.chatservice.enums.ConversationType.class)
+    void profanityIsRejectedForEveryConversationOverRestAndStomp(
+            com.msspoker.chatservice.enums.ConversationType type) throws Exception {
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+        com.msspoker.chatservice.dto.response.ConversationResponse room;
+        if (type == com.msspoker.chatservice.enums.ConversationType.DIRECT) {
+            room = conversations.direct(a, b);
+        } else {
+            UUID match = UUID.randomUUID();
+            lifecycle.started(match, List.of(a, b));
+            room = conversations.list(a, 0, 20, "MATCH").items().getFirst();
+        }
+        String body = "{\"messageType\":\"TEXT\",\"content\":\"Đ# mm @\",\"clientMessageId\":\""
+                + UUID.randomUUID() + "\"}";
+        var response = http(port, "POST", "/api/chat/conversations/" + room.id() + "/messages",
+                "gateway-test-key", a, body);
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.body()).contains("CHAT_CONTENT_NOT_ALLOWED");
+
+        var client = socketClient();
+        try {
+            var sender = connect(client, port, a);
+            var recipient = connect(client, port, b);
+            var senderMessages = new LinkedBlockingQueue<String>();
+            var recipientMessages = new LinkedBlockingQueue<String>();
+            var errors = new LinkedBlockingQueue<String>();
+            subscribe(sender, "/user/queue/chat", senderMessages);
+            subscribe(recipient, "/user/queue/chat", recipientMessages);
+            subscribe(sender, "/user/queue/chat-errors", errors);
+            var headers = new org.springframework.messaging.simp.stomp.StompHeaders();
+            headers.setDestination("/app/conversations/" + room.id() + "/send");
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            sender.send(headers, body);
+            assertThat(errors.poll(3, TimeUnit.SECONDS)).contains("CHAT_CONTENT_NOT_ALLOWED");
+            assertThat(senderMessages.poll(200, TimeUnit.MILLISECONDS)).isNull();
+            assertThat(recipientMessages.poll(200, TimeUnit.MILLISECONDS)).isNull();
+            assertThat(messages.history(a, room.id(), null, 20).items()).isEmpty();
+            assertThat(sender.isConnected()).isTrue();
+
+            // Rejection does not poison the socket or prevent a corrected message.
+            sender.send(headers, "{\"messageType\":\"TEXT\",\"content\":\"Xin chào\"}");
+            assertThat(senderMessages.poll(3, TimeUnit.SECONDS)).contains("Xin chào");
+            assertThat(recipientMessages.poll(3, TimeUnit.SECONDS)).contains("Xin chào");
+            assertThat(messages.history(a, room.id(), null, 20).items()).hasSize(1);
+            sender.disconnect();
+            recipient.disconnect();
+        } finally {
+            client.stop();
+        }
+    }
+
     @Test
     void concurrentDirectCreationReturnsSameConversation() throws Exception {
         UUID a = UUID.randomUUID(), b = UUID.randomUUID();

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChatRequestValidator {
     private final ChatProperties properties;
+    private final ChatProfanityValidator profanity;
 
     public void page(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
@@ -37,6 +38,7 @@ public class ChatRequestValidator {
         if (content.isEmpty() || content.length() > properties.getMaxContentLength()) {
             throw ChatApiException.invalid("Nội dung rỗng hoặc vượt giới hạn.");
         }
+        profanity.validate(content);
         return content;
     }
 

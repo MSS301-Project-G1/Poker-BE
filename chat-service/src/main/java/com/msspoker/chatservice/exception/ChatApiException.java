@@ -29,6 +29,13 @@ public class ChatApiException extends RuntimeException {
                 "Không có quyền thực hiện thao tác.");
     }
 
+    public static ChatApiException contentNotAllowed() {
+        return new ChatApiException(
+                ChatError.CHAT_CONTENT_NOT_ALLOWED,
+                HttpStatus.BAD_REQUEST,
+                "Tin nhắn có từ ngữ không phù hợp. Vui lòng chỉnh sửa.");
+    }
+
     public static ChatApiException missing() {
         return new ChatApiException(
                 ChatError.CHAT_NOT_FOUND, HttpStatus.NOT_FOUND, "Không tìm thấy tài nguyên.");

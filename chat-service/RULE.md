@@ -80,6 +80,9 @@ Chat không được:
 - `senderId` lấy từ Principal/X-User-Id; không nhận hoặc tin senderId trong payload.
 - Trước khi ghi phải kiểm tra membership, conversation chưa đóng và permission DIRECT.
 - `content` phải trim, không rỗng, giới hạn độ dài bằng config; không render HTML thô.
+- Mọi TEXT trong DIRECT/MATCH qua REST hoặc STOMP đều phải qua bộ lọc từ cấm dùng
+  `ban-word-validator` trước khi lưu hoặc phát realtime. Vi phạm trả HTTP 400 với
+  `CHAT_CONTENT_NOT_ALLOWED`; STOMP trả cùng mã trên `/user/queue/chat-errors`.
 - Thứ tự ổn định bằng `(createdAt, id)`; API lịch sử dùng cursor, không offset vô hạn.
 - Sau khi transaction message commit mới đẩy DTO xuống `/user/queue/chat` cho từng
   member. Không broadcast destination công khai chứa nội dung riêng tư.
