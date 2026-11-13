@@ -51,7 +51,7 @@ Dự án chia hai giai đoạn:
 
 | | Xu | Tiền thật (VND) | Chip trong bàn |
 |---|---|---|---|
-| **Nguồn** | Quà lần đăng nhập đầu, điểm danh, thưởng Rank top 3, thưởng giải, quà mùa, thưởng tutorial | Người chơi thanh toán qua PayOS | Mọi người được phát bằng nhau khi vào bàn |
+| **Nguồn** | Quà tài khoản mới, điểm danh, thưởng Rank top 3, thưởng giải, quà mùa, thưởng tutorial | Người chơi thanh toán qua PayOS | Mọi người được phát bằng nhau khi vào bàn |
 | **Dùng cho** | Phí vào Rank, phí vào Giải Mở, điểm danh bù | Mua skin, emoji, sound (mọi tier: Thường, VIP, Rất VIP) | Chỉ cược trong trận, hết trận là mất |
 
 Các điều **không làm**: không tặng xu giữa người chơi, không rút xu ra tiền thật, không có mảnh skin. Skin chỉ có được bằng cách mua hoặc thắng giải Competitive.
@@ -485,7 +485,7 @@ của identity; hiện game kiểm tra restrictions khi tạo bàn.
 1. **Khanh** — người chơi đăng ký, xác thực OTP email. Phát `account.registered`.
 2. **Tùng** — nhận event, tạo ví số dư 0.
 3. **Hoài Anh** — nhận event, tạo bản ghi Elo mùa hiện tại (Tân thủ).
-4. **Khanh** — lần đăng nhập đầu tiên: gọi `credit` với `FIRST_LOGIN_BONUS`, key `first-login:{accountId}`.
+4. **Khanh** — cùng transaction kích hoạt account ở bước 1, lưu một khoản thưởng chờ trả; job gọi `credit` 500 xu `FIRST_LOGIN_BONUS`, key `first-login:{accountId}`, ví lỗi thì thử lại cùng key. Xu vào ví vài giây sau khi xác thực, nên đã có từ lần đăng nhập đầu. ADMIN và account kích hoạt trước khi có tính năng này không nhận.
 
 ### 7.2. Trận Rank 🟢
 
@@ -570,7 +570,7 @@ Tất cả nằm trong config / bảng Admin, chỉnh không cần sửa code.
 | Elo tối thiểu | 0 (không âm) *(đề xuất)* | Hoài Anh |
 | Phí vào Rank | 100 xu *(đề xuất)* | Duy |
 | Thưởng xu Rank | Top 1: 3× phí · Top 2: 2× phí · Top 3: 1× phí, trả từ trên xuống và tổng không vượt số phí cả bàn đã nộp. Bàn 2: 2× · bàn 3: 3× · bàn 4: 3×, 1× · bàn 5: 3×, 2× | Hoài Anh |
-| Xu lần đăng nhập đầu | 500 *(đề xuất)* | Khanh |
+| Xu cho tài khoản mới (`FIRST_LOGIN_BONUS`) | 500 (`AUTH_FIRST_LOGIN_BONUS_COINS`) | Khanh |
 | Xu điểm danh mỗi ngày | 50 *(đề xuất)* | Khanh |
 | Phí điểm danh bù | 30 xu *(đề xuất)* | Khanh |
 | Thời gian chấp nhận trận | 30 giây | Duy |
@@ -625,6 +625,7 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 | `email_otps` | accountId, code (hash), purpose (VERIFY / RESET), expiresAt, usedAt |
 | `refresh_tokens` | accountId, tokenHash, expiresAt, revokedAt |
 | `checkins` | accountId, checkinDate, isMakeup — unique (accountId, checkinDate) |
+| `first_login_bonuses` | accountId (unique), rewardCoins, rewardStatus (PENDING / REWARDED), walletTransactionId, deliveryAttempts, nextAttemptAt |
 | `reports` 🔵 | reporterId, targetId, matchId, reason, description, status |
 | `penalties` 🔵 | accountId, type (BAN / CHAT_BAN / RANK_BAN), until, reportId |
 
@@ -644,7 +645,7 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 - [x] Đăng ký, xác thực OTP email, gửi lại OTP, đăng nhập, refresh token, đăng xuất (cookie HttpOnly + CSRF, JWT RS256/JWKS, `GET /api/auth/me`, `GET /api/auth/ws-token`).
 - [ ] Quên/đặt lại mật khẩu (API đề xuất bên dưới).
 - [x] Phát `account.registered` (outbox; ranking đã nhận).
-- [ ] Tặng xu lần đăng nhập đầu (7.1) — mới có cột `first_login_rewarded`, chưa gọi wallet.
+- [x] Tặng 500 xu cho tài khoản mới (7.1) — bảng `first_login_bonuses` (V13) và job gọi wallet; xong cờ `first_login_rewarded = true`.
 - [ ] Điểm danh, điểm danh bù, lịch điểm danh theo tháng (7.6).
 - [ ] Hồ sơ: xem/sửa, upload avatar, `GET /api/profiles/batch?ids=` (FE mọi người cần để hiện tên, avatar). Hiện chỉ có `GET /api/auth/me`.
 - [ ] Màn Hồ sơ hiển thị lịch sử trận (`GET /api/game/matches` của Bảo, xem 6.3) và Elo/bậc (`GET /api/ranking/me` của Hoài Anh).
@@ -673,7 +674,7 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 | POST | `/api/auth/password/forgot` | `{ email }` | Gửi OTP đặt lại mật khẩu. Luôn trả 200 dù email có tồn tại hay không, để không lộ email đã đăng ký |
 | POST | `/api/auth/password/reset` | `{ email, otp, password, confirmPassword }` | Thành công thì thu hồi mọi refresh token của account |
 
-- **Xu lần đăng nhập đầu:** login thành công mà `first_login_rewarded = false` → `credit` 500 xu `FIRST_LOGIN_BONUS`, key `first-login:{accountId}` → đặt cờ `true`. Wallet lỗi thì login vẫn thành công và thử lại sau (job hoặc lần login kế tiếp); key idempotent nên gọi lại không cộng hai lần *(đề xuất)*.
+- **Xu cho tài khoản mới:** xác thực OTP thành công thì cùng transaction kích hoạt account và lưu `account.registered`, auth lưu một dòng `PENDING` trong `first_login_bonuses`. Job (mặc định 5 giây) gọi `credit` 500 xu `FIRST_LOGIN_BONUS`, `currencyType = COIN`, key `first-login:{accountId}`; thành công thì chuyển `REWARDED` và đặt `first_login_rewarded = true`. Wallet lỗi hoặc timeout thì giữ `PENDING`, thử lại sau 30 giây cùng key nên không cộng hai lần; request OTP không chờ wallet. Chỉ account `USER` nhận (cả người chơi demo do DataInitializer tạo mới); ADMIN và account đã kích hoạt trước V13 không nhận.
 - Wallet nằm ở nhánh `feature/wallet-shop-service` của Tùng, chưa merge: response thành công bọc `{ code, message, data, timestamp }`, không đủ xu trả HTTP 400 với `code = WALLET_INSUFFICIENT_BALANCE`. Xác nhận lại với Tùng khi merge.
 - Các endpoint public mới phải thêm vào allowlist gateway nếu không cần đăng nhập (`/api/auth/password/**`).
 
