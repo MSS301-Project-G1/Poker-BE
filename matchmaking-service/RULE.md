@@ -218,15 +218,16 @@ matchmaking-service/
     │   │   ├── repository/
     │   │   │   ├── MatchProposalRepository.java
     │   │   │   ├── MatchProposalPlayerRepository.java
-    │   │   │   ├── WalletOperationRepository.java
-    │   │   │   └── OutboxRepository.java
+    │   │   │   # wallet_operations/matchmaking_outbox chưa có repository sử dụng.
     │   │   ├── service/
-    │   │   │   ├── normal/       # interface + impl/ + worker/
-    │   │   │   ├── rank/         # interface + impl/ + worker/
-    │   │   │   ├── party/        # interface + impl/
-    │   │   │   ├── proposal/     # interface + impl/
-    │   │   │   ├── store/        # interface + redis/
-    │   │   │   └── client/       # interface + http/ + stub/
+    │   │   │   ├── *Service.java, *Coordinator.java  # interface nghiệp vụ
+    │   │   │   ├── client/       # interface gọi service ngoài
+    │   │   │   ├── store/        # QueueStore, PartyStore, PresenceStore
+    │   │   │   └── impl/
+    │   │   │       ├── *ServiceImpl.java, *CoordinatorImpl.java
+    │   │   │       ├── client/{http,stub}/
+    │   │   │       ├── store/    # RedisQueueStore, RedisPartyStore, RedisPresenceStore
+    │   │   │       └── job/      # finder, recovery, expiry và abandoned-player workers
     │   │   └── util/MatchmakingIds.java
     │   └── resources/
     │       ├── application.properties

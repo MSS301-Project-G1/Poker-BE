@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class MatchLifecycleServiceImpl implements MatchLifecycleService {
-  private final ChatLockRepository locks;
+  private final MatchLifecycleRepository lifecycles;
   private final ConversationRepository conversations;
   private final MemberRepository members;
   private final ChatService chat;
@@ -21,7 +21,7 @@ public class MatchLifecycleServiceImpl implements MatchLifecycleService {
 
   @Override
   public void started(UUID match, List<UUID> players) {
-    Instant finished = locks.lifecycle(match);
+    Instant finished = lifecycles.lock(match).getFinishedAt();
     var existing = conversations.findByTypeAndRefIdAndIsDeletedFalse("MATCH", match);
     if (existing.isPresent()) {
       var actual =
@@ -45,8 +45,7 @@ public class MatchLifecycleServiceImpl implements MatchLifecycleService {
 
   @Override
   public void finished(UUID match, Instant at) {
-    locks.lifecycle(match);
-    locks.finish(match, at);
+    lifecycles.lock(match).finish(at);
     conversations
         .findByTypeAndRefIdAndIsDeletedFalse("MATCH", match)
         .ifPresent(

@@ -183,7 +183,8 @@ chat-service/
 - Controller/STOMP handler không chứa transaction/business.
 - Entity không trả trực tiếp; dùng DTO và MapStruct.
 - Service nghiệp vụ khai báo interface trong `service/` và implementation trong `service/impl/`.
-- Repository kế thừa Spring Data JPA; SQL đặc thù nằm trong custom fragment.
+- Repository kế thừa Spring Data JPA; SQL đặc thù khai báo bằng `@Query`/`@Modifying`
+  ngay trong interface. Không tạo bộ `Custom`/`CustomImpl` cho các query hiện tại.
 - Thời gian dùng `Instant`, enum UPPER_SNAKE_CASE, ID theo chuẩn `common`.
 - Error response dùng format chung, code bắt đầu `CHAT_`.
 
@@ -231,7 +232,9 @@ Chat MATCH không có public API tạo/đóng; chỉ event Game được phép t
 - `service/`: interface nghiệp vụ; `service/impl/`: implementation và transaction.
 - `service/client/`, `service/impl/client/`: hợp đồng và implementation gọi service ngoài, chỉ tạo khi có client thật.
 - `service/event/`, `service/impl/event/`: publisher interface và implementation event, consumer, delivery adapter.
-- `repository/`: Spring Data JPA cùng custom fragment cho SQL đặc thù.
+- `repository/`: Spring Data JPA; query, khóa và claim event khai báo trong interface.
+  `ChatLockRepository` chỉ quản lý `chat_locks`; `MatchLifecycleRepository` quản lý
+  bảng `match_lifecycle` hiện có. Các thao tác ghép query phải chạy trong transaction của service.
 - `mapper/`: MapStruct mapping entity sang response.
 - `constant/`: header constants; `validator/`: kiểm tra quyền/đầu vào nghiệp vụ được tách khỏi service.
 - `config/`, `security/`, `websocket/`: cấu hình và adapter đặc thù transport.

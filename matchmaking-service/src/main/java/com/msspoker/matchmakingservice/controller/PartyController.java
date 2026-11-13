@@ -4,7 +4,7 @@ import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
 import com.msspoker.matchmakingservice.dto.request.PartyJoinRequest;
 import com.msspoker.matchmakingservice.dto.request.PartyKickRequest;
 import com.msspoker.matchmakingservice.dto.response.PartyResponse;
-import com.msspoker.matchmakingservice.service.party.PartyService;
+import com.msspoker.matchmakingservice.service.PartyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;

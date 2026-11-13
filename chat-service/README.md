@@ -1,5 +1,7 @@
 # chat-service
 
+Cấu trúc package và lệnh kiểm tra: [Social/Chat/Matchmaking](../SERVICE_STRUCTURE.md).
+
 Backend MVP TEXT theo SPEC §6 và §9.3, port 8085; PostgreSQL `chat_db` riêng.
 
 ## Chạy và cấu hình

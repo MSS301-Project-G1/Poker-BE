@@ -6,7 +6,7 @@ import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
 import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
 import org.springframework.http.HttpStatus;
-import com.msspoker.matchmakingservice.service.rank.RankMatchmakingService;
+import com.msspoker.matchmakingservice.service.RankMatchmakingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;

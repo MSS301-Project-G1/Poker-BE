@@ -1,5 +1,7 @@
 # matchmaking-service
 
+Cấu trúc package và lệnh kiểm tra: [Social/Chat/Matchmaking](../SERVICE_STRUCTURE.md).
+
 Service ghép trận tại port `8083`. Trạng thái hiện tại: `NORMAL` hỗ trợ người chơi solo và Party;
 `RANK` đã có queue, ghép Elo cố định, accept/decline, expiry, cooldown, Wallet saga và tạo bàn.
 

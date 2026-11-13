@@ -1,7 +1,7 @@
 package com.msspoker.matchmakingservice.config;
 
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
-import com.msspoker.matchmakingservice.service.party.PartyService;
+import com.msspoker.matchmakingservice.service.PartyService;
 import com.msspoker.matchmakingservice.service.store.PresenceStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

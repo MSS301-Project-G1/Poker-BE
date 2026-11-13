@@ -181,7 +181,8 @@ social-service/
 - Controller chỉ xác thực transport và gọi service; không chứa transaction/business.
 - Entity không trả trực tiếp ra API; dùng DTO và MapStruct.
 - Service nghiệp vụ khai báo interface trong `service/` và implementation trong `service/impl/`.
-- Repository kế thừa Spring Data JPA; SQL đặc thù nằm trong custom fragment.
+- Repository kế thừa Spring Data JPA; SQL đặc thù khai báo bằng `@Query`/`@Modifying`
+  ngay trong interface. Không tạo bộ `Custom`/`CustomImpl` cho các query hiện tại.
 - Thời gian dùng `Instant`, enum UPPER_SNAKE_CASE, ID theo chuẩn UUID của `common`.
 - Lỗi API theo `ErrorResponse` chung, code bắt đầu `SOCIAL_`.
 
@@ -234,7 +235,8 @@ List API phải phân trang/cursor, không trả danh sách vô hạn.
 - `service/`: interface nghiệp vụ; `service/impl/`: implementation và transaction.
 - `service/client/`, `service/impl/client/`: hợp đồng và implementation gọi service ngoài, chỉ tạo khi có client thật.
 - `service/event/`, `service/impl/event/`: publisher interface và implementation event, consumer, delivery adapter.
-- `repository/`: Spring Data JPA cùng custom fragment cho SQL đặc thù.
+- `repository/`: Spring Data JPA; query, khóa theo cặp và claim event được khai báo
+  trong interface. Các thao tác ghép nhiều query phải chạy trong transaction của service.
 - `mapper/`: MapStruct mapping entity sang response.
 - `constant/`: header constants; `validator/`: kiểm tra quyền/đầu vào nghiệp vụ được tách khỏi service.
 - `config/`, `security/`, `websocket/`: cấu hình và adapter đặc thù transport.
