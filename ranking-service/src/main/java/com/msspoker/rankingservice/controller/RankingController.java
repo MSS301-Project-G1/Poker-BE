@@ -34,6 +34,7 @@ public class RankingController {
         return ranking.friends(accountId);
     }
 
+
     @GetMapping("/me")
     public MyRankingResponse me(@RequestHeader(RankingHeaders.USER_ID) UUID accountId) {
         return ranking.me(accountId);

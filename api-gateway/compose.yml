@@ -26,7 +26,6 @@ services:
       GAME_SERVICE_KEY: ${GAME_SERVICE_KEY:-poker_game_dev}
       SOCIAL_GATEWAY_KEY: ${SOCIAL_GATEWAY_KEY:-}
       CHAT_GATEWAY_KEY: ${CHAT_GATEWAY_KEY:-}
-      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-lb://identity-service}
       GAME_SERVICE_URL: ${GAME_SERVICE_URL:-lb://game-service}
       MATCHMAKING_SERVICE_URL: ${MATCHMAKING_SERVICE_URL:-lb://matchmaking-service}
       SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-lb://social-service}

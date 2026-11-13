@@ -11,7 +11,7 @@ lần nâng cấp V10 cần login lại.
 
 Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ với outbox,
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
-Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
+Port mặc định `8090`. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
 hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT; 5.3 có quên/reset mật khẩu bằng OTP.
 5.4 có đổi mật khẩu khi đang đăng nhập; phase 6 có điểm danh 50 xu/ngày và lịch tháng.
@@ -178,7 +178,6 @@ kết nối `rabbitmq:5672`. Nếu `.env` đang đặt `AUTH_RABBIT_USERNAME=pok
 
 - `auth-service`: bind API vào localhost và đổi credential RabbitMQ mặc định thành `poker`/`poker_dev`.
 - `auth-postgres`: mở PostgreSQL ở `127.0.0.1:15430` để dùng DBeaver/IDE.
-- `auth-mailpit`: mở SMTP ở `127.0.0.1:1026` khi bật profile `mailpit`.
 - `rabbitmq`: ghi đè broker infra bằng image `4.1-management-alpine`, credential mặc định `poker`/`poker_dev`, volume `auth-rabbit`; port AMQP `AUTH_RABBIT_PORT` (mặc định `5673`) và UI `15673`.
 
 File dev chỉ override các khác biệt trên, kế thừa healthcheck của RabbitMQ từ infra
@@ -273,23 +272,24 @@ và đặt `AUTH_MAIL_SMTP_AUTH=false`, `AUTH_MAIL_STARTTLS=false`, rồi chạy
 docker compose --env-file .env -f docker/compose.infra.yml -f auth-service/compose.yml -f auth-service/compose.dev.yml --profile mailpit up -d auth-service auth-mailpit
 ```
 
-Mailpit UI: `http://localhost:8026`. Khi Java chạy trên máy, dùng host `localhost`
-và port `1026` thay cho tên service/port nội bộ Docker ở trên.
+Mailpit UI: `http://localhost:8026`; SMTP mở ra máy ở `localhost:1026` cho Java chạy bằng
+profile `local` (đã trỏ sẵn, xem mục dưới).
 Cấu hình chính và dev đều dùng service `auth-mailpit`, port nội bộ `1025` và profile `mailpit`.
 
 ## Chạy Java trên máy
 
 ```bash
-docker compose up -d auth-postgres rabbitmq
+docker compose --profile mailpit up -d auth-postgres rabbitmq auth-mailpit
 mvn -B -pl auth-service -am install -DskipTests
 mvn -pl auth-service spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 Profile `local` dùng infra của root Compose: PostgreSQL `localhost:54330`, RabbitMQ
-`localhost:5679` với user `guest`, và tự đọc file `.env` ở thư mục gốc. Trong IntelliJ, đặt
-Active profiles = `local` cho run config. URL DB và RabbitMQ được ghi cố định trong profile nên
-`AUTH_DB_URL`/`AUTH_RABBIT_*` trong `.env` không có tác dụng ở profile này; muốn đổi kết nối thì
-dùng biến `SPRING_DATASOURCE_URL`, `SPRING_RABBITMQ_*`. Ngoài local phải cung cấp
+`localhost:5679` với user `guest`, mail OTP vào Mailpit `localhost:1026` (xem ở
+`http://localhost:8026`), và tự đọc file `.env` ở thư mục gốc. Trong IntelliJ, đặt
+Active profiles = `local` cho run config. URL DB, RabbitMQ và mail được ghi cố định trong profile nên
+`AUTH_DB_URL`/`AUTH_RABBIT_*`/`AUTH_MAIL_*` trong `.env` không có tác dụng ở profile này; muốn đổi
+kết nối thì dùng biến `SPRING_DATASOURCE_URL`, `SPRING_RABBITMQ_*`, `SPRING_MAIL_*`. Ngoài local phải cung cấp
 `AUTH_DB_PASSWORD` (hoặc `SPRING_DATASOURCE_PASSWORD`) và `AUTH_RABBIT_PASSWORD`.
 Giá trị trong `.env.example` chỉ phục vụ local, không dùng làm secret triển khai.
 

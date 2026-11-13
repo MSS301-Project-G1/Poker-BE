@@ -9,9 +9,6 @@ services:
   auth-postgres:
     ports:
       - "127.0.0.1:15430:5432"
-  auth-mailpit:
-    ports:
-      - "127.0.0.1:1026:1025"
   rabbitmq:
     # Auth-only overrides of docker/compose.infra.yml; the shared file stays intact.
     image: rabbitmq:4.1-management-alpine

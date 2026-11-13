@@ -6,7 +6,7 @@
 >
 > **Trạng thái repo:** trên nhánh triển khai của Bảo, game đã có PostgreSQL/Flyway, RabbitMQ outbox, REST và STOMP/JWT cùng FE game/Admin; xem `game-service/README.md`. Các phần còn lại vẫn cần chủ module tích hợp. Gateway đang có route mẫu theo tên service và phải đổi route/JWT theo mục 6.4 trước khi tích hợp production.
 >
-> **Cập nhật 2026-10-15:** nghiệp vụ tài khoản của Khanh nằm ở `auth-service` (port 8090); `identity-service` chỉ còn scaffold. Phần đã làm, phần còn thiếu và API đề xuất cho phần còn thiếu của Khanh, Duy ghi ở mục 9.1 và 9.3. API ghi *(đề xuất)* được phép đổi, nhưng phải sửa file này theo mục 4.2.
+> **Cập nhật 2026-10-15:** nghiệp vụ tài khoản của Khanh nằm ở `auth-service` (port 8090); `identity-service` chỉ còn scaffold rỗng và đã được xoá ngày 2026-11-13. Phần đã làm, phần còn thiếu và API đề xuất cho phần còn thiếu của Khanh, Duy ghi ở mục 9.1 và 9.3. API ghi *(đề xuất)* được phép đổi, nhưng phải sửa file này theo mục 4.2.
 
 ## Mục lục
 
@@ -84,6 +84,11 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 - **Thanh toán:** PayOS.
 - **Chặn IP Việt Nam:** chỉ làm khi deploy, bằng Cloudflare. Nhóm test qua VPN. Không nằm trong code.
 - **Chat:** chat trong trận và chat bạn bè gộp chung **một** `chat-service`, một DB (yêu cầu của thầy).
+- **Chat sảnh:** tài khoản đăng nhập có thể vào một phòng WORLD dùng chung tại sảnh; vẫn dùng
+  MessageService và bộ lọc nội dung chung, không cho khách chưa đăng nhập gửi.
+- **Mời party:** chủ party có thể mời bạn bè bằng invitation có hạn; chấp nhận tự vào party,
+  rồi chủ dùng queue Normal hiện có. Social chỉ cung cấp quan hệ/chặn và realtime notification;
+  trạng thái invitation thuộc matchmaking.
 - **Lọc chat:** mọi tin TEXT trong DIRECT/MATCH, qua REST hoặc STOMP, phải kiểm tra từ
   cấm trước khi lưu/phát realtime. Vi phạm trả `CHAT_CONTENT_NOT_ALLOWED` (REST HTTP 400;
   STOMP qua `/user/queue/chat-errors`), người dùng sửa nội dung rồi gửi lại.
@@ -99,7 +104,6 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 |---|---|---|---|---|
 | `api-gateway` | Khanh | Định tuyến, xác thực JWT, route WebSocket | 8080 | — |
 | `auth-service` | Khanh | Tài khoản, hồ sơ, điểm danh, báo cáo, xử phạt | 8090 | `auth_db` |
-| `identity-service` | Khanh | Scaffold giữ nguyên, không nhận nghiệp vụ | 8081 | — |
 | `game-service` | Bảo | Engine poker, bàn chơi, lịch sử trận, cấu hình trận | 8082 | `game_db` |
 | `matchmaking-service` | Duy | Hàng chờ Rank/Normal, party | 8083 | `matchmaking_db` + Redis |
 | `social-service` | Duy | Bạn bè, chặn, trạng thái online, thông báo realtime | 8084 | `social_db` + Redis |
@@ -127,7 +131,6 @@ MS-Poker-BE/
 ├── pom.xml                  ← parent pom (chỉ sửa qua PR có review)
 ├── common/                  ← CHỈ chứa: class event, BaseEntity, format lỗi chuẩn
 ├── api-gateway/
-├── identity-service/
 ├── game-service/
 ├── matchmaking-service/
 ├── social-service/
@@ -609,7 +612,7 @@ Mỗi mục gồm: phạm vi sở hữu, việc không được làm, bảng d�
 ### 9.1. 👤 Khanh — `auth-service`, `api-gateway`, hạ tầng, khung FE
 
 **Sở hữu**
-- BE: `api-gateway`, `auth-service` (nghiệp vụ tài khoản; `identity-service` giữ scaffold), `common`, `pom.xml` gốc, `docker-compose.yml`, `docker/`.
+- BE: `api-gateway`, `auth-service` (nghiệp vụ tài khoản), `common`, `pom.xml` gốc, `docker-compose.yml`, `docker/`.
 - DB: `auth_db`.
 - Route: `/api/auth/**`, `/api/profiles/**`, `/api/checkin/**`, `/api/reports/**`, `/api/admin/users/**`, `/api/admin/reports/**`.
 - FE: `shared/` (layout, UI kit, API client, lưu token, router), `features/auth`, `features/lobby`, `features/checkin`, `features/profile`, `features/report`, `features/admin/users`.

@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public interface ConversationService {
     ConversationResponse direct(UUID actor, UUID target);
+    ConversationResponse world(UUID actor);
 
     void addMember(UUID conversation, UUID account);
 

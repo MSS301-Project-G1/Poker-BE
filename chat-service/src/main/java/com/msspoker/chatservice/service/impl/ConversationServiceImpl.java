@@ -46,7 +46,24 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     private ConversationResponse view(ConversationEntity conversation) {
-        return mapper.conversation(conversation, memberIds(conversation.getId()));
+        return mapper.conversation(conversation,
+                conversation.getType() == ConversationType.WORLD ? List.of() : memberIds(conversation.getId()));
+    }
+
+    @Override
+    public ConversationResponse world(UUID actor) {
+        UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        locks.lock("world");
+        var room = conversations.findById(id).orElseGet(() -> {
+            var created = new ConversationEntity();
+            created.setId(id);
+            created.setType(ConversationType.WORLD);
+            created.setCreatedAt(clock.instant());
+            created.setUpdatedAt(clock.instant());
+            return conversations.saveAndFlush(created);
+        });
+        if (!members.existsByConversationIdAndAccountId(id, actor)) addMember(id, actor);
+        return view(room);
     }
 
     @Override

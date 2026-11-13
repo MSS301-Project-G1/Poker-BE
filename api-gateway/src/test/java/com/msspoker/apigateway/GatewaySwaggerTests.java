@@ -59,6 +59,11 @@ class GatewaySwaggerTests {
         PATHS.keySet().forEach(service -> registry.add(service.replace('-', '_').toUpperCase() + "_URL",
                 () -> "http://127.0.0.1:" + UPSTREAM.port() + "/" + service));
         registry.add("GAME_SERVICE_KEY", () -> "swagger-game-fixture-key");
+        String disabled = "gateway.catalog.services.docs-disabled-service.";
+        registry.add(disabled + "uri", () -> "http://127.0.0.1:" + UPSTREAM.port() + "/docs-disabled-service");
+        registry.add(disabled + "documentation-enabled", () -> "false");
+        registry.add(disabled + "routes[0].id", () -> "docs-disabled-service");
+        registry.add(disabled + "routes[0].paths[0]", () -> "/api/docs-disabled/**");
     }
 
     @Autowired Environment environment;
@@ -123,7 +128,7 @@ class GatewaySwaggerTests {
 
     @Test
     void unknownDisabledAndUnavailableDefinitionsFailWithoutFallingBackToAuth() {
-        for (String service : List.of("unknown-service", "identity-service")) {
+        for (String service : List.of("unknown-service", "docs-disabled-service")) {
             client.get().uri("/v3/api-docs/" + service).exchange().expectStatus().isNotFound();
         }
         assertThat(LAST.get()).isNull();

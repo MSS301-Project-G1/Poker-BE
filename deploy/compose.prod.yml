@@ -4,7 +4,7 @@
 # - Docker-published ports bypass the host firewall, so nothing is published on 0.0.0.0. Only the gateway
 #   is reachable from the host (127.0.0.1:8080): Caddy sends /api and /ws there, and the deploy script
 #   checks it.
-# - Memory caps keep twelve JVMs inside the VPS RAM; Java sizes its heap from the cap.
+# - Memory caps keep eleven JVMs inside the VPS RAM; Java sizes its heap from the cap.
 # - shop-service uses the AWS bucket in production, so the local MinIO container does not start.
 
 x-java-env: &java-env
@@ -25,11 +25,6 @@ services:
     image: ghcr.io/mss301-project-g1/poker-api-gateway:${IMAGE_TAG:?IMAGE_TAG is not set}
     ports: !override
       - "127.0.0.1:8080:8080"
-
-  identity-service:
-    <<: *java-service
-    image: ghcr.io/mss301-project-g1/poker-identity-service:${IMAGE_TAG:?IMAGE_TAG is not set}
-    ports: !reset []
 
   auth-service:
     <<: *java-service

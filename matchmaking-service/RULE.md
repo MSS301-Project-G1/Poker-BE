@@ -158,7 +158,7 @@ Không thêm Eureka hoặc Config Server trong MVP.
 - `matchmaking-db` và `matchmaking-redis` chỉ nối `matchmaking-net`; service khác
   không được dùng trực tiếp hai datastore này.
 - Tên container DNS phải dùng service name: `matchmaking-db`, `matchmaking-redis`,
-  `rabbitmq`, `game-service`, `ranking-service`, `wallet-service`, `identity-service`.
+  `rabbitmq`, `game-service`, `ranking-service`, `wallet-service`, `auth-service`.
 - Không hard-code `localhost` trong cấu hình container.
 
 Lệnh chạy:
