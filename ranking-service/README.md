@@ -183,6 +183,14 @@ accepted like season rewards. The amount granted is stored with the completion.
 | POST | `/api/admin/seasons` | `{ name, startAt, endAt, resetPercent, rewards[] }` → UPCOMING season |
 | PUT | `/api/admin/seasons/{seasonId}/rewards` | Replaces rewards; refused once the season ended |
 | POST | `/api/admin/seasons/close` | Closes the active season now; needs an UPCOMING season |
+| PUT | `/api/admin/seasons/players/{accountId}/elo` | `{ elo (0–100000), reason (1–500) }` sets the player's active-season Elo; returns the new standing like `/api/ranking/me` |
+| GET | `/api/admin/seasons/players/{accountId}/elo-adjustments?page=0&size=20` | Admin Elo changes, newest first: `{ id, seasonId, accountId, actorId, eloBefore, eloAfter, reason, occurredAt }` |
+
+An Elo adjustment needs `X-User-Role: ADMIN` and `X-User-Id` (stored as `actorId`). The tier follows the
+new Elo, the peak only rises, and streaks, match counts and `elo_history` (match results only) stay as they
+are. It locks the active season like a match result, so the two never overwrite each other. Admin accounts
+(the caller included) are refused with `403 RANK_FORBIDDEN`, an unchanged value with `409 RANK_CONFLICT`.
+Every change is kept in `elo_adjustments` (V5).
 
 Closing a season (by the admin, or every minute once `endAt` passed and a next
 season exists) records each player's final tier in leaderboard order, so
@@ -227,7 +235,7 @@ season has proposed coin rewards from 50 (IRON) to 1000 (CARD_GOD).
 .\mvnw.cmd -pl ranking-service -am clean verify
 ```
 
-64 tests use test-only H2 and do not require Docker: tier boundaries, Elo
+67 tests use test-only H2 and do not require Docker: tier boundaries, Elo
 floor, places beyond six, Card God cut-off, duplicate events, non-RANK modes,
 invalid results, reward queueing, wallet outage and refusal retry, 405/415/409 errors, listener parsing with
 unknown fields, API contracts, leaderboard ordering, season closing and carry

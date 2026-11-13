@@ -121,6 +121,9 @@ scope `ranking`/`competition`, không push main.
 - [x] Sửa sau buổi rà soát (2026-11-13): lỗi 405/415/409 thay cho 500; khoản thưởng bị ví/shop
   từ chối (4xx) không chặn các khoản sau, dispatcher lấy khoản ít lần thử nhất trước. 63 test,
   chạy qua cả H2 lẫn PostgreSQL 17 (trừ test mùa giải, vốn cố định H2 riêng).
+- [x] Trang chi tiết user cho admin (2026-11-13, Hoài Anh yêu cầu): `GET /api/ranking/players/{accountId}`;
+  admin sửa Elo mùa hiện tại có lý do (`PUT /api/admin/seasons/players/{accountId}/elo`, lịch sử ở
+  `elo_adjustments` V5), không sửa được Elo của admin. 67 test H2.
 
 ## Phụ thuộc và review trước khi merge
 

@@ -3,12 +3,14 @@ package com.msspoker.rankingservice.mapper;
 import com.msspoker.rankingservice.constant.RankingConstants;
 import com.msspoker.rankingservice.dto.event.PlacementEvent;
 import com.msspoker.rankingservice.dto.request.WalletCreditRequest;
+import com.msspoker.rankingservice.dto.response.EloAdjustmentResponse;
 import com.msspoker.rankingservice.dto.response.FriendRankingResponse;
 import com.msspoker.rankingservice.dto.response.MatchRatingResponse;
 import com.msspoker.rankingservice.dto.response.MyRankingResponse;
 import com.msspoker.rankingservice.dto.response.PlayerRankingResponse;
 import com.msspoker.rankingservice.dto.response.RankedPlayerResponse;
 import com.msspoker.rankingservice.dto.response.SeasonResponse;
+import com.msspoker.rankingservice.entity.EloAdjustmentEntity;
 import com.msspoker.rankingservice.entity.EloHistoryEntity;
 import com.msspoker.rankingservice.entity.PlayerEloEntity;
 import com.msspoker.rankingservice.entity.RewardCreditEntity;
@@ -73,4 +75,12 @@ public interface RankingMapper {
 
     @Mapping(target = "eloDelta", source = "history.delta")
     MatchRatingResponse matchRating(EloHistoryEntity history, long rewardCoins);
+
+    @Mapping(target = "id", expression = "java(RankingIds.next())")
+    @Mapping(target = "seasonId", source = "player.seasonId")
+    @Mapping(target = "accountId", source = "player.accountId")
+    @Mapping(target = "eloAfter", source = "player.currentElo")
+    EloAdjustmentEntity adjustment(PlayerEloEntity player, UUID actorId, int eloBefore, String reason, Instant occurredAt);
+
+    EloAdjustmentResponse adjustment(EloAdjustmentEntity adjustment);
 }

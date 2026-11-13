@@ -60,6 +60,14 @@ public final class RankingExceptions {
         return new RankingApiException(RankingError.RANK_FORBIDDEN, HttpStatus.FORBIDDEN, "Chỉ quản trị viên được thực hiện thao tác này.");
     }
 
+    public static RankingApiException adminTarget() {
+        return new RankingApiException(RankingError.RANK_FORBIDDEN, HttpStatus.FORBIDDEN, "Không thể sửa Elo của tài khoản quản trị viên.");
+    }
+
+    public static RankingApiException eloUnchanged() {
+        return new RankingApiException(RankingError.RANK_CONFLICT, HttpStatus.CONFLICT, "Elo mới trùng với Elo hiện tại.");
+    }
+
     public static RankingApiException notFound() {
         return new RankingApiException(RankingError.RANK_NOT_FOUND, HttpStatus.NOT_FOUND, "Không tìm thấy tài nguyên.");
     }
