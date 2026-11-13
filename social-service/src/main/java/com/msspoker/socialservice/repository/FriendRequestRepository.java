@@ -1,14 +1,20 @@
 package com.msspoker.socialservice.repository;
 
-import com.msspoker.socialservice.entity.FriendRequest;
-import java.util.*;
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.repository.*;
+import com.msspoker.socialservice.entity.FriendRequestEntity;
+import com.msspoker.socialservice.enums.FriendRequestStatus;
 
-public interface FriendRequestRepository extends JpaRepository<FriendRequest, UUID> {
-  Optional<FriendRequest> findByPairKeyAndStatusAndIsDeletedFalse(String key, String status);
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-  Page<FriendRequest> findByAddresseeIdAndIsDeletedFalse(UUID id, Pageable page);
+import java.util.Optional;
+import java.util.UUID;
 
-  Page<FriendRequest> findByRequesterIdAndIsDeletedFalse(UUID id, Pageable page);
+public interface FriendRequestRepository extends JpaRepository<FriendRequestEntity, UUID> {
+    Optional<FriendRequestEntity> findByPairKeyAndStatusAndIsDeletedFalse(
+            String key, FriendRequestStatus status);
+
+    Page<FriendRequestEntity> findByAddresseeIdAndIsDeletedFalse(UUID id, Pageable page);
+
+    Page<FriendRequestEntity> findByRequesterIdAndIsDeletedFalse(UUID id, Pageable page);
 }

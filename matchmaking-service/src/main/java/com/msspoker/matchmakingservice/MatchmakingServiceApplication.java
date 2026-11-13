@@ -11,5 +11,4 @@ public class MatchmakingServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(MatchmakingServiceApplication.class, args);
     }
-
 }

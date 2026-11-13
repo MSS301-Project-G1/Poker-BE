@@ -1,0 +1,11 @@
+package com.msspoker.socialservice.enums;
+
+public enum SocialError {
+    SOCIAL_INVALID_REQUEST,
+    SOCIAL_FORBIDDEN,
+    SOCIAL_NOT_FOUND,
+    SOCIAL_CONFLICT,
+    SOCIAL_UNAUTHORIZED,
+    SOCIAL_INTERNAL_ERROR,
+    SOCIAL_DEPENDENCY_UNAVAILABLE
+}

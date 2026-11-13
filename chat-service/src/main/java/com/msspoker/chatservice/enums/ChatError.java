@@ -1,0 +1,11 @@
+package com.msspoker.chatservice.enums;
+
+public enum ChatError {
+    CHAT_INVALID_REQUEST,
+    CHAT_FORBIDDEN,
+    CHAT_NOT_FOUND,
+    CHAT_CONFLICT,
+    CHAT_UNAUTHORIZED,
+    CHAT_INTERNAL_ERROR,
+    CHAT_DEPENDENCY_UNAVAILABLE
+}

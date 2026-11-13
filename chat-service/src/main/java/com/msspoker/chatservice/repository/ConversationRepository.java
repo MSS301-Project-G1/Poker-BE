@@ -1,26 +1,37 @@
 package com.msspoker.chatservice.repository;
 
-import com.msspoker.chatservice.entity.Conversation;
+import com.msspoker.chatservice.entity.ConversationEntity;
+import com.msspoker.chatservice.enums.ConversationType;
+
 import jakarta.persistence.LockModeType;
-import java.util.*;
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.repository.*;
 
-public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
-  Optional<Conversation> findByDirectKeyAndIsDeletedFalse(String key);
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 
-  Optional<Conversation> findByTypeAndRefIdAndIsDeletedFalse(String type, UUID ref);
+import java.util.Optional;
+import java.util.UUID;
 
-  @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query("select c from Conversation c where c.id=:id and c.isDeleted=false")
-  Optional<Conversation> locked(UUID id);
+public interface ConversationRepository extends JpaRepository<ConversationEntity, UUID> {
+    Optional<ConversationEntity> findByDirectKeyAndIsDeletedFalse(String key);
 
-  @Query(
-      "select c from Conversation c where c.isDeleted=false and c.id in (select m.conversationId"
-          + " from ConversationMember m where m.accountId=:actor)")
-  Page<Conversation> mine(UUID actor, Pageable page);
+    Optional<ConversationEntity> findByTypeAndRefIdAndIsDeletedFalse(
+            ConversationType type, UUID ref);
 
-  @Query("select c from Conversation c where c.isDeleted=false and c.type=:type"
-      + " and c.id in (select m.conversationId from ConversationMember m where m.accountId=:actor)")
-  Page<Conversation> mineByType(UUID actor, String type, Pageable page);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ConversationEntity c where c.id=:id and c.isDeleted=false")
+    Optional<ConversationEntity> locked(UUID id);
+
+    @Query(
+            "select c from ConversationEntity c where c.isDeleted=false and c.id in (select"
+                + " m.conversationId from ConversationMemberEntity m where m.accountId=:actor)")
+    Page<ConversationEntity> mine(UUID actor, Pageable page);
+
+    @Query(
+            "select c from ConversationEntity c where c.isDeleted=false and c.type=:type and c.id"
+                + " in (select m.conversationId from ConversationMemberEntity m where"
+                + " m.accountId=:actor)")
+    Page<ConversationEntity> mineByType(UUID actor, ConversationType type, Pageable page);
 }

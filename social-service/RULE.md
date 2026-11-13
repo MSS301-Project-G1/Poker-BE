@@ -181,6 +181,10 @@ social-service/
 - Controller chỉ xác thực transport và gọi service; không chứa transaction/business.
 - Entity không trả trực tiếp ra API; dùng DTO và MapStruct.
 - Service nghiệp vụ khai báo interface trong `service/` và implementation trong `service/impl/`.
+- Entity có hậu tố `Entity`; trạng thái lời mời dùng `FriendRequestStatus`, lưu dạng STRING.
+- Mã lỗi dùng `SocialError`, exception dùng `SocialApiException` với field private/getter.
+- Event nội bộ đặt thành record riêng trong `dto/event/`; cấu hình gom ở `SocialProperties`.
+- Kiểm tra tham số nằm ở `SocialRequestValidator`, kiểm tra quyền ở `SocialAccessValidator`.
 - Repository kế thừa Spring Data JPA; SQL đặc thù khai báo bằng `@Query`/`@Modifying`
   ngay trong interface. Không tạo bộ `Custom`/`CustomImpl` cho các query hiện tại.
 - Thời gian dùng `Instant`, enum UPPER_SNAKE_CASE, ID theo chuẩn UUID của `common`.

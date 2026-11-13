@@ -183,6 +183,11 @@ chat-service/
 - Controller/STOMP handler không chứa transaction/business.
 - Entity không trả trực tiếp; dùng DTO và MapStruct.
 - Service nghiệp vụ khai báo interface trong `service/` và implementation trong `service/impl/`.
+- Conversation/membership thuộc `ConversationService`, gửi tin/history thuộc
+  `MessageService`, lifecycle trận thuộc `MatchLifecycleService`.
+- Entity có hậu tố `Entity`; conversation/message type dùng enum lưu dạng STRING.
+- Mã lỗi dùng `ChatError`, exception dùng `ChatApiException` với field private/getter.
+- Event nội bộ đặt thành record riêng trong `dto/event/`; cấu hình gom ở `ChatProperties`.
 - Repository kế thừa Spring Data JPA; SQL đặc thù khai báo bằng `@Query`/`@Modifying`
   ngay trong interface. Không tạo bộ `Custom`/`CustomImpl` cho các query hiện tại.
 - Thời gian dùng `Instant`, enum UPPER_SNAKE_CASE, ID theo chuẩn `common`.

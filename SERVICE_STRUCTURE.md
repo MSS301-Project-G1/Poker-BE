@@ -19,6 +19,14 @@ service/         Interface nghiệp vụ
 service/impl/    Implementation và transaction
 ```
 
+Code Java dùng indent 4 dấu cách và import class tường minh. Dependency đơn giản
+được inject qua `private final` và `@RequiredArgsConstructor`; constructor viết tay
+được giữ khi cần khởi tạo HTTP client, JWT decoder hoặc transaction template.
+Entity có hậu tố `Entity`. Trạng thái entity dùng enum với `@Enumerated(STRING)`,
+giữ nguyên giá trị VARCHAR hiện có trong database. Exception dùng `SocialApiException`,
+`ChatApiException`, `MatchmakingApiException` và enum mã lỗi của từng service;
+handler trả nguyên tên mã lỗi theo hợp đồng JSON.
+
 `enums/`, `validator/`, `websocket/`, `model/`, `util/` chỉ tồn tại khi service
 có code sử dụng. REST/STOMP controller gọi service; không xử lý SQL tại controller.
 
@@ -46,11 +54,13 @@ trong interface repository, không có bộ ba `Repository`/`Custom`/`CustomImpl
 
 ```text
 service/
-├── ChatService.java
+├── ConversationService.java
+├── MessageService.java
 ├── MatchLifecycleService.java
 ├── client/SocialClient.java
 └── impl/
-    ├── ChatServiceImpl.java
+    ├── ConversationServiceImpl.java
+    ├── MessageServiceImpl.java
     ├── MatchLifecycleServiceImpl.java
     ├── client/SocialClientImpl.java
     └── event/
@@ -59,12 +69,18 @@ service/
 ```
 
 - `ChatLockRepository` chỉ thao tác bảng `chat_locks`.
-- `MatchLifecycleRepository` và entity `MatchLifecycle` ánh xạ bảng
+- `MatchLifecycleRepository` và entity `MatchLifecycleEntity` ánh xạ bảng
   `match_lifecycle` hiện có. Khóa dòng trước khi xử lý lifecycle; giữ lần finish
   đầu tiên và tạo phòng read-only nếu finish đến trước start.
 - `EventReceiptRepository` claim event trong cùng transaction với lifecycle.
-- Giữ `ChatService` hiện tại cho conversation/message; việc đổi package không
-  thay đổi hợp đồng REST, STOMP hay quyền truy cập lịch sử.
+- `ConversationService` xử lý phòng và membership; `MessageService` xử lý gửi tin,
+  lịch sử và cursor. REST/STOMP gọi đúng service nghiệp vụ, không qua facade trung gian.
+- `ChatRequestValidator` và `SocialRequestValidator` giữ kiểm tra tham số; access
+  validator giữ kiểm tra quyền. Các giá trị JSON của request/response không thay đổi.
+- `MessageCommittedEvent` và `NotificationReceivedEvent` nằm ở `dto/event/`,
+  không lồng trong interface service hoặc consumer.
+- `ChatProperties` và `SocialProperties` gom cấu hình riêng của từng service,
+  giữ nguyên các property key, biến môi trường và giá trị mặc định.
 
 ## Matchmaking
 
@@ -91,6 +107,8 @@ service/
 
 Test được chuyển package tương ứng với implementation. Interface client/store
 giữ nguyên nhóm riêng. Lịch chạy worker, Redis key, Lua và transaction không đổi.
+`NormalProposalExpiryWorker` sở hữu lịch `@Scheduled`; `NormalProposalService.expire()`
+thực hiện nghiệp vụ hết hạn và reconcile như trước.
 
 ## Kiểm tra
 

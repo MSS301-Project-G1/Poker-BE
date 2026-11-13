@@ -2,6 +2,7 @@ package com.msspoker.matchmakingservice.service.impl.client.stub;
 
 import com.msspoker.matchmakingservice.dto.response.PlayerRankingResponse;
 import com.msspoker.matchmakingservice.service.client.RankingClient;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 

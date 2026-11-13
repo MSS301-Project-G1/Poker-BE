@@ -1,5 +1,8 @@
 package com.msspoker.matchmakingservice.service.impl.store;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -12,9 +15,6 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Instant;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 class RedisPresenceStoreTest {
     private static GenericContainer<?> redis;
     private static LettuceConnectionFactory connectionFactory;
@@ -22,10 +22,15 @@ class RedisPresenceStoreTest {
 
     @BeforeAll
     static void startRedis() {
-        assumeTrue(DockerClientFactory.instance().isDockerAvailable(), "Docker is required for the Redis presence test");
-        redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+        assumeTrue(
+                DockerClientFactory.instance().isDockerAvailable(),
+                "Docker is required for the Redis presence test");
+        redis =
+                new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                        .withExposedPorts(6379);
         redis.start();
-        connectionFactory = new LettuceConnectionFactory(redis.getHost(), redis.getMappedPort(6379));
+        connectionFactory =
+                new LettuceConnectionFactory(redis.getHost(), redis.getMappedPort(6379));
         connectionFactory.afterPropertiesSet();
         connectionFactory.start();
         StringRedisTemplate template = new StringRedisTemplate(connectionFactory);

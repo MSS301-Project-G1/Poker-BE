@@ -1,38 +1,39 @@
 package com.msspoker.matchmakingservice.service.impl;
 
-import com.msspoker.matchmakingservice.enums.MatchMode;
-import com.msspoker.matchmakingservice.dto.response.TableCreatedResponse;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import com.msspoker.matchmakingservice.dto.response.GameMatchSettingsResponse;
+import com.msspoker.matchmakingservice.dto.response.TableCreatedResponse;
 import com.msspoker.matchmakingservice.entity.MatchProposalEntity;
 import com.msspoker.matchmakingservice.entity.MatchProposalPlayerEntity;
+import com.msspoker.matchmakingservice.enums.MatchMode;
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
 import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
 import com.msspoker.matchmakingservice.mapper.QueueStatusMapper;
-import com.msspoker.matchmakingservice.model.QueueEntry;
 import com.msspoker.matchmakingservice.model.InGameSession;
+import com.msspoker.matchmakingservice.model.PartySnapshot;
+import com.msspoker.matchmakingservice.model.QueueEntry;
 import com.msspoker.matchmakingservice.repository.MatchProposalPlayerRepository;
-import com.msspoker.matchmakingservice.service.store.QueueStore;
 import com.msspoker.matchmakingservice.service.client.GameClient;
 import com.msspoker.matchmakingservice.service.store.PartyStore;
-import com.msspoker.matchmakingservice.model.PartySnapshot;
+import com.msspoker.matchmakingservice.service.store.QueueStore;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class NormalMatchmakingServiceImplTest {
@@ -46,16 +47,17 @@ class NormalMatchmakingServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(game.matchSettings(MatchMode.NORMAL))
+        lenient()
+                .when(game.matchSettings(MatchMode.NORMAL))
                 .thenReturn(new GameMatchSettingsResponse(MatchMode.NORMAL, 2, 6));
-        service = new NormalMatchmakingServiceImpl(
-                queueStore,
-                players,
-                Clock.fixed(NOW, ZoneOffset.UTC),
-                Mappers.getMapper(QueueStatusMapper.class),
-                game,
-                partyStore
-        );
+        service =
+                new NormalMatchmakingServiceImpl(
+                        queueStore,
+                        players,
+                        Clock.fixed(NOW, ZoneOffset.UTC),
+                        Mappers.getMapper(QueueStatusMapper.class),
+                        game,
+                        partyStore);
     }
 
     @Test
@@ -68,8 +70,11 @@ class NormalMatchmakingServiceImplTest {
         QueueEntry newcomer = new QueueEntry(third, MatchMode.NORMAL, NOW);
         when(queueStore.find(self)).thenReturn(Optional.of(entry));
         when(queueStore.size(MatchMode.NORMAL)).thenReturn(2L, 3L, 2L);
-        when(queueStore.oldest(MatchMode.NORMAL, 6)).thenReturn(
-                List.of(entry, other), List.of(entry, other, newcomer), List.of(entry, newcomer));
+        when(queueStore.oldest(MatchMode.NORMAL, 6))
+                .thenReturn(
+                        List.of(entry, other),
+                        List.of(entry, other, newcomer),
+                        List.of(entry, newcomer));
 
         assertThat(service.status(self).playerIds()).containsExactly(self, second);
         assertThat(service.status(self).playerIds()).containsExactly(self, second, third);
@@ -104,8 +109,11 @@ class NormalMatchmakingServiceImplTest {
         when(players.existsActiveProposal(accountId)).thenReturn(true);
 
         assertThatThrownBy(() -> service.join(accountId))
-                .isInstanceOfSatisfying(MatchmakingApiException.class, exception ->
-                        assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
+                .isInstanceOfSatisfying(
+                        MatchmakingApiException.class,
+                        exception ->
+                                assertThat(exception.getCode())
+                                        .isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
 
         verify(queueStore, never()).enqueue(any());
         verifyNoInteractions(game);
@@ -115,13 +123,17 @@ class NormalMatchmakingServiceImplTest {
     void cannotJoinWhileGameStillHasAnActiveTable() {
         UUID accountId = UUID.randomUUID();
         when(queueStore.find(accountId)).thenReturn(Optional.empty());
-        when(game.activeTable(accountId)).thenReturn(Optional.of(
-                new TableCreatedResponse(UUID.randomUUID(), UUID.randomUUID())
-        ));
+        when(game.activeTable(accountId))
+                .thenReturn(
+                        Optional.of(
+                                new TableCreatedResponse(UUID.randomUUID(), UUID.randomUUID())));
 
         assertThatThrownBy(() -> service.join(accountId))
-                .isInstanceOfSatisfying(MatchmakingApiException.class, exception ->
-                        assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
+                .isInstanceOfSatisfying(
+                        MatchmakingApiException.class,
+                        exception ->
+                                assertThat(exception.getCode())
+                                        .isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
 
         verify(queueStore, never()).enqueue(any());
     }
@@ -131,9 +143,14 @@ class NormalMatchmakingServiceImplTest {
         UUID leader = UUID.randomUUID();
         UUID member = UUID.randomUUID();
         UUID partyId = UUID.randomUUID();
-        PartySnapshot party = new PartySnapshot(
-                partyId, "AB12CD34", "123456", leader, List.of(leader, member), NOW.minusSeconds(60)
-        );
+        PartySnapshot party =
+                new PartySnapshot(
+                        partyId,
+                        "AB12CD34",
+                        "123456",
+                        leader,
+                        List.of(leader, member),
+                        NOW.minusSeconds(60));
         when(partyStore.findByAccountId(leader)).thenReturn(Optional.of(party));
         when(queueStore.enqueueParty(anyList())).thenReturn(true);
         when(queueStore.position(leader, MatchMode.NORMAL)).thenReturn(Optional.of(1L));
@@ -141,10 +158,10 @@ class NormalMatchmakingServiceImplTest {
 
         var response = service.join(leader);
 
-        List<QueueEntry> expected = List.of(
-                new QueueEntry(leader, MatchMode.NORMAL, NOW, partyId),
-                new QueueEntry(member, MatchMode.NORMAL, NOW, partyId)
-        );
+        List<QueueEntry> expected =
+                List.of(
+                        new QueueEntry(leader, MatchMode.NORMAL, NOW, partyId),
+                        new QueueEntry(member, MatchMode.NORMAL, NOW, partyId));
         verify(queueStore).enqueueParty(expected);
         assertThat(response.status()).isEqualTo("WAITING");
         assertThat(response.playerCount()).isEqualTo(2);
@@ -154,13 +171,23 @@ class NormalMatchmakingServiceImplTest {
     void regularPartyMemberCannotStartSearching() {
         UUID leader = UUID.randomUUID();
         UUID member = UUID.randomUUID();
-        when(partyStore.findByAccountId(member)).thenReturn(Optional.of(new PartySnapshot(
-                UUID.randomUUID(), "AB12CD34", "123456", leader, List.of(leader, member), NOW
-        )));
+        when(partyStore.findByAccountId(member))
+                .thenReturn(
+                        Optional.of(
+                                new PartySnapshot(
+                                        UUID.randomUUID(),
+                                        "AB12CD34",
+                                        "123456",
+                                        leader,
+                                        List.of(leader, member),
+                                        NOW)));
 
         assertThatThrownBy(() -> service.join(member))
-                .isInstanceOfSatisfying(MatchmakingApiException.class, exception ->
-                        assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_NOT_PARTY_LEADER));
+                .isInstanceOfSatisfying(
+                        MatchmakingApiException.class,
+                        exception ->
+                                assertThat(exception.getCode())
+                                        .isEqualTo(MatchmakingError.MM_NOT_PARTY_LEADER));
 
         verify(queueStore, never()).enqueueParty(anyList());
         verify(queueStore, never()).enqueue(any());
@@ -173,9 +200,16 @@ class NormalMatchmakingServiceImplTest {
         UUID partyId = UUID.randomUUID();
         QueueEntry leaderEntry = new QueueEntry(leader, MatchMode.NORMAL, NOW, partyId);
         QueueEntry memberEntry = new QueueEntry(member, MatchMode.NORMAL, NOW, partyId);
-        when(partyStore.findByAccountId(leader)).thenReturn(Optional.of(new PartySnapshot(
-                partyId, "AB12CD34", "123456", leader, List.of(leader, member), NOW
-        )));
+        when(partyStore.findByAccountId(leader))
+                .thenReturn(
+                        Optional.of(
+                                new PartySnapshot(
+                                        partyId,
+                                        "AB12CD34",
+                                        "123456",
+                                        leader,
+                                        List.of(leader, member),
+                                        NOW)));
         when(queueStore.find(leader)).thenReturn(Optional.of(leaderEntry));
         when(queueStore.find(member)).thenReturn(Optional.of(memberEntry));
         when(queueStore.cancelParty(List.of(leaderEntry, memberEntry)))
@@ -193,11 +227,18 @@ class NormalMatchmakingServiceImplTest {
         UUID proposalId = UUID.randomUUID();
         UUID tableId = UUID.randomUUID();
         UUID matchId = UUID.randomUUID();
-        InGameSession session = new InGameSession(
-                MatchMode.NORMAL, proposalId, tableId, matchId, "poker.example.com", 443, "/ws/game"
-        );
+        InGameSession session =
+                new InGameSession(
+                        MatchMode.NORMAL,
+                        proposalId,
+                        tableId,
+                        matchId,
+                        "poker.example.com",
+                        443,
+                        "/ws/game");
         when(queueStore.inGame(accountId)).thenReturn(Optional.of(session));
-        when(game.activeTable(accountId)).thenReturn(Optional.of(new TableCreatedResponse(tableId, matchId)));
+        when(game.activeTable(accountId))
+                .thenReturn(Optional.of(new TableCreatedResponse(tableId, matchId)));
 
         var response = service.reconnect(accountId);
 
@@ -229,10 +270,15 @@ class NormalMatchmakingServiceImplTest {
     @Test
     void reconnectClearsStaleInGameRedisState() {
         UUID accountId = UUID.randomUUID();
-        InGameSession session = new InGameSession(
-                MatchMode.NORMAL, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "localhost", 8082, "/ws/game"
-        );
+        InGameSession session =
+                new InGameSession(
+                        MatchMode.NORMAL,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "localhost",
+                        8082,
+                        "/ws/game");
         when(queueStore.inGame(accountId)).thenReturn(Optional.of(session));
         when(game.activeTable(accountId)).thenReturn(Optional.empty());
 
@@ -247,7 +293,8 @@ class NormalMatchmakingServiceImplTest {
         UUID accountId = UUID.randomUUID();
         QueueEntry entry = new QueueEntry(accountId, MatchMode.NORMAL, NOW);
         when(queueStore.find(accountId)).thenReturn(Optional.of(entry));
-        when(queueStore.cancel(accountId, MatchMode.NORMAL)).thenReturn(QueueStore.CancelResult.CANCELLED);
+        when(queueStore.cancel(accountId, MatchMode.NORMAL))
+                .thenReturn(QueueStore.CancelResult.CANCELLED);
         when(queueStore.size(MatchMode.NORMAL)).thenReturn(1L);
 
         service.leave(accountId);
@@ -261,11 +308,15 @@ class NormalMatchmakingServiceImplTest {
         UUID accountId = UUID.randomUUID();
         QueueEntry entry = new QueueEntry(accountId, MatchMode.NORMAL, NOW);
         when(queueStore.find(accountId)).thenReturn(Optional.of(entry));
-        when(queueStore.cancel(accountId, MatchMode.NORMAL)).thenReturn(QueueStore.CancelResult.RESERVED);
+        when(queueStore.cancel(accountId, MatchMode.NORMAL))
+                .thenReturn(QueueStore.CancelResult.RESERVED);
 
         assertThatThrownBy(() -> service.leave(accountId))
-                .isInstanceOfSatisfying(MatchmakingApiException.class, exception ->
-                        assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
+                .isInstanceOfSatisfying(
+                        MatchmakingApiException.class,
+                        exception ->
+                                assertThat(exception.getCode())
+                                        .isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
     }
 
     @Test
@@ -274,8 +325,11 @@ class NormalMatchmakingServiceImplTest {
         when(players.existsActiveProposal(accountId)).thenReturn(true);
 
         assertThatThrownBy(() -> service.leave(accountId))
-                .isInstanceOfSatisfying(MatchmakingApiException.class, exception ->
-                        assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
+                .isInstanceOfSatisfying(
+                        MatchmakingApiException.class,
+                        exception ->
+                                assertThat(exception.getCode())
+                                        .isEqualTo(MatchmakingError.MM_MATCH_IN_PROGRESS));
 
         verify(queueStore, never()).find(accountId);
         verify(queueStore, never()).cancel(any(), any());
@@ -286,12 +340,15 @@ class NormalMatchmakingServiceImplTest {
         UUID accountId = UUID.randomUUID();
         UUID proposalId = UUID.randomUUID();
         MatchProposalEntity proposal = MatchProposalEntity.normal(proposalId, NOW);
-        MatchProposalPlayerEntity player = MatchProposalPlayerEntity.reserved(accountId, NOW.minusSeconds(30), NOW);
+        MatchProposalPlayerEntity player =
+                MatchProposalPlayerEntity.reserved(accountId, NOW.minusSeconds(30), NOW);
         proposal.addPlayer(player);
-        when(players.findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
-                accountId,
-                com.msspoker.matchmakingservice.enums.ProposalStatus.CREATING_TABLE
-        )).thenReturn(Optional.of(player));
+        when(players
+                        .findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
+                                accountId,
+                                com.msspoker.matchmakingservice.enums.ProposalStatus
+                                        .CREATING_TABLE))
+                .thenReturn(Optional.of(player));
 
         var response = service.status(accountId);
 
@@ -304,10 +361,12 @@ class NormalMatchmakingServiceImplTest {
     @Test
     void statusDoesNotReturnHistoricalReadyOrFailedProposal() {
         UUID accountId = UUID.randomUUID();
-        when(players.findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
-                accountId,
-                com.msspoker.matchmakingservice.enums.ProposalStatus.CREATING_TABLE
-        )).thenReturn(Optional.empty());
+        when(players
+                        .findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
+                                accountId,
+                                com.msspoker.matchmakingservice.enums.ProposalStatus
+                                        .CREATING_TABLE))
+                .thenReturn(Optional.empty());
         when(queueStore.inGame(accountId)).thenReturn(Optional.empty());
         when(queueStore.find(accountId)).thenReturn(Optional.empty());
 
@@ -322,11 +381,18 @@ class NormalMatchmakingServiceImplTest {
         UUID accountId = UUID.randomUUID();
         UUID tableId = UUID.randomUUID();
         UUID matchId = UUID.randomUUID();
-        InGameSession session = new InGameSession(
-                MatchMode.NORMAL, UUID.randomUUID(), tableId, matchId, "localhost", 8082, "/ws/game"
-        );
+        InGameSession session =
+                new InGameSession(
+                        MatchMode.NORMAL,
+                        UUID.randomUUID(),
+                        tableId,
+                        matchId,
+                        "localhost",
+                        8082,
+                        "/ws/game");
         when(queueStore.inGame(accountId)).thenReturn(Optional.of(session));
-        when(game.activeTable(accountId)).thenReturn(Optional.of(new TableCreatedResponse(tableId, matchId)));
+        when(game.activeTable(accountId))
+                .thenReturn(Optional.of(new TableCreatedResponse(tableId, matchId)));
 
         var response = service.status(accountId);
 

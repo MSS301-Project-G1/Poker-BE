@@ -1,14 +1,17 @@
 package com.msspoker.matchmakingservice.service.impl.job;
 
 import com.msspoker.matchmakingservice.config.MatchmakingProperties;
+import com.msspoker.matchmakingservice.dto.response.GameMatchSettingsResponse;
 import com.msspoker.matchmakingservice.enums.MatchMode;
 import com.msspoker.matchmakingservice.model.QueueEntry;
-import com.msspoker.matchmakingservice.dto.response.GameMatchSettingsResponse;
-import com.msspoker.matchmakingservice.service.client.GameClient;
 import com.msspoker.matchmakingservice.service.NormalMatchCoordinator;
-import com.msspoker.matchmakingservice.service.store.QueueStore;
+import com.msspoker.matchmakingservice.service.client.GameClient;
 import com.msspoker.matchmakingservice.service.store.PartyStore;
+import com.msspoker.matchmakingservice.service.store.QueueStore;
 import com.msspoker.matchmakingservice.util.MatchmakingIds;
+
+import lombok.RequiredArgsConstructor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,22 +20,26 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * Tác vụ tự ghép trận Normal, được Spring gọi theo lịch; không phải API cho frontend gọi.
- * Service join() chỉ đưa người chơi vào hàng chờ Redis. Worker đọc hàng chờ, chọn đủ
- * người và giữ nguyên các thành viên Party, rồi gọi NormalMatchCoordinator.start()
- * để lưu đề xuất chờ xác nhận. Chỉ sau khi mọi người đồng ý mới tạo bàn Game.
- * Khóa Redis giúp nhiều instance không đồng thời ghép trùng một nhóm người.
+ * Tác vụ tự ghép trận Normal, được Spring gọi theo lịch; không phải API cho frontend gọi. Service
+ * join() chỉ đưa người chơi vào hàng chờ Redis. Worker đọc hàng chờ, chọn đủ người và giữ nguyên
+ * các thành viên Party, rồi gọi NormalMatchCoordinator.start() để lưu đề xuất chờ xác nhận. Chỉ sau
+ * khi mọi người đồng ý mới tạo bàn Game. Khóa Redis giúp nhiều instance không đồng thời ghép trùng
+ * một nhóm người.
  */
 @Component
-@ConditionalOnProperty(name = "matchmaking.finder.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+        name = "matchmaking.finder.enabled",
+        havingValue = "true",
+        matchIfMissing = true)
+@RequiredArgsConstructor
 public class NormalMatchWorker {
     private static final Logger log = LoggerFactory.getLogger(NormalMatchWorker.class);
 
@@ -42,22 +49,6 @@ public class NormalMatchWorker {
     private final Clock clock;
     private final PartyStore partyStore;
     private final GameClient game;
-
-    public NormalMatchWorker(
-            QueueStore queueStore,
-            NormalMatchCoordinator coordinator,
-            MatchmakingProperties properties,
-            Clock clock,
-            PartyStore partyStore,
-            GameClient game
-    ) {
-        this.queueStore = queueStore;
-        this.coordinator = coordinator;
-        this.properties = properties;
-        this.clock = clock;
-        this.partyStore = partyStore;
-        this.game = game;
-    }
 
     // fixedDelay: mặc định chờ 1 giây SAU KHI lần find() trước kết thúc rồi mới chạy tiếp.
     // Chưa đủ người hoặc chưa hết đếm ngược thì trả về, kiểm tra lại ở lần chạy sau.
@@ -94,9 +85,7 @@ public class NormalMatchWorker {
                 Optional<Instant> deadline = queueStore.countdownDeadline(MatchMode.NORMAL);
                 if (deadline.isEmpty()) {
                     queueStore.startCountdown(
-                            MatchMode.NORMAL,
-                            now.plus(properties.getNormal().getFillTimeout())
-                    );
+                            MatchMode.NORMAL, now.plus(properties.getNormal().getFillTimeout()));
                     return;
                 }
                 if (now.isBefore(deadline.get())) return;
@@ -121,7 +110,8 @@ public class NormalMatchWorker {
         }
     }
 
-    private List<QueueEntry> selectPack(List<QueueEntry> candidates, int minPlayers, int maxPlayers) {
+    private List<QueueEntry> selectPack(
+            List<QueueEntry> candidates, int minPlayers, int maxPlayers) {
         List<List<QueueEntry>> units = queueUnits(candidates);
         for (int anchorIndex = 0; anchorIndex < units.size(); anchorIndex++) {
             List<QueueEntry> selected = new ArrayList<>(units.get(anchorIndex));
@@ -150,16 +140,24 @@ public class NormalMatchWorker {
             }
             if (!handledParties.add(candidate.partyId())) continue;
 
-            partyStore.findByAccountId(candidate.accountId()).ifPresent(party -> {
-                List<QueueEntry> members = party.memberIds().stream()
-                        .map(queueStore::find)
-                        .flatMap(Optional::stream)
-                        .filter(entry -> candidate.partyId().equals(entry.partyId()))
-                        .toList();
-                if (members.size() == party.memberIds().size()) {
-                    units.add(members);
-                }
-            });
+            partyStore
+                    .findByAccountId(candidate.accountId())
+                    .ifPresent(
+                            party -> {
+                                List<QueueEntry> members =
+                                        party.memberIds().stream()
+                                                .map(queueStore::find)
+                                                .flatMap(Optional::stream)
+                                                .filter(
+                                                        entry ->
+                                                                candidate
+                                                                        .partyId()
+                                                                        .equals(entry.partyId()))
+                                                .toList();
+                                if (members.size() == party.memberIds().size()) {
+                                    units.add(members);
+                                }
+                            });
         }
         return units;
     }

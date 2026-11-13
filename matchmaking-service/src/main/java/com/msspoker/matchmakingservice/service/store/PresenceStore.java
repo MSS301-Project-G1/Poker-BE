@@ -4,7 +4,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/** Lần cuối mỗi tài khoản gọi API matchmaking; FE hỏi trạng thái mỗi giây nên đây là nhịp "tab còn mở". */
+/**
+ * Lần cuối mỗi tài khoản gọi API matchmaking; FE hỏi trạng thái mỗi giây nên đây là nhịp "tab còn
+ * mở".
+ */
 public interface PresenceStore {
     void touch(UUID accountId, Instant seenAt);
 

@@ -1,8 +1,8 @@
 package com.msspoker.matchmakingservice.service.store;
 
 import com.msspoker.matchmakingservice.enums.MatchMode;
-import com.msspoker.matchmakingservice.model.QueueEntry;
 import com.msspoker.matchmakingservice.model.InGameSession;
+import com.msspoker.matchmakingservice.model.QueueEntry;
 
 import java.time.Instant;
 import java.util.List;

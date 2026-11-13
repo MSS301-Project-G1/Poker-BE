@@ -11,11 +11,14 @@ import com.msspoker.matchmakingservice.exception.InsufficientBalanceException;
 import com.msspoker.matchmakingservice.exception.WalletCallUnknownException;
 import com.msspoker.matchmakingservice.model.InGameSession;
 import com.msspoker.matchmakingservice.model.QueueEntry;
-import com.msspoker.matchmakingservice.service.client.GameClient;
-import com.msspoker.matchmakingservice.service.store.QueueStore;
 import com.msspoker.matchmakingservice.service.RankMatchCoordinator;
 import com.msspoker.matchmakingservice.service.RankProposalStateService;
+import com.msspoker.matchmakingservice.service.client.GameClient;
 import com.msspoker.matchmakingservice.service.client.WalletClient;
+import com.msspoker.matchmakingservice.service.store.QueueStore;
+
+import lombok.RequiredArgsConstructor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
     private static final Logger log = LoggerFactory.getLogger(RankMatchCoordinatorImpl.class);
 
@@ -36,29 +40,15 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
     private final MatchmakingProperties properties;
     private final Clock clock;
 
-    public RankMatchCoordinatorImpl(
-            RankProposalStateService state,
-            WalletClient wallet,
-            GameClient game,
-            QueueStore queueStore,
-            MatchmakingProperties properties,
-            Clock clock
-    ) {
-        this.state = state;
-        this.wallet = wallet;
-        this.game = game;
-        this.queueStore = queueStore;
-        this.properties = properties;
-        this.clock = clock;
-    }
-
     @Override
     public Result start(UUID proposalId) {
         RankProposalStateService.Work work = state.work(proposalId);
-        List<UUID> charged = new ArrayList<>(work.players().stream()
-                .filter(RankProposalStateService.Player::feeCharged)
-                .map(RankProposalStateService.Player::accountId)
-                .toList());
+        List<UUID> charged =
+                new ArrayList<>(
+                        work.players().stream()
+                                .filter(RankProposalStateService.Player::feeCharged)
+                                .map(RankProposalStateService.Player::accountId)
+                                .toList());
 
         for (RankProposalStateService.Player player : work.players()) {
             if (player.feeCharged() || work.entryFee() == 0) continue;
@@ -70,18 +60,22 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
                 failAndRestore(work, charged, player.accountId(), "INSUFFICIENT_BALANCE");
                 return Result.INSUFFICIENT_BALANCE;
             } catch (WalletCallUnknownException exception) {
-                log.warn("Rank proposal awaits Wallet reconciliation proposalId={} accountId={}",
-                        proposalId, player.accountId(), exception);
+                log.warn(
+                        "Rank proposal awaits Wallet reconciliation proposalId={} accountId={}",
+                        proposalId,
+                        player.accountId(),
+                        exception);
                 return Result.PENDING_RECONCILIATION;
             }
         }
 
         try {
-            TableCreatedResponse response = game.createTable(CreateTableRequest.rank(
-                    proposalId,
-                    work.entries().stream().map(QueueEntry::accountId).toList(),
-                    work.entryFee()
-            ));
+            TableCreatedResponse response =
+                    game.createTable(
+                            CreateTableRequest.rank(
+                                    proposalId,
+                                    work.entries().stream().map(QueueEntry::accountId).toList(),
+                                    work.entryFee()));
             queueStore.complete(work.entries(), session(proposalId, response));
             state.ready(proposalId, response.tableId(), response.matchId());
             return Result.READY;
@@ -89,7 +83,10 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
             failAndRestore(work, charged, null, "GAME_REJECTED");
             return Result.FAILED;
         } catch (GameCallUnknownException exception) {
-            log.warn("Rank proposal awaits Game reconciliation proposalId={}", proposalId, exception);
+            log.warn(
+                    "Rank proposal awaits Game reconciliation proposalId={}",
+                    proposalId,
+                    exception);
             return Result.PENDING_RECONCILIATION;
         }
     }
@@ -98,19 +95,20 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
             RankProposalStateService.Work work,
             List<UUID> charged,
             UUID rejectedAccount,
-            String failureCode
-    ) {
+            String failureCode) {
         state.failed(work.proposalId(), failureCode, rejectedAccount);
         queueStore.discard(work.entries());
-        List<QueueEntry> requeue = work.entries().stream()
-                .filter(entry -> rejectedAccount == null || !entry.accountId().equals(rejectedAccount))
-                .toList();
+        List<QueueEntry> requeue =
+                work.entries().stream()
+                        .filter(
+                                entry ->
+                                        rejectedAccount == null
+                                                || !entry.accountId().equals(rejectedAccount))
+                        .toList();
         queueStore.requeue(requeue);
         if (rejectedAccount != null) {
             queueStore.startRankCooldown(
-                    rejectedAccount,
-                    clock.instant().plus(properties.getRank().getCooldown())
-            );
+                    rejectedAccount, clock.instant().plus(properties.getRank().getCooldown()));
         }
         state.redisReconciled(work.proposalId());
         charged.forEach(accountId -> refund(work.proposalId(), accountId, work.entryFee()));
@@ -122,7 +120,11 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
             wallet.refund(refundRequest(proposalId, accountId, amount));
             state.feeRefunded(proposalId, accountId);
         } catch (WalletCallUnknownException exception) {
-            log.warn("Rank refund remains pending proposalId={} accountId={}", proposalId, accountId, exception);
+            log.warn(
+                    "Rank refund remains pending proposalId={} accountId={}",
+                    proposalId,
+                    accountId,
+                    exception);
         }
     }
 
@@ -132,8 +134,7 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
                 work.entryFee(),
                 "RANK_ENTRY_FEE",
                 work.proposalId().toString(),
-                "rank-fee:" + work.proposalId() + ":" + accountId
-        );
+                "rank-fee:" + work.proposalId() + ":" + accountId);
     }
 
     private WalletTransferRequest refundRequest(UUID proposalId, UUID accountId, long amount) {
@@ -142,8 +143,7 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
                 amount,
                 "RANK_ENTRY_REFUND",
                 proposalId.toString(),
-                "rank-refund:" + proposalId + ":" + accountId
-        );
+                "rank-refund:" + proposalId + ":" + accountId);
     }
 
     private InGameSession session(UUID proposalId, TableCreatedResponse response) {
@@ -154,7 +154,6 @@ public class RankMatchCoordinatorImpl implements RankMatchCoordinator {
                 response.matchId(),
                 properties.getGame().getPublicHost(),
                 properties.getGame().getPublicPort(),
-                properties.getGame().getWebsocketPath()
-        );
+                properties.getGame().getWebsocketPath());
     }
 }

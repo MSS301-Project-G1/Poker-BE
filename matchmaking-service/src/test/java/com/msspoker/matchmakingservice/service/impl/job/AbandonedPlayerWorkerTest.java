@@ -1,9 +1,14 @@
 package com.msspoker.matchmakingservice.service.impl.job;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.*;
+
 import com.msspoker.matchmakingservice.config.MatchmakingProperties;
 import com.msspoker.matchmakingservice.constant.MatchmakingConstants;
 import com.msspoker.matchmakingservice.service.AbandonedPlayerService;
 import com.msspoker.matchmakingservice.service.store.PresenceStore;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -11,10 +16,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.*;
 
 class AbandonedPlayerWorkerTest {
     private static final Instant STARTED = Instant.parse("2026-11-11T10:00:00Z");

@@ -1,10 +1,11 @@
 package com.msspoker.socialservice.mapper;
 
 import com.msspoker.socialservice.dto.response.FriendRequestResponse;
-import com.msspoker.socialservice.entity.FriendRequest;
+import com.msspoker.socialservice.entity.FriendRequestEntity;
+
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public interface SocialMapper {
-  FriendRequestResponse request(FriendRequest entity);
+    FriendRequestResponse request(FriendRequestEntity entity);
 }

@@ -1,31 +1,31 @@
 package com.msspoker.matchmakingservice.service.impl;
 
-import com.msspoker.matchmakingservice.dto.response.TableCreatedResponse;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import com.msspoker.matchmakingservice.config.MatchmakingProperties;
+import com.msspoker.matchmakingservice.dto.response.TableCreatedResponse;
 import com.msspoker.matchmakingservice.enums.MatchMode;
 import com.msspoker.matchmakingservice.exception.GameCallRejectedException;
 import com.msspoker.matchmakingservice.exception.GameCallUnknownException;
 import com.msspoker.matchmakingservice.model.QueueEntry;
-import com.msspoker.matchmakingservice.service.client.GameClient;
 import com.msspoker.matchmakingservice.service.ProposalPersistenceService;
+import com.msspoker.matchmakingservice.service.client.GameClient;
 import com.msspoker.matchmakingservice.service.store.QueueStore;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 class NormalMatchCoordinatorImplTest {
     private final ProposalPersistenceService persistence = mock(ProposalPersistenceService.class);
     private final GameClient game = mock(GameClient.class);
     private final QueueStore queueStore = mock(QueueStore.class);
     private final MatchmakingProperties properties = new MatchmakingProperties();
-    private final NormalMatchCoordinatorImpl coordinator = new NormalMatchCoordinatorImpl(
-            persistence, game, queueStore, properties
-    );
+    private final NormalMatchCoordinatorImpl coordinator =
+            new NormalMatchCoordinatorImpl(persistence, game, queueStore, properties);
 
     @Test
     void marksReadyAndRemovesQueueStateWhenGameCreatesTable() {
@@ -38,15 +38,18 @@ class NormalMatchCoordinatorImplTest {
         coordinator.retry(proposalId, entries);
 
         verify(persistence).ready(proposalId, tableId, matchId);
-        verify(queueStore).complete(eq(entries), argThat(session ->
-                session.mode() == MatchMode.NORMAL
-                        && session.proposalId().equals(proposalId)
-                        && session.tableId().equals(tableId)
-                        && session.matchId().equals(matchId)
-                        && session.host().equals("localhost")
-                        && session.port() == 8082
-                        && session.websocketPath().equals("/ws/game")
-        ));
+        verify(queueStore)
+                .complete(
+                        eq(entries),
+                        argThat(
+                                session ->
+                                        session.mode() == MatchMode.NORMAL
+                                                && session.proposalId().equals(proposalId)
+                                                && session.tableId().equals(tableId)
+                                                && session.matchId().equals(matchId)
+                                                && session.host().equals("localhost")
+                                                && session.port() == 8082
+                                                && session.websocketPath().equals("/ws/game")));
         verify(queueStore, never()).requeue(anyList());
     }
 
@@ -87,7 +90,6 @@ class NormalMatchCoordinatorImplTest {
     private List<QueueEntry> entries() {
         return List.of(
                 new QueueEntry(UUID.randomUUID(), MatchMode.NORMAL, Instant.EPOCH),
-                new QueueEntry(UUID.randomUUID(), MatchMode.NORMAL, Instant.EPOCH.plusSeconds(1))
-        );
+                new QueueEntry(UUID.randomUUID(), MatchMode.NORMAL, Instant.EPOCH.plusSeconds(1)));
     }
 }

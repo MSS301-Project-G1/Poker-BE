@@ -1,11 +1,20 @@
 package com.msspoker.matchmakingservice.service.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.msspoker.matchmakingservice.config.MatchmakingProperties;
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
 import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
 import com.msspoker.matchmakingservice.model.PartySnapshot;
 import com.msspoker.matchmakingservice.service.store.PartyStore;
 import com.msspoker.matchmakingservice.service.store.QueueStore;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,14 +30,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class PartyServiceImplTest {
     private static final Instant NOW = Instant.parse("2026-10-22T00:00:00Z");
@@ -41,7 +42,12 @@ class PartyServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PartyServiceImpl(store, new MatchmakingProperties(), Clock.fixed(NOW, ZoneOffset.UTC), queueStore);
+        service =
+                new PartyServiceImpl(
+                        store,
+                        new MatchmakingProperties(),
+                        Clock.fixed(NOW, ZoneOffset.UTC),
+                        queueStore);
     }
 
     @Test
@@ -63,14 +69,19 @@ class PartyServiceImplTest {
         UUID leader = UUID.randomUUID();
         UUID joiner = UUID.randomUUID();
         when(store.findByCode(CODE)).thenReturn(Optional.of(party(leader)));
-        when(store.join(joiner, CODE, "000000", 6, NOW)).thenReturn(PartyStore.JoinResult.WRONG_PASSWORD);
+        when(store.join(joiner, CODE, "000000", 6, NOW))
+                .thenReturn(PartyStore.JoinResult.WRONG_PASSWORD);
 
         assertThatThrownBy(() -> service.join(joiner, CODE, "000000"))
-                .isInstanceOfSatisfying(MatchmakingApiException.class, exception -> {
-                    assertThat(exception.getCode()).isEqualTo(MatchmakingError.MM_PARTY_WRONG_PASSWORD);
-                    assertThat(exception.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
-                    assertThat(exception.getMessage()).isEqualTo("Mật khẩu party không đúng.");
-                });
+                .isInstanceOfSatisfying(
+                        MatchmakingApiException.class,
+                        exception -> {
+                            assertThat(exception.getCode())
+                                    .isEqualTo(MatchmakingError.MM_PARTY_WRONG_PASSWORD);
+                            assertThat(exception.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                            assertThat(exception.getMessage())
+                                    .isEqualTo("Mật khẩu party không đúng.");
+                        });
     }
 
     @Test
@@ -91,7 +102,8 @@ class PartyServiceImplTest {
         UUID leader = UUID.randomUUID();
         UUID member = UUID.randomUUID();
         when(store.findByAccountId(leader)).thenReturn(Optional.of(party(leader, member)));
-        when(store.kick(eq(leader), eq(member), anyString())).thenReturn(PartyStore.KickResult.KICKED);
+        when(store.kick(eq(leader), eq(member), anyString()))
+                .thenReturn(PartyStore.KickResult.KICKED);
 
         service.kick(leader, member);
 
@@ -101,6 +113,7 @@ class PartyServiceImplTest {
     }
 
     private static PartySnapshot party(UUID... members) {
-        return new PartySnapshot(UUID.randomUUID(), CODE, PASSWORD, members[0], List.of(members), NOW);
+        return new PartySnapshot(
+                UUID.randomUUID(), CODE, PASSWORD, members[0], List.of(members), NOW);
     }
 }
