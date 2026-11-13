@@ -62,10 +62,10 @@ docker compose up --build
 
 Các port public trong `.env` có thể đổi để tránh xung đột trên máy. Gateway có health endpoint tại `http://localhost:8080/actuator/health`; mỗi service cũng có `/actuator/health` trên port của mình. Test auth trực tiếp bằng Swagger tại `http://localhost:8090/swagger-ui.html`; login/refresh/logout cần CSRF token theo README auth. Root Compose có DB riêng cho auth; hạ tầng và cấu hình riêng của game xem README game trước khi chạy cả nhóm.
 
-Chạy Java trong IntelliJ, chỉ để DB/Redis/RabbitMQ trong Docker:
+Chạy Java trong IntelliJ, chỉ để DB/Redis/RabbitMQ/Mailpit trong Docker (mail OTP xem ở `http://localhost:8026`):
 
 ```powershell
-docker compose up -d rabbitmq auth-postgres game-db matchmaking-db matchmaking-redis social-db chat-db ranking-db competition-db shop-postgres shop-redis shop-minio wallet-postgres
+docker compose --profile mailpit up -d rabbitmq auth-postgres auth-mailpit game-db matchmaking-db matchmaking-redis social-db chat-db ranking-db competition-db shop-postgres shop-redis shop-minio wallet-postgres
 ```
 
 Đặt Active profiles = `local` cho mọi run config Spring Boot (Run → Edit Configurations → Edit configuration templates → Spring Boot, rồi xoá run config cũ để IntelliJ tạo lại). Profile `local` của mỗi service trỏ tới port Docker mở ra trên máy (154xx, Redis 6383, RabbitMQ 5679) và tự đọc key trong `.env` ở thư mục gốc. Trước khi chuyển sang `docker compose up --build`, tắt các service đang chạy trong IntelliJ để không trùng port.
