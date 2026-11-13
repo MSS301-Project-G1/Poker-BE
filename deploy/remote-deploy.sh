@@ -10,7 +10,7 @@ cd "$APP_DIR"
 
 COMPOSE=(docker compose -f docker-compose.yml -f deploy/compose.prod.yml)
 GATEWAY_HEALTH_URL="http://127.0.0.1:8080/actuator/health"
-HEALTH_ATTEMPTS=72   # x5s = 6 minutes: twelve JVMs starting together on a 2-core VPS are slow
+HEALTH_ATTEMPTS=72   # x5s = 6 minutes: eleven JVMs starting together on a 2-core VPS are slow
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "::error::Docker is not installed on the VPS. Run deploy/setup-vps.sh once."

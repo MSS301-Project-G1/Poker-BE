@@ -14,7 +14,6 @@ spring:
   config:
     import:
     - classpath:services/auth-service.yml
-    - classpath:services/identity-service.yml
     - classpath:services/game-service.yml
     - classpath:services/matchmaking-service.yml
     - classpath:services/social-service.yml

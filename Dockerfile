@@ -3,7 +3,7 @@ WORKDIR /workspace
 ARG MODULE
 COPY . .
 # Shared Maven repository: dependencies download once for every module and survive source changes.
-# "locked" runs one Maven build at a time, so a full compose build does not download twelve copies in parallel.
+# "locked" runs one Maven build at a time, so a full compose build does not download eleven copies in parallel.
 RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -pl ${MODULE} -am -DskipTests package
 
 FROM eclipse-temurin:21-jre

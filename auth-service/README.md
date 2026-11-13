@@ -11,7 +11,7 @@ lần nâng cấp V10 cần login lại.
 
 Phase 2–3: đăng ký/OTP qua SMTP, event `account.registered` qua RabbitMQ với outbox,
 login/refresh/logout bằng cookie HttpOnly và JWT RS256/JWKS.
-Port mặc định `8090`; `identity-service` giữ nguyên. Auth đã được nối qua gateway
+Port mặc định `8090`. Auth đã được nối qua gateway
 trong phase 4A, xem [README gateway](../api-gateway/README.md). Phase 5.1 đã có xem/sửa
 hồ sơ cá nhân; 5.2 có avatar có sẵn và flow S3 presigned PUT; 5.3 có quên/reset mật khẩu bằng OTP.
 5.4 có đổi mật khẩu khi đang đăng nhập; phase 6 có điểm danh 50 xu/ngày và lịch tháng.

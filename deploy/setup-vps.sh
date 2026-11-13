@@ -15,7 +15,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 $SUDO usermod -aG docker "$(id -un)"
 
-# 2) Cap container logs; twelve chatty services would otherwise fill the disk over time
+# 2) Cap container logs; eleven chatty services would otherwise fill the disk over time
 if [ ! -f /etc/docker/daemon.json ]; then
   echo '{"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}}' \
     | $SUDO tee /etc/docker/daemon.json >/dev/null

@@ -66,10 +66,10 @@ tác dụng nghiệp vụ thật giống FE; bộ kiểm tra của đợt này c
 - Đặt `springdoc.paths-to-match=/api/**`. Game, ranking, competition vừa được
   bổ sung dependency API-only và cấu hình này; không sửa nghiệp vụ của chúng.
 - Nếu module chưa có API/docs, đặt `documentation-enabled: false` trong entry
-  catalog của nó, giống identity. Mặc định các service trong catalog có docs.
+  catalog của nó. Mặc định các service trong catalog có docs.
 - Mô hình hiện tại giữ nguyên đường dẫn API qua gateway. Owner dùng strip-prefix
   cho service mới cần cấu hình/đối chiếu đường dẫn OpenAPI tương ứng trước khi
-  bật mục Swagger; identity skeleton đang dùng strip-prefix đã được loại khỏi danh sách.
+  bật mục Swagger.
 
 Tham khảo: [Swagger UI configuration](https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/)
 và [springdoc compatibility](https://springdoc.org/#what-is-the-compatibility-matrix-of-springdoc-openapi-with-spring-boot).

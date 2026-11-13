@@ -3,7 +3,6 @@ include:
   - discovery-service/compose.yml
   - api-gateway/compose.yml
   - auth-service/compose.yml
-  - identity-service/compose.yml
   - game-service/compose.yml
   - matchmaking-service/compose.yml
   - social-service/compose.yml

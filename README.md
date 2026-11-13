@@ -17,7 +17,6 @@ poker-be/
 ├── discovery-service/      # Eureka registry, port 8761
 ├── api-gateway/            # định tuyến HTTP
 ├── auth-service/           # phần tài khoản, hồ sơ, điểm danh của Khanh
-├── identity-service/       # giữ nguyên scaffold, không nhận nghiệp vụ mới
 ├── game-service/
 ├── matchmaking-service/
 ├── social-service/
@@ -35,7 +34,6 @@ poker-be/
 | discovery-service | Khanh | 8761 | Danh bạ Eureka cho các service |
 | api-gateway | Khanh | 8080 | Route theo service, JWT cookie, quyền và CSRF |
 | auth-service | Khanh | 8090 | Tài khoản, xác thực, hồ sơ, điểm danh, báo cáo và xử phạt |
-| identity-service | Khanh | 8081 | Scaffold giữ nguyên, không nhận nghiệp vụ mới |
 | game-service | Bảo | 8082 | Engine poker, bàn chơi, lịch sử trận |
 | matchmaking-service | Duy | 8083 | Hàng chờ Rank/Normal, party |
 | social-service | Duy | 8084 | Bạn bè, trạng thái online, thông báo |
@@ -53,7 +51,7 @@ poker-be/
 ./mvnw.cmd -pl auth-service spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-Trên macOS/Linux, dùng `./mvnw` thay cho `./mvnw.cmd`. Auth cần PostgreSQL trước khi chạy Java; làm theo [hướng dẫn chạy auth riêng](auth-service/README.md). Khi chạy service riêng lẻ, gateway chuyển tiếp từ các route scaffold tới service tương ứng trên localhost và bỏ hai segment đầu của path. Riêng scaffold mới dùng `/api/auth-service/**` với `AUTH_SERVICE_URL` (mặc định `http://localhost:8090`); đây chưa phải route nghiệp vụ `/api/auth/**`. Các URL đích khác có thể đổi bằng `IDENTITY_SERVICE_URL`, `GAME_SERVICE_URL`, v.v. Bảng route nghiệp vụ mục tiêu nằm trong [SPEC](docs/SPEC.md#64-bảng-route-public-qua-gateway).
+Trên macOS/Linux, dùng `./mvnw` thay cho `./mvnw.cmd`. Auth cần PostgreSQL trước khi chạy Java; làm theo [hướng dẫn chạy auth riêng](auth-service/README.md). Khi chạy service riêng lẻ, gateway chuyển tiếp từ các route scaffold tới service tương ứng trên localhost và bỏ hai segment đầu của path. Riêng scaffold mới dùng `/api/auth-service/**` với `AUTH_SERVICE_URL` (mặc định `http://localhost:8090`); đây chưa phải route nghiệp vụ `/api/auth/**`. Các URL đích khác có thể đổi bằng `GAME_SERVICE_URL`, v.v. Bảng route nghiệp vụ mục tiêu nằm trong [SPEC](docs/SPEC.md#64-bảng-route-public-qua-gateway).
 
 Chạy toàn bộ bằng Docker:
 
@@ -87,7 +85,7 @@ Mỗi service sở hữu database đặt script Flyway tại `src/main/resources
 
 ## Phạm vi hiện tại
 
-Ưu tiên một luồng Rank hoàn chỉnh trước rồi mở rộng các phần còn lại. Khanh phát triển toàn bộ phạm vi tài khoản trong `auth-service`; `identity-service` giữ nguyên và không triển khai nghiệp vụ trùng lặp. Xem [SPEC](docs/SPEC.md), [định nghĩa auth/gateway](docs/auth/definition.md) và [kế hoạch phase](docs/auth/implementation-plan.md) để phân biệt phần đã chốt với các quyết định còn cần debate. API auth và cách FE dùng cookie/CSRF đã mô tả trong README auth và API reference ở docs local.
+Ưu tiên một luồng Rank hoàn chỉnh trước rồi mở rộng các phần còn lại. Khanh phát triển toàn bộ phạm vi tài khoản trong `auth-service`. Xem [SPEC](docs/SPEC.md), [định nghĩa auth/gateway](docs/auth/definition.md) và [kế hoạch phase](docs/auth/implementation-plan.md) để phân biệt phần đã chốt với các quyết định còn cần debate. API auth và cách FE dùng cookie/CSRF đã mô tả trong README auth và API reference ở docs local.
 
 ## Quy tắc Git
 
