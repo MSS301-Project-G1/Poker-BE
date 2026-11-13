@@ -1,5 +1,7 @@
 # matchmaking-service
 
+Cấu trúc package và lệnh kiểm tra: [Social/Chat/Matchmaking](../SERVICE_STRUCTURE.md).
+
 Service ghép trận tại port `8083`. Trạng thái hiện tại: `NORMAL` hỗ trợ người chơi solo và Party;
 `RANK` đã có queue, ghép Elo cố định, accept/decline, expiry, cooldown, Wallet saga và tạo bàn.
 
@@ -12,7 +14,7 @@ Khi service đang chạy và `MATCHMAKING_SWAGGER_ENABLED=true` (mặc định �
 
 Swagger test trực tiếp service nên phải nhập `X-User-Id`. Contract production yêu cầu Gateway lấy
 identity từ JWT rồi ghi đè header này, Gateway hiện đã có JWT cookie filter và ghi đè header này; không
-được xem header client tự gửi trực tiếp tới service là bảo mật production. Swagger hiện mô tả bốn API `NORMAL`, bốn API queue/reconnect `RANK`, hai API
+được xem header client tự gửi trực tiếp tới service là bảo mật production. Swagger hiện mô tả ba API `NORMAL`, ba API queue `RANK`, hai API
 proposal và năm API quản lý Party. Nó chưa bao phủ notification/outbox hoặc
 kiểm thử E2E qua Gateway.
 
@@ -82,19 +84,12 @@ DELETE /api/matchmaking/normal/leave
 X-User-Id: <account UUID>
 ```
 
-```http
-GET /api/matchmaking/normal/reconnect
-X-User-Id: <account UUID>
-```
-
 Join bị từ chối nếu account đã ở Redis queue, có proposal `CREATING_TABLE` trong PostgreSQL hoặc
 Game service báo vẫn đang ở một bàn active. Leave xóa account khỏi Redis queue và reset countdown
 nếu số người còn lại thấp hơn `minPlayers`.
 
 Khi tạo bàn thành công, Matchmaking lưu `IN_GAME`, `proposalId`, `tableId`, `matchId`, host,
-port và WebSocket path vào Redis theo từng account. Reconnect chỉ trả
-`reconnectable=true` khi Redis có `IN_GAME` và Game service vẫn xác nhận đúng bàn đó. Record
-Redis bị stale sẽ được xóa và API trả `reconnectable=false`.
+port và WebSocket path vào Redis theo từng account để theo dõi trạng thái trận.
 
 Trạng thái hiện tại có thể là `NONE`, `WAITING`, `COUNTDOWN`, `MATCHING`, `CREATING_TABLE`
 hoặc `READY`. `FAILED` chỉ được giữ làm audit, không trả vô thời hạn từ API status.
@@ -105,7 +100,6 @@ Normal không gọi Ranking/Wallet và không có popup accept.
 ```http
 POST   /api/matchmaking/rank/join
 GET    /api/matchmaking/rank/status
-GET    /api/matchmaking/rank/reconnect
 DELETE /api/matchmaking/rank/leave
 POST   /api/matchmaking/proposals/{proposalId}/accept
 POST   /api/matchmaking/proposals/{proposalId}/decline

@@ -2,7 +2,15 @@ package com.msspoker.matchmakingservice.entity;
 
 import com.msspoker.matchmakingservice.enums.MatchMode;
 import com.msspoker.matchmakingservice.enums.ProposalStatus;
-import jakarta.persistence.*;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -13,8 +21,13 @@ import java.util.UUID;
 @Table(name = "match_proposals")
 public class MatchProposalEntity {
     @Id private UUID id;
-    @Enumerated(EnumType.STRING) private MatchMode mode;
-    @Enumerated(EnumType.STRING) private ProposalStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private MatchMode mode;
+
+    @Enumerated(EnumType.STRING)
+    private ProposalStatus status;
+
     private long entryFee;
     private Integer eloMin;
     private Integer eloMax;
@@ -31,8 +44,7 @@ public class MatchProposalEntity {
     @OneToMany(mappedBy = "proposal", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MatchProposalPlayerEntity> players = new ArrayList<>();
 
-    protected MatchProposalEntity() {
-    }
+    protected MatchProposalEntity() {}
 
     public static MatchProposalEntity normal(UUID id, Instant now) {
         MatchProposalEntity proposal = new MatchProposalEntity();
@@ -53,13 +65,7 @@ public class MatchProposalEntity {
     }
 
     public static MatchProposalEntity rank(
-            UUID id,
-            long entryFee,
-            int eloMin,
-            int eloMax,
-            Instant acceptDeadline,
-            Instant now
-    ) {
+            UUID id, long entryFee, int eloMin, int eloMax, Instant acceptDeadline, Instant now) {
         MatchProposalEntity proposal = new MatchProposalEntity();
         proposal.id = id;
         proposal.mode = MatchMode.RANK;
@@ -117,18 +123,59 @@ public class MatchProposalEntity {
         updatedAt = now;
     }
 
-    public UUID getId() { return id; }
-    public MatchMode getMode() { return mode; }
-    public ProposalStatus getStatus() { return status; }
-    public long getEntryFee() { return entryFee; }
-    public Integer getEloMin() { return eloMin; }
-    public Integer getEloMax() { return eloMax; }
-    public Instant getAcceptDeadline() { return acceptDeadline; }
-    public UUID getTableId() { return tableId; }
-    public UUID getMatchId() { return matchId; }
-    public String getFailureCode() { return failureCode; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public Instant getRedisReconciledAt() { return redisReconciledAt; }
-    public List<MatchProposalPlayerEntity> getPlayers() { return players; }
+    public UUID getId() {
+        return id;
+    }
+
+    public MatchMode getMode() {
+        return mode;
+    }
+
+    public ProposalStatus getStatus() {
+        return status;
+    }
+
+    public long getEntryFee() {
+        return entryFee;
+    }
+
+    public Integer getEloMin() {
+        return eloMin;
+    }
+
+    public Integer getEloMax() {
+        return eloMax;
+    }
+
+    public Instant getAcceptDeadline() {
+        return acceptDeadline;
+    }
+
+    public UUID getTableId() {
+        return tableId;
+    }
+
+    public UUID getMatchId() {
+        return matchId;
+    }
+
+    public String getFailureCode() {
+        return failureCode;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Instant getRedisReconciledAt() {
+        return redisReconciledAt;
+    }
+
+    public List<MatchProposalPlayerEntity> getPlayers() {
+        return players;
+    }
 }

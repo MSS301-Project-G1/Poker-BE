@@ -1,0 +1,13 @@
+package com.msspoker.matchmakingservice.service;
+
+import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
+
+import java.util.UUID;
+
+public interface NormalMatchmakingService {
+    QueueStatusResponse join(UUID accountId);
+
+    void leave(UUID accountId);
+
+    QueueStatusResponse status(UUID accountId);
+}

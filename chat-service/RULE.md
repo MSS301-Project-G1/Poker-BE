@@ -80,6 +80,9 @@ Chat không được:
 - `senderId` lấy từ Principal/X-User-Id; không nhận hoặc tin senderId trong payload.
 - Trước khi ghi phải kiểm tra membership, conversation chưa đóng và permission DIRECT.
 - `content` phải trim, không rỗng, giới hạn độ dài bằng config; không render HTML thô.
+- Mọi TEXT trong DIRECT/MATCH qua REST hoặc STOMP đều phải qua bộ lọc từ cấm dùng
+  `ban-word-validator` trước khi lưu hoặc phát realtime. Vi phạm trả HTTP 400 với
+  `CHAT_CONTENT_NOT_ALLOWED`; STOMP trả cùng mã trên `/user/queue/chat-errors`.
 - Thứ tự ổn định bằng `(createdAt, id)`; API lịch sử dùng cursor, không offset vô hạn.
 - Sau khi transaction message commit mới đẩy DTO xuống `/user/queue/chat` cho từng
   member. Không broadcast destination công khai chứa nội dung riêng tư.
@@ -183,7 +186,13 @@ chat-service/
 - Controller/STOMP handler không chứa transaction/business.
 - Entity không trả trực tiếp; dùng DTO và MapStruct.
 - Service nghiệp vụ khai báo interface trong `service/` và implementation trong `service/impl/`.
-- Repository kế thừa Spring Data JPA; SQL đặc thù nằm trong custom fragment.
+- Conversation/membership thuộc `ConversationService`, gửi tin/history thuộc
+  `MessageService`, lifecycle trận thuộc `MatchLifecycleService`.
+- Entity có hậu tố `Entity`; conversation/message type dùng enum lưu dạng STRING.
+- Mã lỗi dùng `ChatError`, exception dùng `ChatApiException` với field private/getter.
+- Event nội bộ đặt thành record riêng trong `dto/event/`; cấu hình gom ở `ChatProperties`.
+- Repository kế thừa Spring Data JPA; SQL đặc thù khai báo bằng `@Query`/`@Modifying`
+  ngay trong interface. Không tạo bộ `Custom`/`CustomImpl` cho các query hiện tại.
 - Thời gian dùng `Instant`, enum UPPER_SNAKE_CASE, ID theo chuẩn `common`.
 - Error response dùng format chung, code bắt đầu `CHAT_`.
 
@@ -231,7 +240,9 @@ Chat MATCH không có public API tạo/đóng; chỉ event Game được phép t
 - `service/`: interface nghiệp vụ; `service/impl/`: implementation và transaction.
 - `service/client/`, `service/impl/client/`: hợp đồng và implementation gọi service ngoài, chỉ tạo khi có client thật.
 - `service/event/`, `service/impl/event/`: publisher interface và implementation event, consumer, delivery adapter.
-- `repository/`: Spring Data JPA cùng custom fragment cho SQL đặc thù.
+- `repository/`: Spring Data JPA; query, khóa và claim event khai báo trong interface.
+  `ChatLockRepository` chỉ quản lý `chat_locks`; `MatchLifecycleRepository` quản lý
+  bảng `match_lifecycle` hiện có. Các thao tác ghép query phải chạy trong transaction của service.
 - `mapper/`: MapStruct mapping entity sang response.
 - `constant/`: header constants; `validator/`: kiểm tra quyền/đầu vào nghiệp vụ được tách khỏi service.
 - `config/`, `security/`, `websocket/`: cấu hình và adapter đặc thù transport.

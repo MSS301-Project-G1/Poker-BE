@@ -1,16 +1,21 @@
 package com.msspoker.socialservice.repository;
 
-import com.msspoker.socialservice.entity.Friendship;
-import java.util.*;
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.repository.*;
+import com.msspoker.socialservice.entity.FriendshipEntity;
 
-public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
-  Optional<Friendship> findByAccountIdAndFriendId(UUID a, UUID b);
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-  boolean existsByAccountIdAndFriendIdAndIsDeletedFalse(UUID a, UUID b);
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-  Page<Friendship> findByAccountIdAndIsDeletedFalse(UUID id, Pageable page);
+public interface FriendshipRepository extends JpaRepository<FriendshipEntity, UUID> {
+    Optional<FriendshipEntity> findByAccountIdAndFriendId(UUID a, UUID b);
 
-  List<Friendship> findByAccountIdAndIsDeletedFalse(UUID id);
+    boolean existsByAccountIdAndFriendIdAndIsDeletedFalse(UUID a, UUID b);
+
+    Page<FriendshipEntity> findByAccountIdAndIsDeletedFalse(UUID id, Pageable page);
+
+    List<FriendshipEntity> findByAccountIdAndIsDeletedFalse(UUID id);
 }

@@ -1,18 +1,5 @@
 package com.msspoker.matchmakingservice.controller;
 
-import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
-import com.msspoker.matchmakingservice.dto.response.NormalReconnectResponse;
-import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
-import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
-import com.msspoker.matchmakingservice.enums.MatchmakingError;
-import org.springframework.http.HttpStatus;
-import com.msspoker.matchmakingservice.service.rank.RankMatchmakingService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.UUID;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +11,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
+import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
+import com.msspoker.matchmakingservice.enums.MatchmakingError;
+import com.msspoker.matchmakingservice.exception.MatchmakingApiException;
+import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
+import com.msspoker.matchmakingservice.service.RankMatchmakingService;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.UUID;
+
 class RankMatchmakingControllerTest {
     private static final UUID ACCOUNT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
@@ -33,9 +33,17 @@ class RankMatchmakingControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(RankMatchmakingService.class);
-        mvc = standaloneSetup(new RankMatchmakingController(service))
-                .setControllerAdvice(new MatchmakingExceptionHandler())
-                .build();
+        mvc =
+                standaloneSetup(new RankMatchmakingController(service))
+                        .setControllerAdvice(new MatchmakingExceptionHandler())
+                        .build();
+    }
+
+    @Test
+    void removedReconnectEndpointReturnsNotFound() throws Exception {
+        mvc.perform(get("/api/matchmaking/rank/reconnect").header("X-User-Id", ACCOUNT_ID))
+                .andExpect(status().isNotFound());
+        org.mockito.Mockito.verifyNoInteractions(service);
     }
 
     @Test
@@ -50,13 +58,18 @@ class RankMatchmakingControllerTest {
 
     @Test
     void insufficientBalanceIsReturnedToTheFrontendBeforeJoining() throws Exception {
-        when(service.join(ACCOUNT_ID)).thenThrow(new MatchmakingApiException(
-                MatchmakingError.MM_INSUFFICIENT_BALANCE, HttpStatus.PAYMENT_REQUIRED,
-                "Không đủ COIN để tham gia Rank. Cần tối thiểu 100 COIN."));
+        when(service.join(ACCOUNT_ID))
+                .thenThrow(
+                        new MatchmakingApiException(
+                                MatchmakingError.MM_INSUFFICIENT_BALANCE,
+                                HttpStatus.PAYMENT_REQUIRED,
+                                "Không đủ COIN để tham gia Rank. Cần tối thiểu 100 COIN."));
         mvc.perform(post("/api/matchmaking/rank/join").header("X-User-Id", ACCOUNT_ID))
                 .andExpect(status().isPaymentRequired())
                 .andExpect(jsonPath("$.code").value("MM_INSUFFICIENT_BALANCE"))
-                .andExpect(jsonPath("$.message").value("Không đủ COIN để tham gia Rank. Cần tối thiểu 100 COIN."));
+                .andExpect(
+                        jsonPath("$.message")
+                                .value("Không đủ COIN để tham gia Rank. Cần tối thiểu 100 COIN."));
     }
 
     @Test
@@ -84,15 +97,4 @@ class RankMatchmakingControllerTest {
                 .andExpect(jsonPath("$.code").value("MM_UNAUTHORIZED"));
     }
 
-    @Test
-    void reconnectContract() throws Exception {
-        when(service.reconnect(ACCOUNT_ID)).thenReturn(NormalReconnectResponse.none(
-                com.msspoker.matchmakingservice.enums.MatchMode.RANK
-        ));
-
-        mvc.perform(get("/api/matchmaking/rank/reconnect").header("X-User-Id", ACCOUNT_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reconnectable").value(false))
-                .andExpect(jsonPath("$.mode").value("RANK"));
-    }
 }

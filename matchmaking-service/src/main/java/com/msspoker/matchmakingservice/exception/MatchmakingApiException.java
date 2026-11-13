@@ -1,6 +1,7 @@
 package com.msspoker.matchmakingservice.exception;
 
 import com.msspoker.matchmakingservice.enums.MatchmakingError;
+
 import org.springframework.http.HttpStatus;
 
 public class MatchmakingApiException extends RuntimeException {

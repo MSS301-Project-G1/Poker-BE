@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -28,144 +29,367 @@ public class MatchmakingProperties {
     @Valid private final Wallet wallet = new Wallet();
     @Valid private final Presence presence = new Presence();
 
-    public Normal getNormal() { return normal; }
-    public Rank getRank() { return rank; }
-    public Queue getQueue() { return queue; }
-    public Finder getFinder() { return finder; }
-    public Game getGame() { return game; }
-    public Recovery getRecovery() { return recovery; }
-    public Party getParty() { return party; }
-    public Ranking getRanking() { return ranking; }
-    public Restriction getRestriction() { return restriction; }
-    public Wallet getWallet() { return wallet; }
-    public Presence getPresence() { return presence; }
+    public Normal getNormal() {
+        return normal;
+    }
+
+    public Rank getRank() {
+        return rank;
+    }
+
+    public Queue getQueue() {
+        return queue;
+    }
+
+    public Finder getFinder() {
+        return finder;
+    }
+
+    public Game getGame() {
+        return game;
+    }
+
+    public Recovery getRecovery() {
+        return recovery;
+    }
+
+    public Party getParty() {
+        return party;
+    }
+
+    public Ranking getRanking() {
+        return ranking;
+    }
+
+    public Restriction getRestriction() {
+        return restriction;
+    }
+
+    public Wallet getWallet() {
+        return wallet;
+    }
+
+    public Presence getPresence() {
+        return presence;
+    }
 
     public static class Normal {
         @NotNull private Duration acceptTimeout = Duration.ofSeconds(30);
-        public Duration getAcceptTimeout() { return acceptTimeout; }
-        public void setAcceptTimeout(Duration acceptTimeout) { this.acceptTimeout = acceptTimeout; }
+
+        public Duration getAcceptTimeout() {
+            return acceptTimeout;
+        }
+
+        public void setAcceptTimeout(Duration acceptTimeout) {
+            this.acceptTimeout = acceptTimeout;
+        }
+
         @NotNull private Duration fillTimeout = Duration.ofSeconds(30);
-        public Duration getFillTimeout() { return fillTimeout; }
-        public void setFillTimeout(Duration fillTimeout) { this.fillTimeout = fillTimeout; }
+
+        public Duration getFillTimeout() {
+            return fillTimeout;
+        }
+
+        public void setFillTimeout(Duration fillTimeout) {
+            this.fillTimeout = fillTimeout;
+        }
 
         @AssertTrue(message = "matchmaking.normal.fillTimeout phải lớn hơn 0")
         public boolean isValid() {
-            return fillTimeout != null && !fillTimeout.isZero() && !fillTimeout.isNegative()
-                    && acceptTimeout != null && !acceptTimeout.isZero() && !acceptTimeout.isNegative();
+            return fillTimeout != null
+                    && !fillTimeout.isZero()
+                    && !fillTimeout.isNegative()
+                    && acceptTimeout != null
+                    && !acceptTimeout.isZero()
+                    && !acceptTimeout.isNegative();
         }
     }
 
     public static class Rank {
-        @Min(0) private int eloWindow = 100;
-        @Min(0) private long entryFee = 100;
+        @Min(0)
+        private int eloWindow = 100;
+
+        @Min(0)
+        private long entryFee = 100;
+
         @NotNull private Duration fillTimeout = Duration.ofSeconds(30);
         @NotNull private Duration acceptTimeout = Duration.ofSeconds(30);
         @NotNull private Duration cooldown = Duration.ofMinutes(2);
-        public int getEloWindow() { return eloWindow; }
-        public void setEloWindow(int eloWindow) { this.eloWindow = eloWindow; }
-        public long getEntryFee() { return entryFee; }
-        public void setEntryFee(long entryFee) { this.entryFee = entryFee; }
-        public Duration getFillTimeout() { return fillTimeout; }
-        public void setFillTimeout(Duration fillTimeout) { this.fillTimeout = fillTimeout; }
-        public Duration getAcceptTimeout() { return acceptTimeout; }
-        public void setAcceptTimeout(Duration acceptTimeout) { this.acceptTimeout = acceptTimeout; }
-        public Duration getCooldown() { return cooldown; }
-        public void setCooldown(Duration cooldown) { this.cooldown = cooldown; }
+
+        public int getEloWindow() {
+            return eloWindow;
+        }
+
+        public void setEloWindow(int eloWindow) {
+            this.eloWindow = eloWindow;
+        }
+
+        public long getEntryFee() {
+            return entryFee;
+        }
+
+        public void setEntryFee(long entryFee) {
+            this.entryFee = entryFee;
+        }
+
+        public Duration getFillTimeout() {
+            return fillTimeout;
+        }
+
+        public void setFillTimeout(Duration fillTimeout) {
+            this.fillTimeout = fillTimeout;
+        }
+
+        public Duration getAcceptTimeout() {
+            return acceptTimeout;
+        }
+
+        public void setAcceptTimeout(Duration acceptTimeout) {
+            this.acceptTimeout = acceptTimeout;
+        }
+
+        public Duration getCooldown() {
+            return cooldown;
+        }
+
+        public void setCooldown(Duration cooldown) {
+            this.cooldown = cooldown;
+        }
 
         @AssertTrue(message = "matchmaking.rank fillTimeout/acceptTimeout/cooldown phải lớn hơn 0")
         public boolean isValid() {
-            return fillTimeout != null && !fillTimeout.isZero() && !fillTimeout.isNegative()
-                    && acceptTimeout != null && !acceptTimeout.isZero() && !acceptTimeout.isNegative()
-                    && cooldown != null && !cooldown.isZero() && !cooldown.isNegative();
+            return fillTimeout != null
+                    && !fillTimeout.isZero()
+                    && !fillTimeout.isNegative()
+                    && acceptTimeout != null
+                    && !acceptTimeout.isZero()
+                    && !acceptTimeout.isNegative()
+                    && cooldown != null
+                    && !cooldown.isZero()
+                    && !cooldown.isNegative();
         }
     }
 
     public static class Queue {
         @NotNull private Duration entryTtl = Duration.ofHours(24);
         @NotNull private Duration reservationTtl = Duration.ofMinutes(2);
-        public Duration getEntryTtl() { return entryTtl; }
-        public void setEntryTtl(Duration entryTtl) { this.entryTtl = entryTtl; }
-        public Duration getReservationTtl() { return reservationTtl; }
-        public void setReservationTtl(Duration reservationTtl) { this.reservationTtl = reservationTtl; }
+
+        public Duration getEntryTtl() {
+            return entryTtl;
+        }
+
+        public void setEntryTtl(Duration entryTtl) {
+            this.entryTtl = entryTtl;
+        }
+
+        public Duration getReservationTtl() {
+            return reservationTtl;
+        }
+
+        public void setReservationTtl(Duration reservationTtl) {
+            this.reservationTtl = reservationTtl;
+        }
     }
 
     public static class Finder {
         private boolean enabled = true;
-        @Min(100) private long fixedDelayMs = 1000;
+
+        @Min(100)
+        private long fixedDelayMs = 1000;
+
         @NotNull private Duration lockTtl = Duration.ofSeconds(5);
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public long getFixedDelayMs() { return fixedDelayMs; }
-        public void setFixedDelayMs(long fixedDelayMs) { this.fixedDelayMs = fixedDelayMs; }
-        public Duration getLockTtl() { return lockTtl; }
-        public void setLockTtl(Duration lockTtl) { this.lockTtl = lockTtl; }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public long getFixedDelayMs() {
+            return fixedDelayMs;
+        }
+
+        public void setFixedDelayMs(long fixedDelayMs) {
+            this.fixedDelayMs = fixedDelayMs;
+        }
+
+        public Duration getLockTtl() {
+            return lockTtl;
+        }
+
+        public void setLockTtl(Duration lockTtl) {
+            this.lockTtl = lockTtl;
+        }
     }
 
     public static class Game {
         @NotNull private Duration timeout = Duration.ofSeconds(3);
         @NotNull private Duration sessionTtl = Duration.ofHours(24);
         @NotBlank private String publicHost = "localhost";
-        @Min(1) @Max(65535) private int publicPort = 8082;
+
+        @Min(1)
+        @Max(65535)
+        private int publicPort = 8082;
+
         @NotBlank private String websocketPath = "/ws/game";
         private boolean stubEnabled;
-        public Duration getTimeout() { return timeout; }
-        public void setTimeout(Duration timeout) { this.timeout = timeout; }
-        public Duration getSessionTtl() { return sessionTtl; }
-        public void setSessionTtl(Duration sessionTtl) { this.sessionTtl = sessionTtl; }
-        public String getPublicHost() { return publicHost; }
-        public void setPublicHost(String publicHost) { this.publicHost = publicHost; }
-        public int getPublicPort() { return publicPort; }
-        public void setPublicPort(int publicPort) { this.publicPort = publicPort; }
-        public String getWebsocketPath() { return websocketPath; }
-        public void setWebsocketPath(String websocketPath) { this.websocketPath = websocketPath; }
-        public boolean isStubEnabled() { return stubEnabled; }
-        public void setStubEnabled(boolean stubEnabled) { this.stubEnabled = stubEnabled; }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+
+        public Duration getSessionTtl() {
+            return sessionTtl;
+        }
+
+        public void setSessionTtl(Duration sessionTtl) {
+            this.sessionTtl = sessionTtl;
+        }
+
+        public String getPublicHost() {
+            return publicHost;
+        }
+
+        public void setPublicHost(String publicHost) {
+            this.publicHost = publicHost;
+        }
+
+        public int getPublicPort() {
+            return publicPort;
+        }
+
+        public void setPublicPort(int publicPort) {
+            this.publicPort = publicPort;
+        }
+
+        public String getWebsocketPath() {
+            return websocketPath;
+        }
+
+        public void setWebsocketPath(String websocketPath) {
+            this.websocketPath = websocketPath;
+        }
+
+        public boolean isStubEnabled() {
+            return stubEnabled;
+        }
+
+        public void setStubEnabled(boolean stubEnabled) {
+            this.stubEnabled = stubEnabled;
+        }
     }
 
     public static class Recovery {
-        @Min(1000) private long fixedDelayMs = 5000;
+        @Min(1000)
+        private long fixedDelayMs = 5000;
+
         @NotNull private Duration retryAfter = Duration.ofSeconds(10);
-        public long getFixedDelayMs() { return fixedDelayMs; }
-        public void setFixedDelayMs(long fixedDelayMs) { this.fixedDelayMs = fixedDelayMs; }
-        public Duration getRetryAfter() { return retryAfter; }
-        public void setRetryAfter(Duration retryAfter) { this.retryAfter = retryAfter; }
+
+        public long getFixedDelayMs() {
+            return fixedDelayMs;
+        }
+
+        public void setFixedDelayMs(long fixedDelayMs) {
+            this.fixedDelayMs = fixedDelayMs;
+        }
+
+        public Duration getRetryAfter() {
+            return retryAfter;
+        }
+
+        public void setRetryAfter(Duration retryAfter) {
+            this.retryAfter = retryAfter;
+        }
     }
 
     public static class Party {
-        @Min(2) @Max(6) private int maxMembers = 6;
-        public int getMaxMembers() { return maxMembers; }
-        public void setMaxMembers(int maxMembers) { this.maxMembers = maxMembers; }
+        @Min(2)
+        @Max(6)
+        private int maxMembers = 6;
+
+        public int getMaxMembers() {
+            return maxMembers;
+        }
+
+        public void setMaxMembers(int maxMembers) {
+            this.maxMembers = maxMembers;
+        }
     }
 
     public static class Ranking {
         @NotNull private Duration timeout = Duration.ofSeconds(3);
         private boolean stubEnabled;
-        public Duration getTimeout() { return timeout; }
-        public void setTimeout(Duration timeout) { this.timeout = timeout; }
-        public boolean isStubEnabled() { return stubEnabled; }
-        public void setStubEnabled(boolean stubEnabled) { this.stubEnabled = stubEnabled; }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+
+        public boolean isStubEnabled() {
+            return stubEnabled;
+        }
+
+        public void setStubEnabled(boolean stubEnabled) {
+            this.stubEnabled = stubEnabled;
+        }
     }
 
     public static class Restriction {
         @NotNull private Duration timeout = Duration.ofSeconds(3);
         private boolean stubEnabled;
-        public Duration getTimeout() { return timeout; }
-        public void setTimeout(Duration timeout) { this.timeout = timeout; }
-        public boolean isStubEnabled() { return stubEnabled; }
-        public void setStubEnabled(boolean stubEnabled) { this.stubEnabled = stubEnabled; }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+
+        public boolean isStubEnabled() {
+            return stubEnabled;
+        }
+
+        public void setStubEnabled(boolean stubEnabled) {
+            this.stubEnabled = stubEnabled;
+        }
     }
 
     /**
-     * FE hỏi trạng thái hàng chờ mỗi giây; im lặng quá timeout nghĩa là người chơi đã đóng tab hoặc trình duyệt.
-     * Phải ngắn hơn nhiều so với fill-timeout (30s) để người đã rời không kịp bị ghép vào trận.
+     * FE hỏi trạng thái hàng chờ mỗi giây; im lặng quá timeout nghĩa là người chơi đã đóng tab hoặc
+     * trình duyệt. Phải ngắn hơn nhiều so với fill-timeout (30s) để người đã rời không kịp bị ghép
+     * vào trận.
      */
     public static class Presence {
         @NotNull private Duration timeout = Duration.ofSeconds(10);
-        @Min(1000) private long sweepDelayMs = 2000;
-        public Duration getTimeout() { return timeout; }
-        public void setTimeout(Duration timeout) { this.timeout = timeout; }
-        public long getSweepDelayMs() { return sweepDelayMs; }
-        public void setSweepDelayMs(long sweepDelayMs) { this.sweepDelayMs = sweepDelayMs; }
+
+        @Min(1000)
+        private long sweepDelayMs = 2000;
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+
+        public long getSweepDelayMs() {
+            return sweepDelayMs;
+        }
+
+        public void setSweepDelayMs(long sweepDelayMs) {
+            this.sweepDelayMs = sweepDelayMs;
+        }
 
         @AssertTrue(message = "matchmaking.presence.timeout phải lớn hơn 0")
         public boolean isValid() {
@@ -176,9 +400,21 @@ public class MatchmakingProperties {
     public static class Wallet {
         @NotNull private Duration timeout = Duration.ofSeconds(3);
         private boolean stubEnabled;
-        public Duration getTimeout() { return timeout; }
-        public void setTimeout(Duration timeout) { this.timeout = timeout; }
-        public boolean isStubEnabled() { return stubEnabled; }
-        public void setStubEnabled(boolean stubEnabled) { this.stubEnabled = stubEnabled; }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+
+        public boolean isStubEnabled() {
+            return stubEnabled;
+        }
+
+        public void setStubEnabled(boolean stubEnabled) {
+            this.stubEnabled = stubEnabled;
+        }
     }
 }

@@ -1,5 +1,7 @@
 # social-service
 
+Cấu trúc package và lệnh kiểm tra: [Social/Chat/Matchmaking](../SERVICE_STRUCTURE.md).
+
 Backend MVP theo SPEC §6 và §9.3, port 8084. Sở hữu PostgreSQL `social_db`; không đọc DB khác hoặc lưu name/avatar.
 
 ## Chạy và bảo vệ ingress

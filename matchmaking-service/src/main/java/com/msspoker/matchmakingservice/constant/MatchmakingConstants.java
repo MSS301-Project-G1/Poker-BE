@@ -6,6 +6,5 @@ public final class MatchmakingConstants {
     public static final int PARTY_PASSWORD_DIGITS = 6;
     public static final int PRESENCE_SWEEP_BATCH = 100;
 
-    private MatchmakingConstants() {
-    }
+    private MatchmakingConstants() {}
 }

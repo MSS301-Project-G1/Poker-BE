@@ -4,5 +4,4 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.UUID;
 
-public record PartyKickRequest(@NotNull UUID accountId) {
-}
+public record PartyKickRequest(@NotNull UUID accountId) {}

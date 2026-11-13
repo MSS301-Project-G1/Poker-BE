@@ -13,6 +13,11 @@
     <description>chat-service</description>
     <dependencies>
         <dependency>
+            <groupId>io.github.kshired</groupId>
+            <artifactId>ban-word-validator</artifactId>
+            <version>0.1.1</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>

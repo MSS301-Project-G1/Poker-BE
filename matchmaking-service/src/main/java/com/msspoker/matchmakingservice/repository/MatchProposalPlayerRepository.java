@@ -2,29 +2,30 @@ package com.msspoker.matchmakingservice.repository;
 
 import com.msspoker.matchmakingservice.entity.MatchProposalPlayerEntity;
 import com.msspoker.matchmakingservice.enums.ProposalStatus;
+
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.Optional;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 
-public interface MatchProposalPlayerRepository extends JpaRepository<MatchProposalPlayerEntity, UUID> {
+public interface MatchProposalPlayerRepository
+        extends JpaRepository<MatchProposalPlayerEntity, UUID> {
     @EntityGraph(attributePaths = {"proposal", "proposal.players"})
-    Optional<MatchProposalPlayerEntity> findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
-            UUID accountId,
-            ProposalStatus status
-    );
+    Optional<MatchProposalPlayerEntity>
+            findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
+                    UUID accountId, ProposalStatus status);
 
     @EntityGraph(attributePaths = {"proposal", "proposal.players"})
-    Optional<MatchProposalPlayerEntity> findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusInAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
-            UUID accountId,
-            Collection<ProposalStatus> statuses
-    );
+    Optional<MatchProposalPlayerEntity>
+            findFirstByAccountIdAndIsDeletedFalseAndProposal_StatusInAndProposal_IsDeletedFalseOrderByCreatedAtDesc(
+                    UUID accountId, Collection<ProposalStatus> statuses);
 
-    @Query("""
+    @Query(
+            """
             select (count(player) > 0)
             from MatchProposalPlayerEntity player
             where player.accountId = :accountId
@@ -41,7 +42,6 @@ public interface MatchProposalPlayerRepository extends JpaRepository<MatchPropos
 
     @EntityGraph(attributePaths = "proposal")
     java.util.List<MatchProposalPlayerEntity>
-    findTop50ByFeeChargedTrueAndFeeRefundedFalseAndIsDeletedFalseAndProposal_StatusInOrderByUpdatedAtAsc(
-            Collection<ProposalStatus> statuses
-    );
+            findTop50ByFeeChargedTrueAndFeeRefundedFalseAndIsDeletedFalseAndProposal_StatusInOrderByUpdatedAtAsc(
+                    Collection<ProposalStatus> statuses);
 }

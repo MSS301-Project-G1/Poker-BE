@@ -1,8 +1,24 @@
 package com.msspoker.chatservice.repository;
 
-import com.msspoker.chatservice.entity.ProcessedEvent;
-import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.msspoker.chatservice.entity.ProcessedEventEntity;
 
-public interface EventReceiptRepository extends JpaRepository<ProcessedEvent, UUID>, EventReceiptRepositoryCustom {
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.UUID;
+
+public interface EventReceiptRepository extends JpaRepository<ProcessedEventEntity, UUID> {
+    @Modifying
+    @Query(
+            value =
+                    "INSERT INTO processed_events(event_id,event_type) VALUES (:id,:type) ON"
+                        + " CONFLICT DO NOTHING",
+            nativeQuery = true)
+    int insertIfAbsent(@Param("id") UUID id, @Param("type") String type);
+
+    default boolean claim(UUID id, String type) {
+        return insertIfAbsent(id, type) == 1;
+    }
 }

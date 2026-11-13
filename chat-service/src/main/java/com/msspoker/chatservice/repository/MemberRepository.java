@@ -1,11 +1,14 @@
 package com.msspoker.chatservice.repository;
 
-import com.msspoker.chatservice.entity.ConversationMember;
-import java.util.*;
+import com.msspoker.chatservice.entity.ConversationMemberEntity;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface MemberRepository extends JpaRepository<ConversationMember, UUID> {
-  boolean existsByConversationIdAndAccountId(UUID conversation, UUID account);
+import java.util.List;
+import java.util.UUID;
 
-  List<ConversationMember> findByConversationIdOrderByAccountId(UUID id);
+public interface MemberRepository extends JpaRepository<ConversationMemberEntity, UUID> {
+    boolean existsByConversationIdAndAccountId(UUID conversation, UUID account);
+
+    List<ConversationMemberEntity> findByConversationIdOrderByAccountId(UUID id);
 }

@@ -84,6 +84,9 @@ Các điều **không làm**: không tặng xu giữa người chơi, không rú
 - **Thanh toán:** PayOS.
 - **Chặn IP Việt Nam:** chỉ làm khi deploy, bằng Cloudflare. Nhóm test qua VPN. Không nằm trong code.
 - **Chat:** chat trong trận và chat bạn bè gộp chung **một** `chat-service`, một DB (yêu cầu của thầy).
+- **Lọc chat:** mọi tin TEXT trong DIRECT/MATCH, qua REST hoặc STOMP, phải kiểm tra từ
+  cấm trước khi lưu/phát realtime. Vi phạm trả `CHAT_CONTENT_NOT_ALLOWED` (REST HTTP 400;
+  STOMP qua `/user/queue/chat-errors`), người dùng sửa nội dung rồi gửi lại.
 - **Trang Admin:** có làm. Ai sở hữu module nào thì làm trang Admin của module đó.
 
 ---
@@ -505,10 +508,10 @@ của identity; hiện game kiểm tra restrictions khi tạo bàn.
 Giống 7.2 nhưng: không kiểm tra/trừ xu, không có popup chấp nhận *(đề xuất)*, bỏ qua Elo. Hoài Anh nhận `match.finished` với `mode = NORMAL` thì bỏ qua.
 
 API Normal: `POST /api/matchmaking/normal/join`, `DELETE /api/matchmaking/normal/leave`,
-`GET /api/matchmaking/normal/status` và `GET /api/matchmaking/normal/reconnect`. Khi tạo bàn,
+`GET /api/matchmaking/normal/status`. Khi tạo bàn,
 Matchmaking lưu trạng thái `IN_GAME`, `proposalId`, `tableId`, `matchId`, host, port và WebSocket
-path trong Redis theo account. Reconnect chỉ trả địa chỉ trận cũ khi Redis có `IN_GAME` và Game
-service vẫn xác nhận đúng bàn đó; record stale phải bị xóa.
+path trong Redis theo account để theo dõi trạng thái trận. Matchmaking không cung cấp API
+`/reconnect` cho Normal hoặc Rank; kết nối lại bàn dùng API active-table của Game.
 Mode được xác định bởi URL nên request join không cần body `mode`.
 
 Quy tắc gom người trước khi mở bàn:

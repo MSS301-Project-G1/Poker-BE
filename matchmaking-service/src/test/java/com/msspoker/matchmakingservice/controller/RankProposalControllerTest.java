@@ -1,15 +1,5 @@
 package com.msspoker.matchmakingservice.controller;
 
-import com.msspoker.matchmakingservice.service.normal.NormalProposalService;
-
-import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
-import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
-import com.msspoker.matchmakingservice.service.rank.RankProposalService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.UUID;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -19,6 +9,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
+
+import com.msspoker.matchmakingservice.dto.response.QueueStatusResponse;
+import com.msspoker.matchmakingservice.exception.MatchmakingExceptionHandler;
+import com.msspoker.matchmakingservice.service.RankProposalService;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.UUID;
 
 class RankProposalControllerTest {
     private static final UUID PROPOSAL_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
@@ -30,17 +30,24 @@ class RankProposalControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(RankProposalService.class);
-        mvc = standaloneSetup(new RankProposalController(service, mock(com.msspoker.matchmakingservice.service.normal.NormalProposalService.class)))
-                .setControllerAdvice(new MatchmakingExceptionHandler())
-                .build();
+        mvc =
+                standaloneSetup(
+                                new RankProposalController(
+                                        service,
+                                        mock(
+                                                com.msspoker.matchmakingservice.service
+                                                        .NormalProposalService.class)))
+                        .setControllerAdvice(new MatchmakingExceptionHandler())
+                        .build();
     }
 
     @Test
     void acceptContract() throws Exception {
         when(service.accept(PROPOSAL_ID, ACCOUNT_ID)).thenReturn(QueueStatusResponse.none());
 
-        mvc.perform(post("/api/matchmaking/proposals/{id}/accept", PROPOSAL_ID)
-                        .header("X-User-Id", ACCOUNT_ID))
+        mvc.perform(
+                        post("/api/matchmaking/proposals/{id}/accept", PROPOSAL_ID)
+                                .header("X-User-Id", ACCOUNT_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.status").value("NONE"));
@@ -48,8 +55,9 @@ class RankProposalControllerTest {
 
     @Test
     void declineContract() throws Exception {
-        mvc.perform(post("/api/matchmaking/proposals/{id}/decline", PROPOSAL_ID)
-                        .header("X-User-Id", ACCOUNT_ID))
+        mvc.perform(
+                        post("/api/matchmaking/proposals/{id}/decline", PROPOSAL_ID)
+                                .header("X-User-Id", ACCOUNT_ID))
                 .andExpect(status().isNoContent());
 
         verify(service).decline(PROPOSAL_ID, ACCOUNT_ID);
